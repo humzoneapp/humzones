@@ -184,10 +184,10 @@ const QUIZ = [
 
 const TABS = [
   {id:"feel",    label:"What You'll Feel",  icon:"sound"},
+  {id:"numbers", label:"By the Numbers",    icon:"number"},
   {id:"quiz",    label:"Your Risk Quiz",    icon:"question"},
   {id:"health",  label:"Long-Term Health",  icon:"heart"},
   {id:"kids",    label:"Kids and Families", icon:"kids"},
-  {id:"numbers", label:"By the Numbers",    icon:"number"},
   {id:"act",     label:"What To Do",        icon:"action"},
   {id:"reports", label:"Community",         icon:"community"},
 ];
@@ -293,13 +293,22 @@ const FacilityMapImage = ({ dc, rc }) => {
     ? `https://staticmap.openstreetmap.de/staticmap.php?center=${lat},${lng}&zoom=15&size=800x350&markers=${lat},${lng},red-pushpin`
     : null;
 
-  // Fallback to a high-res server image from picsum with consistent seed
+  // Curated data center / server room images — always relevant, always professional
+  const DC_IMGS = [
+    "https://images.unsplash.com/photo-1558494949-ef010cbdcc31?w=900&q=80",
+    "https://images.unsplash.com/photo-1573164713988-8665fc963095?w=900&q=80",
+    "https://images.unsplash.com/photo-1544197150-b99a580bb7a8?w=900&q=80",
+    "https://images.unsplash.com/photo-1606765962248-7ff407b51667?w=900&q=80",
+    "https://images.unsplash.com/photo-1580584126903-c17d41830450?w=900&q=80",
+    "https://images.unsplash.com/photo-1597852074816-d933c7d2b988?w=900&q=80",
+    "https://images.unsplash.com/photo-1531482615713-2afd69097998?w=900&q=80",
+    "https://images.unsplash.com/photo-1587440871875-191322ee64b0?w=900&q=80",
+  ];
   const fallbackUrl = (() => {
     let hash = 0;
     const name = dc?.Name || "facility";
     for (let i = 0; i < name.length; i++) hash = (hash * 31 + name.charCodeAt(i)) & 0xffff;
-    const seed = 100 + (hash % 50);
-    return `https://picsum.photos/seed/${seed}/800/350`;
+    return DC_IMGS[hash % DC_IMGS.length];
   })();
 
   useEffect(() => {
@@ -393,6 +402,9 @@ export default function App() {
   const [qStep,setQStep]         = useState(0);
   const [qAns,setQAns]           = useState({});
   const [qRes,setQRes]           = useState(null);
+  const [qEmail,setQEmail]       = useState("");
+  const [qEmailStep,setQEmailStep] = useState(false); // show email capture after quiz
+  const [qEmailSent,setQEmailSent] = useState(false);
   const [statVals,setStatVals]   = useState([0,0,0,0]);
   const cRef    = useRef(null);
   const ciRef   = useRef(null);
@@ -491,20 +503,82 @@ export default function App() {
 
   const calcQuiz = a => {
     let score=0; const flags=[];
-    if(a.dist==="Less than 0.25 miles"){score+=3;flags.push("Very close proximity — highest EMF, noise, and air quality impact zone");}
-    else if(a.dist==="0.25 to 0.5 miles"){score+=2;flags.push("Close — within significant noise and air quality impact zone");}
-    else if(a.dist==="0.5 to 1 mile"){score+=1;flags.push("Moderate — within documented low-frequency noise range");}
-    if(a.kids==="Yes"){score+=2;flags.push("Children present — higher vulnerability to all environmental impacts");}
-    if(a.preg==="Yes"){score+=2;flags.push("Pregnancy — elevated concern for EMF and air pollution exposure");}
-    if(a.health==="Yes"){score+=2;flags.push("Existing health conditions — pollution and noise compound these risks");}
-    if(a.dur==="More than 10 years"){score+=1;flags.push("Long-term resident — chronic exposure accumulates over time");}
-    const level=score>=6?"HIGH":score>=3?"MODERATE":"LOWER";
-    const advice=score>=6
-      ?"Your situation warrants immediate action. Request an independent EMF survey, file formal complaints with your local zoning board and state environmental agency, and speak with your doctor."
-      :score>=3
-      ?"Your situation warrants monitoring and action. Document any symptoms, keep windows closed on generator test days, and learn your local zoning board's complaint process."
-      :"Your risk is lower, but not zero. Stay informed about planned expansions and document any symptoms you notice.";
-    return{level,score,flags,advice};
+    const actions=[];
+
+    if(a.dist==="Less than 0.25 miles"){
+      score+=3;
+      flags.push("You are in the highest impact zone — within the documented range for significant EMF, noise, and air pollution exposure.");
+      actions.push("Request a professional EMF measurement at your property boundary immediately. At this distance, readings can exceed the 3-4 milligauss threshold linked to health concerns.");
+      actions.push("File a formal noise complaint with your local zoning authority, citing industrial use permit conditions. Request the facility's noise monitoring data.");
+    } else if(a.dist==="0.25 to 0.5 miles"){
+      score+=2;
+      flags.push("You are within the significant impact zone — documented range for noise penetration and potential air quality effects from generator tests.");
+      actions.push("Monitor for symptoms during generator test days, typically once per month. Request the facility's test schedule in writing.");
+      actions.push("Consider a professional EMF assessment if you or family members have experienced unexplained health symptoms.");
+    } else if(a.dist==="0.5 to 1 mile"){
+      score+=1;
+      flags.push("You are within the extended noise range — low-frequency sound travels further than conventional dB measurements suggest.");
+      actions.push("Note any symptoms on nights when wind is blowing toward your home from the facility direction.");
+    } else {
+      flags.push("Your distance provides some buffer, though low-frequency noise and substation EMF can affect areas beyond one mile in some conditions.");
+    }
+
+    if(a.kids==="Yes"){
+      score+=2;
+      flags.push("Children in your household face higher vulnerability — their developing systems are more sensitive to EMF, air pollution, and noise disruption.");
+      actions.push("Ask your child's doctor to note any symptoms in their medical record, especially sleep issues, headaches, or unexplained behavioral changes.");
+      actions.push("Keep children indoors on generator test days and keep windows closed during and after visible exhaust events.");
+    }
+
+    if(a.preg==="Yes"){
+      score+=2;
+      flags.push("Pregnancy elevates concern significantly — ELF-EMF has been studied in relation to miscarriage risk, and PM2.5 is associated with premature birth.");
+      actions.push("Discuss proximity to industrial EMF and air pollution with your OB or midwife. Request it be noted in your prenatal records.");
+      actions.push("Minimize time outdoors near the facility boundary during generator tests.");
+    }
+
+    if(a.health==="Yes"){
+      score+=2;
+      flags.push("Pre-existing health conditions are compounded by environmental noise and air pollution — both independently worsen cardiovascular and respiratory health.");
+      actions.push("Speak with your doctor specifically about environmental noise exposure and diesel PM2.5 — ask whether your current medications or conditions require extra precaution.");
+      actions.push("HEPA air purifiers rated for PM2.5 are especially important if asthma or COPD is present in your household.");
+    }
+
+    if(a.dur==="More than 10 years"){
+      score+=1;
+      flags.push("Long-term residency means cumulative exposure — chronic effects compound over time and may not be immediately apparent.");
+      actions.push("Consider requesting a comprehensive health screening that includes cardiovascular markers, given the documented link between long-term industrial noise exposure and heart disease.");
+    } else if(a.dur==="3 to 10 years"){
+      flags.push("Several years of exposure means cumulative effects are worth monitoring, particularly for sleep quality and cardiovascular health.");
+    }
+
+    const level = score>=6?"HIGH":score>=3?"MODERATE":"LOWER";
+
+    const summary = score>=6
+      ? `Based on your answers, you are in a HIGH risk situation. Your combination of close proximity${a.kids==="Yes"?" with children present":""}${a.preg==="Yes"?" and pregnancy":""} creates a compounding risk profile that warrants immediate attention. The research is clear that people in your situation — within a quarter mile of a high-power facility — face measurably elevated exposure to EMF, diesel particulate matter, and chronic low-frequency noise. Each of these independently carries documented health risks. Together they represent a situation that deserves professional assessment and formal action.`
+      : score>=3
+      ? `Based on your answers, you are in a MODERATE risk situation. Your proximity and household circumstances place you within the documented impact range of this facility. While your risk is lower than those closest to the fence line, the cumulative effects of long-term exposure to industrial noise, diesel exhaust during monthly generator tests, and elevated EMF are real and worth taking seriously. Monitoring, documentation, and precautionary steps are appropriate right now.`
+      : `Based on your answers, your immediate risk is LOWER than residents closer to the facility. However, no distance within a mile of a high-power data center is completely without impact. Low-frequency noise travels further than standard measurements indicate, and substation EMF has been measured at meaningful levels beyond what most people expect. Stay informed, document any symptoms you notice, and re-assess if the facility expands.`;
+
+    return{level,score,flags,actions,summary};
+  };
+
+  const saveQuizEmail = async () => {
+    if(!qEmail.trim()||!dc) return;
+    try {
+      await fetch(`${APIURL}/Emails`, {
+        method:"POST", headers:HDR,
+        body:JSON.stringify({fields:{
+          Email:qEmail.trim(),
+          Facility:dc.Name,
+          City:dc.City,
+          Country:dc.Country,
+          Risk_Level:qRes?.level||"",
+          Date:new Date().toISOString().split("T")[0],
+        }}),
+      });
+    } catch(e){ console.log("Email save failed silently"); }
+    setQEmailSent(true);
   };
 
   const sendReport = async () => {
@@ -780,30 +854,88 @@ export default function App() {
                 {tab==="quiz" && (
                   <div>
                     <h3 style={{fontSize:22,fontWeight:900,color:"#0f172a",marginBottom:10}}>Your Personal Risk Assessment</h3>
-                    <p style={{fontSize:16,color:"#64748b",marginBottom:28,lineHeight:1.75}}>Answer five questions to receive a personalized assessment based on your proximity and household situation.</p>
-                    {qRes ? (
+                    <p style={{fontSize:16,color:"#64748b",marginBottom:28,lineHeight:1.75}}>Answer five questions to receive a detailed, personalized assessment based on your proximity and household situation.</p>
+
+                    {/* RESULTS */}
+                    {qRes && !qEmailStep && (
                       <div>
+                        {/* Risk level header */}
                         <div style={{background:(RISK_C[qRes.level]||"#64748b")+"0d",border:`2px solid ${(RISK_C[qRes.level]||"#64748b")}22`,borderRadius:18,padding:"28px",marginBottom:20}}>
                           <div style={{fontSize:13,color:"#94a3b8",fontWeight:800,letterSpacing:".1em",textTransform:"uppercase",marginBottom:12}}>Your Personal Risk Level</div>
-                          <div style={{fontSize:56,fontWeight:900,color:RISK_C[qRes.level]||"#64748b",letterSpacing:"-.02em",marginBottom:16,lineHeight:1}}>{qRes.level}</div>
-                          <p style={{fontSize:16,color:"#374151",lineHeight:1.85,marginBottom:24}}>{qRes.advice}</p>
-                          <div style={{fontSize:13,color:"#94a3b8",fontWeight:700,textTransform:"uppercase",letterSpacing:".08em",marginBottom:12}}>Why this rating:</div>
+                          <div style={{fontSize:60,fontWeight:900,color:RISK_C[qRes.level]||"#64748b",letterSpacing:"-.02em",marginBottom:16,lineHeight:1}}>{qRes.level}</div>
+                          <p style={{fontSize:16,color:"#374151",lineHeight:1.85,marginBottom:0}}>{qRes.summary}</p>
+                        </div>
+
+                        {/* Why this rating */}
+                        <div style={{background:"#fff",border:"1px solid #e2e8f0",borderRadius:16,padding:"22px 24px",marginBottom:16,boxShadow:"0 2px 8px rgba(0,0,0,.04)"}}>
+                          <div style={{fontSize:13,color:"#94a3b8",fontWeight:800,textTransform:"uppercase",letterSpacing:".08em",marginBottom:14}}>What this means for your situation</div>
                           {qRes.flags.map((f,i)=>(
-                            <div key={i} style={{display:"flex",gap:10,alignItems:"flex-start",padding:"8px 0",borderBottom:i<qRes.flags.length-1?"1px solid #f1f5f9":"none"}}>
-                              <Icon name="check" size={16} color={RISK_C[qRes.level]||"#64748b"}/>
-                              <div style={{fontSize:15,color:"#374151",lineHeight:1.6}}>{f}</div>
+                            <div key={i} style={{display:"flex",gap:12,alignItems:"flex-start",padding:"10px 0",borderBottom:i<qRes.flags.length-1?"1px solid #f8fafc":"none"}}>
+                              <div style={{width:28,height:28,borderRadius:"50%",background:(RISK_C[qRes.level]||"#64748b")+"14",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
+                                <Icon name="alert" size={14} color={RISK_C[qRes.level]||"#64748b"}/>
+                              </div>
+                              <div style={{fontSize:15,color:"#374151",lineHeight:1.7}}>{f}</div>
                             </div>
                           ))}
                         </div>
-                        <button onClick={()=>{setQStep(0);setQRes(null);setQAns({});}} style={{padding:"12px 26px",borderRadius:12,border:`2px solid ${rc}`,background:"transparent",color:rc,fontSize:15,fontWeight:700,cursor:"pointer",fontFamily:"inherit",display:"flex",alignItems:"center",gap:8}}>Retake Quiz</button>
+
+                        {/* Specific actions */}
+                        {qRes.actions && qRes.actions.length>0 && (
+                          <div style={{background:"#fff",border:"1px solid #e2e8f0",borderRadius:16,padding:"22px 24px",marginBottom:20,boxShadow:"0 2px 8px rgba(0,0,0,.04)"}}>
+                            <div style={{fontSize:13,color:"#94a3b8",fontWeight:800,textTransform:"uppercase",letterSpacing:".08em",marginBottom:14}}>Your specific recommended actions</div>
+                            {qRes.actions.map((a,i)=>(
+                              <div key={i} style={{display:"flex",gap:12,alignItems:"flex-start",padding:"10px 0",borderBottom:i<qRes.actions.length-1?"1px solid #f8fafc":"none"}}>
+                                <div style={{width:28,height:28,borderRadius:"50%",background:rc+"14",color:rc,fontSize:13,fontWeight:800,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,marginTop:1}}>{i+1}</div>
+                                <div style={{fontSize:15,color:"#374151",lineHeight:1.75}}>{a}</div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+
+                        {/* Email capture — optional */}
+                        {!qEmailSent && (
+                          <div style={{background:"linear-gradient(135deg,#0f172a,#1e0535)",borderRadius:16,padding:"24px 26px",marginBottom:20}}>
+                            <div style={{fontSize:16,fontWeight:800,color:"#fff",marginBottom:6}}>Get your full report by email</div>
+                            <div style={{fontSize:14,color:"rgba(255,255,255,.6)",marginBottom:18,lineHeight:1.65}}>We will send you your personalized assessment plus updates when new data centers are proposed or approved near {dc?.City||"your area"}. No spam, unsubscribe anytime.</div>
+                            <div style={{display:"flex",gap:10,flexWrap:"wrap"}}>
+                              <input value={qEmail} onChange={e=>setQEmail(e.target.value)}
+                                placeholder="Your email address"
+                                type="email"
+                                style={{flex:1,minWidth:220,padding:"13px 16px",borderRadius:10,border:"1.5px solid rgba(255,255,255,.2)",background:"rgba(255,255,255,.1)",color:"#fff",fontSize:15,outline:"none",fontFamily:"inherit"}}/>
+                              <button onClick={saveQuizEmail} disabled={!qEmail.trim()}
+                                style={{padding:"13px 24px",borderRadius:10,border:"none",background:qEmail.trim()?rc:"rgba(255,255,255,.15)",color:"#fff",fontSize:15,fontWeight:700,cursor:qEmail.trim()?"pointer":"default",fontFamily:"inherit",transition:"all .2s",whiteSpace:"nowrap"}}>
+                                Send My Report
+                              </button>
+                            </div>
+                            <button onClick={()=>setQEmailSent(true)} style={{marginTop:12,background:"transparent",border:"none",color:"rgba(255,255,255,.4)",fontSize:13,cursor:"pointer",fontFamily:"inherit",padding:0}}>
+                              Skip — I do not want updates
+                            </button>
+                          </div>
+                        )}
+
+                        {qEmailSent && (
+                          <div style={{background:"#f0fdf4",border:"1.5px solid #bbf7d0",borderRadius:14,padding:"16px 20px",marginBottom:20,display:"flex",alignItems:"center",gap:10}}>
+                            <Icon name="check" size={20} color="#15803d"/>
+                            <div style={{fontSize:15,color:"#166534",fontWeight:600}}>Report sent. You will receive updates about {dc?.City||"your area"}.</div>
+                          </div>
+                        )}
+
+                        <button onClick={()=>{setQStep(0);setQRes(null);setQAns({});setQEmailStep(false);setQEmailSent(false);setQEmail("");}}
+                          style={{padding:"12px 26px",borderRadius:12,border:`2px solid ${rc}`,background:"transparent",color:rc,fontSize:15,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}>
+                          Retake Quiz
+                        </button>
                       </div>
-                    ) : (
+                    )}
+
+                    {/* QUESTIONS */}
+                    {!qRes && (
                       <div>
                         <div style={{fontSize:14,color:"#94a3b8",fontWeight:700,textTransform:"uppercase",letterSpacing:".08em",marginBottom:16}}>Question {qStep+1} of {QUIZ.length}</div>
                         <div style={{background:"#f8fafc",borderRadius:16,padding:"26px",marginBottom:18}}>
                           <p style={{fontSize:18,color:"#0f172a",fontWeight:700,marginBottom:22,lineHeight:1.55}}>{QUIZ[qStep].q}</p>
                           {QUIZ[qStep].o.map(opt=>(
-                            <button key={opt} className="q-opt" style={{display:"block",width:"100%",padding:"16px 20px",borderRadius:12,border:"2px solid #e2e8f0",background:"#fff",color:"#374151",fontSize:16,marginBottom:10,boxShadow:"0 1px 4px rgba(0,0,0,.05)",fontWeight:500}}
+                            <button key={opt} className="q-opt"
+                              style={{display:"block",width:"100%",padding:"16px 20px",borderRadius:12,border:"2px solid #e2e8f0",background:"#fff",color:"#374151",fontSize:16,marginBottom:10,boxShadow:"0 1px 4px rgba(0,0,0,.05)",fontWeight:500}}
                               onClick={()=>{
                                 const a={...qAns,[QUIZ[qStep].k]:opt};
                                 setQAns(a);
