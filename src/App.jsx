@@ -520,7 +520,9 @@ export default function App() {
       flags.push("You are within the extended noise range. Low-frequency sound travels further than conventional dB measurements suggest.");
       actions.push("Note any symptoms on nights when wind is blowing toward your home from the facility direction.");
     } else {
-      flags.push("Your distance provides some buffer, though low-frequency noise and substation EMF can affect areas beyond one mile in some conditions.");
+      flags.push("Your distance provides some buffer. However, low-frequency noise from cooling systems travels further than standard decibel measurements suggest, and substation EMF has been measured at meaningful levels beyond one mile in several documented cases.");
+      actions.push("Establish a baseline now. Note your current sleep quality, any headache frequency, and general wellbeing. If the facility expands, you will have documentation showing when changes began.");
+      actions.push("Sign up for any local planning notifications so you are informed if the facility applies for expansion permits, additional substations, or increased generator capacity.");
     }
 
     if(a.kids==="Yes"){
@@ -549,16 +551,19 @@ export default function App() {
       flags.push("Long-term residency means cumulative exposure. Chronic effects compound over time and may not be immediately apparent.");
       actions.push("Consider requesting a comprehensive health screening that includes cardiovascular markers, given the documented link between long-term industrial noise exposure and heart disease.");
     } else if(a.dur==="3 to 10 years"){
-      flags.push("Several years of exposure means cumulative effects are worth monitoring, particularly for sleep quality and cardiovascular health.");
+      flags.push("Several years of exposure means cumulative effects are worth monitoring. Research on chronic industrial noise exposure shows cardiovascular and sleep effects that develop gradually over this timeframe.");
+      actions.push("Consider tracking your sleep quality for two to four weeks using a sleep app or journal. Disrupted sleep is often the first measurable sign of chronic low-frequency noise exposure.");
+    } else if(a.dur==="1 to 3 years"){
+      flags.push("One to three years of exposure is within the timeframe where early cumulative effects can begin. This is a good time to establish health baselines and begin documentation.");
     }
 
     const level = score>=6?"HIGH":score>=3?"MODERATE":"LOWER";
 
     const summary = score>=6
-      ? `Based on your answers, you are in a HIGH risk situation. Your combination of close proximity${a.kids==="Yes"?" with children present":""}${a.preg==="Yes"?" and pregnancy":""} creates a compounding risk profile that warrants immediate attention. The research is clear that people in your situation , within a quarter mile of a high-power facility , face measurably elevated exposure to EMF, diesel particulate matter, and chronic low-frequency noise. Each of these independently carries documented health risks. Together they represent a situation that deserves professional assessment and formal action.`
+      ? `Based on your answers, you are in a HIGH risk situation. Your combination of ${a.dist==="Less than 0.25 miles"?"very close proximity (under a quarter mile)":a.dist==="0.25 to 0.5 miles"?"close proximity (under half a mile)":"moderate proximity"}${a.kids==="Yes"?", children in your household":""}${a.preg==="Yes"?", and pregnancy":""} creates a compounding risk profile that warrants immediate and serious attention. The research is unambiguous: people in your situation face measurably elevated exposure to three separate categories of documented health hazards. First, power-frequency EMF from substations and high-voltage lines at this distance regularly exceeds the 3 to 4 milligauss threshold where epidemiological studies found elevated childhood leukemia rates. Second, diesel PM2.5 from monthly generator tests is a WHO Group 1 carcinogen with no established safe exposure level. Third, chronic low-frequency noise operates below the threshold of normal hearing measurement but penetrates walls and disrupts sleep architecture over time. Each of these independently carries documented health risks. Together, as a combined chronic exposure, they represent a situation that deserves professional environmental assessment, formal regulatory complaints, and a conversation with your doctor.`
       : score>=3
-      ? `Based on your answers, you are in a MODERATE risk situation. Your proximity and household circumstances place you within the documented impact range of this facility. While your risk is lower than those closest to the fence line, the cumulative effects of long-term exposure to industrial noise, diesel exhaust during monthly generator tests, and elevated EMF are real and worth taking seriously. Monitoring, documentation, and precautionary steps are appropriate right now.`
-      : `Based on your answers, your immediate risk is LOWER than residents closer to the facility. However, no distance within a mile of a high-power data center is completely without impact. Low-frequency noise travels further than standard measurements indicate, and substation EMF has been measured at meaningful levels beyond what most people expect. Stay informed, document any symptoms you notice, and re-assess if the facility expands.`;
+      ? `Based on your answers, you are in a MODERATE risk situation. Your proximity and household circumstances place you within the documented impact range of this facility. ${a.dist==="0.25 to 0.5 miles"?"At under half a mile, you are well within the zone where low-frequency noise, diesel exhaust during generator tests, and elevated EMF have been measured and documented.":a.dist==="0.5 to 1 mile"?"At under one mile, low-frequency sound from cooling systems and generator operations reaches your home, particularly at night when ambient noise drops.":"At your distance, the primary concerns are low-frequency noise at night, diesel exhaust during monthly generator tests, and substation EMF if you are near the electrical infrastructure."} While your risk is lower than those closest to the fence line, the cumulative effects of long-term exposure to industrial noise, diesel exhaust during monthly generator tests, and elevated EMF are real and worth taking seriously. Residents at this distance have documented sleep disruption, intermittent headaches, and heightened anxiety linked to generator test events. Monitoring, documentation, and precautionary steps are appropriate right now, and you have standing to file formal noise and air quality concerns with your local authority.`
+      : `Based on your answers, your immediate risk is LOWER than residents closer to the facility. ${a.dist==="More than 1 mile"?"At over one mile, you are beyond the zone where the most acute effects have been documented, though low-frequency sound and substation EMF have been measured at meaningful levels further than most people expect.":"At your distance, direct health impacts are less well-documented, though they are not zero."} The most important thing to understand is that data centers are not static. They expand. New substations get added. Generator capacity increases. Residents who tracked a facility from its early stages were far better positioned to challenge expansions than those who noticed problems only after years of exposure. Your lower risk today is a reason to stay informed and document a baseline, not a reason to be unconcerned. Check back if the facility announces expansion, if new substations are installed nearby, or if you or family members begin experiencing unexplained sleep disruption or headaches.`;
 
     return{level,score,flags,actions,summary};
   };
@@ -869,6 +874,11 @@ export default function App() {
                         {/* Full details: only visible after email entered */}
                         {qEmailSent && (
                           <div>
+                            {/* Green confirmation bubble sits right above the detailed content */}
+                            <div style={{background:"#f0fdf4",border:"1.5px solid #bbf7d0",borderRadius:12,padding:"14px 18px",marginBottom:20,display:"flex",alignItems:"center",gap:10}}>
+                              <Icon name="check" size={18} color="#15803d"/>
+                              <div style={{fontSize:14,color:"#166534",fontWeight:700}}>Your full report is unlocked. Your email has been saved privately.</div>
+                            </div>
                             <div style={{background:"#fff",border:"1px solid #e2e8f0",borderRadius:16,padding:"22px 24px",marginBottom:16,boxShadow:"0 2px 8px rgba(0,0,0,.04)"}}>
                               <div style={{fontSize:13,color:"#94a3b8",fontWeight:800,textTransform:"uppercase",letterSpacing:".08em",marginBottom:14}}>What this means for your situation</div>
                               {qRes.flags.map((f,i)=>(
@@ -926,13 +936,7 @@ export default function App() {
                           </div>
                         )}
 
-                        {/* Confirmation after unlock */}
-                        {qEmailSent && qEmail && (
-                          <div style={{background:"#f0fdf4",border:"1.5px solid #bbf7d0",borderRadius:12,padding:"14px 18px",marginBottom:20,display:"flex",alignItems:"center",gap:10}}>
-                            <Icon name="check" size={18} color="#15803d"/>
-                            <div style={{fontSize:14,color:"#166534",fontWeight:600}}>Your full report is unlocked below.</div>
-                          </div>
-                        )}
+
 
 
                         <button onClick={()=>{setQStep(0);setQRes(null);setQAns({});setQEmailStep(false);setQEmailSent(false);setQEmail("");}}
