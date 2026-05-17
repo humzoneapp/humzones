@@ -394,9 +394,11 @@ export default function App() {
   const [qAns,setQAns]           = useState({});
   const [qRes,setQRes]           = useState(null);
   const [statVals,setStatVals]   = useState([0,0,0,0]);
-  const cRef   = useRef(null);
-  const ciRef  = useRef(null);
-  const topRef = useRef(null);
+  const cRef    = useRef(null);
+  const ciRef   = useRef(null);
+  const cDropRef  = useRef(null);
+  const cityDropRef = useRef(null);
+  const topRef  = useRef(null);
 
   useEffect(()=>{
     apiFetch("Facilities").then(d=>{ setFacs(d); setLoading(false); });
@@ -443,8 +445,12 @@ export default function App() {
       }
     };
     const h = e => {
-      if(cRef.current  && !cRef.current.contains(e.target))  setShowCD(false);
-      if(ciRef.current && !ciRef.current.contains(e.target)) setShowCityD(false);
+      const inCInput  = cRef.current   && cRef.current.contains(e.target);
+      const inCDrop   = cDropRef.current && cDropRef.current.contains(e.target);
+      const inCiInput = ciRef.current  && ciRef.current.contains(e.target);
+      const inCiDrop  = cityDropRef.current && cityDropRef.current.contains(e.target);
+      if(!inCInput  && !inCDrop)  setShowCD(false);
+      if(!inCiInput && !inCiDrop) setShowCityD(false);
     };
     document.addEventListener("mousedown",h);
     window.addEventListener("resize",reposition);
@@ -606,7 +612,7 @@ export default function App() {
 
         {/* FIXED DROPDOWNS — rendered at root level, float above everything */}
         {showCD && (
-          <div style={{position:"fixed",top:cDropPos.top,left:cDropPos.left,width:cDropPos.width,background:"#fff",borderRadius:16,boxShadow:"0 28px 72px rgba(0,0,0,.32)",zIndex:9999,border:"1px solid #e2e8f0",overflow:"hidden"}}>
+          <div ref={cDropRef} style={{position:"fixed",top:cDropPos.top,left:cDropPos.left,width:cDropPos.width,background:"#fff",borderRadius:16,boxShadow:"0 28px 72px rgba(0,0,0,.32)",zIndex:9999,border:"1px solid #e2e8f0",overflow:"hidden"}}>
             <div className="scroll-inner" style={{maxHeight:"min(340px, 60vh)",overflowY:"auto"}}>
               {cMatches.length===0 && <div style={{padding:"16px 20px",color:"#94a3b8",fontSize:16,fontStyle:"italic"}}>No countries found</div>}
               {cMatches.map(c=>(
@@ -617,7 +623,7 @@ export default function App() {
         )}
 
         {showCityD && country && (
-          <div style={{position:"fixed",top:cityDropPos.top,left:cityDropPos.left,width:cityDropPos.width,background:"#fff",borderRadius:16,boxShadow:"0 28px 72px rgba(0,0,0,.32)",zIndex:9999,border:"1px solid #e2e8f0",overflow:"hidden"}}>
+          <div ref={cityDropRef} style={{position:"fixed",top:cityDropPos.top,left:cityDropPos.left,width:cityDropPos.width,background:"#fff",borderRadius:16,boxShadow:"0 28px 72px rgba(0,0,0,.32)",zIndex:9999,border:"1px solid #e2e8f0",overflow:"hidden"}}>
             <div className="scroll-inner" style={{maxHeight:"min(500px, 65vh)",overflowY:"auto",overflowX:"hidden"}}>
               {Object.keys(cityGroups).length===0 && <div style={{padding:"16px 20px",color:"#94a3b8",fontSize:16,fontStyle:"italic"}}>No cities found</div>}
               {Object.entries(cityGroups).map(([city,fl])=>(
