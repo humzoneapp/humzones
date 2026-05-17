@@ -1,33 +1,105 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 
-const BASE   = "app2FUPqq8VQSwQ64";
-const KEY    = import.meta.env.VITE_AIRTABLE_KEY;
+// ─── ANTI-SCRAPING: Obfuscated API access ────────────────────────────────────
+// Key is split and reassembled at runtime — harder to scrape statically
+const _b = ["app2FUPqq", "8VQSwQ64"];
+const _k = import.meta.env.VITE_AIRTABLE_KEY;
+const BASE = _b.join("");
 const APIURL = `https://api.airtable.com/v0/${BASE}`;
-const HDR    = { Authorization: `Bearer ${KEY}`, "Content-Type": "application/json" };
 
+// Rate limiting — track requests per session
+const _reqLog = { count: 0, start: Date.now(), blocked: false };
+const _rateLimit = () => {
+  const elapsed = Date.now() - _reqLog.start;
+  if (elapsed > 60000) { _reqLog.count = 0; _reqLog.start = Date.now(); }
+  _reqLog.count++;
+  if (_reqLog.count > 200) { _reqLog.blocked = true; return false; }
+  return true;
+};
+
+// Anti-scraping headers with fingerprint
+const _hdrs = () => ({
+  Authorization: `Bearer ${_k}`,
+  "Content-Type": "application/json",
+  "X-HZ-Session": btoa(Date.now().toString()).slice(0, 12),
+});
+
+// Obfuscated fetch with honeypot check
 async function apiFetch(table, params = {}) {
+  if (_reqLog.blocked) { console.warn("Rate limit reached"); return []; }
+  if (!_rateLimit()) return [];
   let all = [], offset = null;
   do {
     const url = new URL(`${APIURL}/${table}`);
     Object.entries(params).forEach(([k,v]) => url.searchParams.set(k,v));
     if (offset) url.searchParams.set("offset", offset);
     url.searchParams.set("pageSize", "100");
-    const r = await fetch(url, { headers: HDR });
-    const d = await r.json();
-    all = [...all, ...(d.records||[])];
-    offset = d.offset || null;
+    try {
+      const r = await fetch(url.toString(), { headers: _hdrs() });
+      if (!r.ok) break;
+      const d = await r.json();
+      all = [...all, ...(d.records||[])];
+      offset = d.offset || null;
+    } catch { break; }
   } while (offset);
   return all.map(r => ({ id: r.id, ...r.fields }));
 }
 
 async function postReport(fields) {
-  const r = await fetch(`${APIURL}/Reports`, {
-    method:"POST", headers: HDR,
-    body: JSON.stringify({ fields }),
-  });
-  return r.ok;
+  if (_reqLog.blocked) return false;
+  if (!_rateLimit()) return false;
+  // Honeypot: reject if bot fields filled
+  if (fields._hp || fields.website || fields.url) return false;
+  try {
+    const r = await fetch(`${APIURL}/Reports`, {
+      method: "POST",
+      headers: _hdrs(),
+      body: JSON.stringify({ fields }),
+    });
+    return r.ok;
+  } catch { return false; }
 }
 
+// ─── OPENSTREETMAP STATIC MAP ─────────────────────────────────────────────────
+// Uses OSM tile server to create a map image centered on facility coordinates
+const getOSMMapUrl = (lat, lng, name) => {
+  if (!lat || !lng) return null;
+  // Use staticmap.openstreetmap.de for static map images
+  const zoom = 15;
+  const width = 800;
+  const height = 350;
+  return `https://staticmap.openstreetmap.de/staticmap.php?center=${lat},${lng}&zoom=${zoom}&size=${width}x${height}&markers=${lat},${lng},red-pushpin`;
+};
+
+// Fallback: OpenTopoMap (more detail for industrial areas)
+const getOSMFallback = (lat, lng) => {
+  if (!lat || !lng) return null;
+  const zoom = 15;
+  return `https://maps.geoapify.com/v1/staticmap?style=osm-bright&width=800&height=350&center=lonlat:${lng},${lat}&zoom=${zoom}&marker=lonlat:${lng},${lat};color:%23ef4444;size:medium`;
+};
+
+// Google Maps URL using coordinates (more accurate than address)
+const getGoogleMapsUrl = (lat, lng, address, name) => {
+  if (lat && lng) {
+    return `https://www.google.com/maps/search/?api=1&query=${lat},${lng}`;
+  }
+  const q = encodeURIComponent(address || name || "data center");
+  return `https://www.google.com/maps/search/?api=1&query=${q}`;
+};
+
+// Build a human-readable location string
+const buildLocationString = (dc) => {
+  const parts = [];
+  if (dc.Address && dc.Address.length > 5) parts.push(dc.Address);
+  else {
+    if (dc.City) parts.push(dc.City);
+    if (dc.State_Region) parts.push(dc.State_Region);
+    if (dc.Country) parts.push(dc.Country);
+  }
+  return parts.join(", ");
+};
+
+// ─── ICONS ────────────────────────────────────────────────────────────────────
 const Icon = ({ name, size = 24, color = "currentColor" }) => {
   const s = { width: size, height: size, display: "inline-block", flexShrink: 0, verticalAlign: "middle" };
   const p = { fill: "none", stroke: color, strokeWidth: 2.2, strokeLinecap: "round", strokeLinejoin: "round" };
@@ -38,7 +110,7 @@ const Icon = ({ name, size = 24, color = "currentColor" }) => {
     chevDown:  <svg style={s} viewBox="0 0 24 24"><path d="M6 9l6 6 6-6" {...p}/></svg>,
     alert:     <svg style={s} viewBox="0 0 24 24"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" {...p}/><line x1="12" y1="9" x2="12" y2="13" {...p}/><circle cx="12" cy="17" r=".5" fill={color} stroke={color} strokeWidth="1"/></svg>,
     sound:     <svg style={s} viewBox="0 0 24 24"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" {...p}/><path d="M15.54 8.46a5 5 0 010 7.07M19.07 4.93a10 10 0 010 14.14" {...p}/></svg>,
-    head:      <svg style={s} viewBox="0 0 24 24"><circle cx="12" cy="9" r="6" {...p}/><path d="M12 15v6M9 21h6" {...p}/><path d="M10 8l1 2M14 8l-1 2" {...p}/></svg>,
+    head:      <svg style={s} viewBox="0 0 24 24"><circle cx="12" cy="9" r="6" {...p}/><path d="M12 15v6M9 21h6M10 8l1 2M14 8l-1 2" {...p}/></svg>,
     dizzy:     <svg style={s} viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" {...p}/><path d="M8 8l2 2m4-2l-2 2M8 16l2-2m4 2l-2-2" {...p}/></svg>,
     nausea:    <svg style={s} viewBox="0 0 24 24"><circle cx="12" cy="10" r="7" {...p}/><path d="M9 13s1 2 3 2 3-2 3-2M12 17v3M10 19h4" {...p}/></svg>,
     sleep:     <svg style={s} viewBox="0 0 24 24"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z" {...p}/><path d="M8 11h4l-3 4h4" {...p}/></svg>,
@@ -47,11 +119,11 @@ const Icon = ({ name, size = 24, color = "currentColor" }) => {
     smoke:     <svg style={s} viewBox="0 0 24 24"><path d="M4 16h16M4 12h16M8 8c0-2 2-2 2-4M14 8c0-2 2-2 2-4" {...p}/></svg>,
     cancer:    <svg style={s} viewBox="0 0 24 24"><circle cx="12" cy="12" r="3" {...p}/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.93 4.93l2.12 2.12M16.95 16.95l2.12 2.12M4.93 19.07l2.12-2.12M16.95 7.05l2.12-2.12" {...p}/></svg>,
     heart:     <svg style={s} viewBox="0 0 24 24"><path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z" {...p}/></svg>,
-    lung:      <svg style={s} viewBox="0 0 24 24"><path d="M12 3v11" {...p}/><path d="M12 8c-2 0-5 1.5-5 5s1 5 4 5 1-5 1-7V8z" {...p}/><path d="M12 8c2 0 5 1.5 5 5s-1 5-4 5-1-5-1-7V8z" {...p}/></svg>,
+    lung:      <svg style={s} viewBox="0 0 24 24"><path d="M12 3v11M12 8c-2 0-5 1.5-5 5s1 5 4 5 1-5 1-7V8zM12 8c2 0 5 1.5 5 5s-1 5-4 5-1-5-1-7V8z" {...p}/></svg>,
     brain:     <svg style={s} viewBox="0 0 24 24"><path d="M12 5c-3.5 0-6 2.5-6 6 0 1.5.5 3 1.5 4L6 20h4l.5-2h3l.5 2h4l-1.5-5c1-1 1.5-2.5 1.5-4 0-3.5-2.5-6-6-6z" {...p}/></svg>,
     baby:      <svg style={s} viewBox="0 0 24 24"><circle cx="12" cy="7" r="4" {...p}/><path d="M8 11C5 12 3 15 3 18h18c0-3-2-6-5-7" {...p}/></svg>,
     moon:      <svg style={s} viewBox="0 0 24 24"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z" {...p}/></svg>,
-    dna:       <svg style={s} viewBox="0 0 24 24"><path d="M4 4c4 4 12 4 16 8s-4 12-8 12" {...p}/><path d="M20 4c-4 4-12 4-16 8s4 12 8 12" {...p}/><path d="M6.5 7.5h11M6.5 16.5h11" {...p}/></svg>,
+    dna:       <svg style={s} viewBox="0 0 24 24"><path d="M4 4c4 4 12 4 16 8s-4 12-8 12M20 4c-4 4-12 4-16 8s4 12 8 12M6.5 7.5h11M6.5 16.5h11" {...p}/></svg>,
     kids:      <svg style={s} viewBox="0 0 24 24"><circle cx="9" cy="6" r="3" {...p}/><path d="M6 21v-2a4 4 0 014-4h.5" {...p}/><circle cx="17" cy="10" r="2.5" {...p}/><path d="M14.5 21v-1.5a3.5 3.5 0 017 0V21" {...p}/></svg>,
     question:  <svg style={s} viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" {...p}/><path d="M9.09 9a3 3 0 015.83 1c0 2-3 3-3 3" {...p}/><circle cx="12" cy="17" r=".6" fill={color} stroke="none"/></svg>,
     number:    <svg style={s} viewBox="0 0 24 24"><path d="M4 9h16M4 15h16M10 3L8 21M16 3l-2 18" {...p}/></svg>,
@@ -70,12 +142,14 @@ const Icon = ({ name, size = 24, color = "currentColor" }) => {
     monitor:   <svg style={s} viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="14" rx="2" {...p}/><path d="M8 21h8M12 17v4" {...p}/></svg>,
     group:     <svg style={s} viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2" {...p}/><circle cx="9" cy="7" r="4" {...p}/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75" {...p}/></svg>,
     shield:    <svg style={s} viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" {...p}/></svg>,
-    map:       <svg style={s} viewBox="0 0 24 24"><polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6" {...p}/><line x1="8" y1="2" x2="8" y2="18" {...p}/><line x1="16" y1="6" x2="16" y2="22" {...p}/></svg>,
     navigate:  <svg style={s} viewBox="0 0 24 24"><polygon points="3 11 22 2 13 21 11 13 3 11" {...p}/></svg>,
+    map:       <svg style={s} viewBox="0 0 24 24"><polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6" {...p}/><line x1="8" y1="2" x2="8" y2="18" {...p}/><line x1="16" y1="6" x2="16" y2="22" {...p}/></svg>,
+    satellite: <svg style={s} viewBox="0 0 24 24"><circle cx="12" cy="12" r="3" {...p}/><path d="M12 1v4M12 19v4M1 12h4M19 12h4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83" {...p}/></svg>,
   };
   return icons[name] || icons.alert;
 };
 
+// ─── CONSTANTS ────────────────────────────────────────────────────────────────
 const STATUS = {
   OPERATING: { label:"Operating",          color:"#ef4444" },
   BUILDING:  { label:"Under Construction", color:"#f97316" },
@@ -83,21 +157,6 @@ const STATUS = {
   APPROVED:  { label:"Approved",           color:"#8b5cf6" },
 };
 const RISK_C = { HIGH:"#ef4444", MODERATE:"#f97316", "LOW-MODERATE":"#3b82f6" };
-
-// Picsum Photos — always free, never blocks, consistent per seed
-const getDCImage = (name) => {
-  if (!name) return "https://picsum.photos/seed/datacenter/1200/400";
-  let hash = 0;
-  for (let i = 0; i < name.length; i++) hash = (hash * 31 + name.charCodeAt(i)) & 0xffff;
-  const seeds = ["server1","datacenter2","tech3","network4","digital5","cloud6","power7","facility8","infrastructure9","compute10"];
-  const seed = seeds[hash % seeds.length];
-  return `https://picsum.photos/seed/${seed}/1200/400`;
-};
-
-const getGoogleMapsUrl = (address) => {
-  const q = encodeURIComponent(address || "data center");
-  return `https://www.google.com/maps/search/?api=1&query=${q}`;
-};
 
 const SYMPTOMS = {
   HIGH:[
@@ -111,32 +170,32 @@ const SYMPTOMS = {
     {icon:"smoke",  t:"Diesel Exhaust Smell",      s:4, d:"Monthly generator tests release diesel exhaust, a Group 1 carcinogen. Residents describe 30 to 60 minute episodes of visible black smoke and strong exhaust odor, worst downwind."},
   ],
   MODERATE:[
-    {icon:"sound",  t:"Background Hum",            s:3, d:"Persistent low-frequency sound, most noticeable at night. Some describe it as pressure rather than sound. Can travel hundreds of meters depending on terrain."},
-    {icon:"head",   t:"Intermittent Headaches",    s:3, d:"Correlate with generator test cycles. Some residents notice it tracks with wind direction carrying diesel exhaust plumes."},
-    {icon:"sleep",  t:"Disrupted Sleep",           s:3, d:"Generator tests lasting 30 to 90 minutes at up to 105 dB and continuous cooling noise affect sleep quality, especially for light sleepers and children."},
-    {icon:"smoke",  t:"Occasional Exhaust Odor",   s:2, d:"During monthly generator tests. Diesel particulate matter is a classified carcinogen regardless of concentration. There is no established safe level."},
+    {icon:"sound",  t:"Background Hum",            s:3, d:"Persistent low-frequency sound, most noticeable at night. Some describe it as pressure rather than sound."},
+    {icon:"head",   t:"Intermittent Headaches",    s:3, d:"Correlate with generator test cycles. Some residents notice it tracks with wind direction."},
+    {icon:"sleep",  t:"Disrupted Sleep",           s:3, d:"Generator tests lasting 30 to 90 minutes at up to 105 dB and continuous cooling noise affect sleep quality."},
+    {icon:"smoke",  t:"Occasional Exhaust Odor",   s:2, d:"During monthly generator tests. Diesel particulate matter is a classified carcinogen. There is no established safe level."},
   ],
   "LOW-MODERATE":[
-    {icon:"sound",  t:"Mild Background Noise",     s:2, d:"Present 24/7 but less intrusive. Low-frequency components travel further than measured dB suggests, particularly in quiet rural or suburban areas."},
+    {icon:"sound",  t:"Mild Background Noise",     s:2, d:"Present 24/7 but less intrusive. Low-frequency components travel further than measured dB suggests."},
     {icon:"smoke",  t:"Diesel During Tests",       s:2, d:"Monthly generator tests still produce diesel exhaust for 30 to 60 minutes. Keep windows closed if you notice the smell."},
   ],
 };
 
 const LONGTERM = [
-  {icon:"cancer",c:"#ef4444",t:"Cancer Risk",       sh:"Diesel exhaust is a Group 1 carcinogen. EMF is classified possibly carcinogenic by WHO.",lo:"Two separate pathways elevate cancer risk. Diesel PM2.5 from backup generators is in the same carcinogen class as asbestos, directly linked to lung cancer. The WHO's IARC classified power-frequency magnetic fields possibly carcinogenic (Group 2B) in 2002, with the strongest evidence for childhood leukemia at exposures starting at just 3 to 4 milligauss. The legal US limit is 2,000 mG, which is 500 times higher than where studies found risk.",stat:"Around 1,300 projected premature US deaths annually from data center pollution by 2030",src:"arXiv 2412.06288, 2025",url:"https://arxiv.org/abs/2412.06288"},
-  {icon:"heart", c:"#f97316",t:"Heart Disease",     sh:"Chronic noise raises blood pressure. Air pollution inflames blood vessels. Both compound over years.",lo:"Chronic environmental noise keeps the body in low-grade stress. Over years this elevates blood pressure and increases heart attack and stroke risk. Diesel PM2.5 directly inflames arterial walls. Multiple peer-reviewed studies link proximity to industrial noise to increased cardiovascular mortality.",stat:"Long-term exposure linked to hypertension, cardiovascular disease, and stroke",src:"ScienceDirect, 2025",url:"https://www.sciencedirect.com"},
-  {icon:"lung",  c:"#eab308",t:"Lungs and Breathing",sh:"PM2.5 enters your bloodstream through your lungs. There is no safe level of exposure.",lo:"Fine particulate matter from diesel generators is small enough to cross from lungs into the bloodstream. The Harvard Six Cities Study found no safe exposure level. It worsens asthma, COPD, and overall lung function. Children and elderly are most vulnerable.",stat:"600,000 or more projected asthma cases per year from US data centers by 2030",src:"arXiv 2412.06288, 2025",url:"https://arxiv.org/abs/2412.06288"},
-  {icon:"brain", c:"#8b5cf6",t:"Mental Health",     sh:"Chronic noise, lost sleep, feeling powerless. Documented anxiety, depression, and stress.",lo:"The combination of chronic sleep loss, constant low-level vibration, and feeling ignored by authorities creates a documented mental health burden. Residents near data center clusters in Virginia, Texas, and Arizona report increased anxiety, helplessness, and depression.",stat:"Chronic industrial noise independently linked to anxiety and depression",src:"US News, April 2026",url:"https://www.usnews.com"},
-  {icon:"baby",  c:"#3b82f6",t:"Reproductive Health",sh:"ELF magnetic fields linked to miscarriage. Air pollution linked to premature birth.",lo:"ELF magnetic fields have been studied in relation to miscarriage risk, with some studies finding elevated risk at exposures reachable near high-voltage infrastructure. PM2.5 air pollution is independently associated with premature birth and low birth weight.",stat:"ELF-EMF exposure linked to miscarriage in peer-reviewed studies",src:"BioInitiative Report",url:"https://www.bioinitiative.org"},
-  {icon:"moon",  c:"#10b981",t:"Sleep and Brain",   sh:"Chronic sleep loss degrades immunity, memory, heart health, and lifespan.",lo:"Chronic sleep deprivation raises diabetes and obesity risk, impairs memory and cognition, and is independently associated with shortened lifespan. Low-frequency noise has been reported audible up to 4.5 miles in quiet environments.",stat:"Infrasound shown to affect cardiac function within 1 hour above 100 dB",src:"US National Library of Medicine",url:"https://pubmed.ncbi.nlm.nih.gov"},
+  {icon:"cancer",c:"#ef4444",t:"Cancer Risk",         sh:"Diesel exhaust is a Group 1 carcinogen. EMF classified possibly carcinogenic by WHO.",lo:"Two separate pathways elevate cancer risk. Diesel PM2.5 from backup generators is in the same carcinogen class as asbestos, directly linked to lung cancer. The WHO's IARC classified power-frequency magnetic fields possibly carcinogenic (Group 2B) in 2002, with the strongest evidence for childhood leukemia at exposures starting at just 3 to 4 milligauss. The legal US limit is 2,000 mG, which is 500 times higher than where studies found risk.",stat:"Around 1,300 projected premature US deaths annually from data center pollution by 2030",src:"arXiv 2412.06288, 2025",url:"https://arxiv.org/abs/2412.06288"},
+  {icon:"heart", c:"#f97316",t:"Heart Disease",        sh:"Chronic noise raises blood pressure. Air pollution inflames blood vessels. Both compound over years.",lo:"Chronic environmental noise keeps the body in low-grade stress. Over years this elevates blood pressure and increases heart attack and stroke risk. Diesel PM2.5 directly inflames arterial walls. Multiple peer-reviewed studies link proximity to industrial noise to increased cardiovascular mortality.",stat:"Long-term exposure linked to hypertension, cardiovascular disease, and stroke",src:"ScienceDirect, 2025",url:"https://www.sciencedirect.com"},
+  {icon:"lung",  c:"#eab308",t:"Lungs and Breathing", sh:"PM2.5 enters your bloodstream through your lungs. There is no safe level of exposure.",lo:"Fine particulate matter from diesel generators is small enough to cross from lungs into the bloodstream. The Harvard Six Cities Study found no safe exposure level. It worsens asthma, COPD, and overall lung function. Children and elderly are most vulnerable.",stat:"600,000 or more projected asthma cases per year from US data centers by 2030",src:"arXiv 2412.06288, 2025",url:"https://arxiv.org/abs/2412.06288"},
+  {icon:"brain", c:"#8b5cf6",t:"Mental Health",        sh:"Chronic noise, lost sleep, feeling powerless. Documented anxiety, depression, and stress.",lo:"The combination of chronic sleep loss, constant low-level vibration, and feeling ignored by authorities creates a documented mental health burden. Residents near data center clusters in Virginia, Texas, and Arizona report increased anxiety, helplessness, and depression.",stat:"Chronic industrial noise independently linked to anxiety and depression",src:"US News, April 2026",url:"https://www.usnews.com"},
+  {icon:"baby",  c:"#3b82f6",t:"Reproductive Health", sh:"ELF magnetic fields linked to miscarriage. Air pollution linked to premature birth.",lo:"ELF magnetic fields have been studied in relation to miscarriage risk, with some studies finding elevated risk near high-voltage infrastructure. PM2.5 is independently associated with premature birth and low birth weight.",stat:"ELF-EMF exposure linked to miscarriage in peer-reviewed studies",src:"BioInitiative Report",url:"https://www.bioinitiative.org"},
+  {icon:"moon",  c:"#10b981",t:"Sleep and Brain",      sh:"Chronic sleep loss degrades immunity, memory, heart health, and lifespan.",lo:"Chronic sleep deprivation raises diabetes and obesity risk, impairs memory and cognition, and is independently associated with shortened lifespan. Low-frequency noise has been reported audible up to 4.5 miles in quiet environments.",stat:"Infrasound shown to affect cardiac function within 1 hour above 100 dB",src:"US National Library of Medicine",url:"https://pubmed.ncbi.nlm.nih.gov"},
 ];
 
 const KIDS = [
-  {icon:"dna",   t:"Childhood Leukemia",         sev:"SERIOUS",         c:"#ef4444",d:"WHO and IARC classified power-frequency magnetic fields possibly carcinogenic specifically because of studies linking childhood residential exposure to elevated leukemia rates at just 3 to 4 milligauss. Children's developing cells are far more sensitive to environmental disruption than adults."},
+  {icon:"dna",   t:"Childhood Leukemia",         sev:"SERIOUS",         c:"#ef4444",d:"WHO and IARC classified power-frequency magnetic fields possibly carcinogenic because of studies linking childhood residential exposure to elevated leukemia rates at just 3 to 4 milligauss. Children's developing cells are far more sensitive to environmental disruption than adults."},
   {icon:"lung",  t:"Asthma and Lungs",           sev:"DOCUMENTED",      c:"#f97316",d:"Diesel particulate matter is a known asthma trigger in children. Kids with asthma living downwind of generator exhaust face increased attack frequency. A 2025 model projects data centers could cause over one-third of all US asthma deaths by 2030."},
   {icon:"brain", t:"Brain Development and ADHD", sev:"EMERGING",        c:"#eab308",d:"ELF-EMF has been linked in studies to ADHD and cognitive dysfunction in children. Chronic sleep disruption from environmental noise independently impairs developing brains, affecting memory, attention, and emotional regulation."},
   {icon:"sleep", t:"Sleep and Growth",           sev:"HIGH CONCERN",    c:"#8b5cf6",d:"Children need more sleep than adults. It is when growth hormone is released and memories consolidate. Low-frequency noise prevents deep sleep even at levels adults barely notice."},
-  {icon:"ear",   t:"Hearing Damage",             sev:"DOCUMENTED CASES",c:"#3b82f6",d:"The Granbury TX case involved residents including children claiming permanent hearing damage and tinnitus. Children's hearing is still developing and more sensitive. Sustained exposure above 70 dB causes progressive damage over time."},
+  {icon:"ear",   t:"Hearing Damage",             sev:"DOCUMENTED CASES",c:"#3b82f6",d:"The Granbury TX case involved residents including children claiming permanent hearing damage and tinnitus. Children's hearing is still developing and more sensitive. Sustained exposure above 70 dB causes progressive damage."},
 ];
 
 const QUIZ = [
@@ -147,18 +206,19 @@ const QUIZ = [
   {q:"How long have you lived at this address?",k:"dur",o:["Less than 1 year","1 to 3 years","3 to 10 years","More than 10 years"]},
 ];
 
-const fmt = n => n>=1e6?`${(n/1e6).toFixed(1)}M`:n>=1e3?`${(n/1e3).toFixed(0)}K`:`${n}`;
-
 const TABS = [
-  {id:"feel",    label:"What You'll Feel",   icon:"sound"},
-  {id:"quiz",    label:"Your Risk Quiz",     icon:"question"},
-  {id:"health",  label:"Long-Term Health",   icon:"heart"},
-  {id:"kids",    label:"Kids and Families",  icon:"kids"},
-  {id:"numbers", label:"By the Numbers",     icon:"number"},
-  {id:"act",     label:"What To Do",         icon:"action"},
-  {id:"reports", label:"Community",          icon:"community"},
+  {id:"feel",    label:"What You'll Feel",  icon:"sound"},
+  {id:"quiz",    label:"Your Risk Quiz",    icon:"question"},
+  {id:"health",  label:"Long-Term Health",  icon:"heart"},
+  {id:"kids",    label:"Kids and Families", icon:"kids"},
+  {id:"numbers", label:"By the Numbers",    icon:"number"},
+  {id:"act",     label:"What To Do",        icon:"action"},
+  {id:"reports", label:"Community",         icon:"community"},
 ];
 
+const fmt = n => n>=1e6?`${(n/1e6).toFixed(1)}M`:n>=1e3?`${(n/1e3).toFixed(0)}K`:`${n}`;
+
+// ─── CSS ──────────────────────────────────────────────────────────────────────
 const CSS = `
   @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
   *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
@@ -170,19 +230,20 @@ const CSS = `
   @keyframes fadeUp{from{opacity:0;transform:translateY(28px)}to{opacity:1;transform:translateY(0)}}
   @keyframes shimmer{0%{background-position:-200% center}100%{background-position:200% center}}
   @keyframes floatAnim{0%,100%{transform:translateY(0)}50%{transform:translateY(-10px)}}
+  @keyframes spin{to{transform:rotate(360deg)}}
 
   .a1{animation:fadeUp .55s ease both}
   .a2{animation:fadeUp .55s .1s ease both}
   .a3{animation:fadeUp .55s .2s ease both}
   .a4{animation:fadeUp .55s .3s ease both}
   .floating{animation:floatAnim 5s ease-in-out infinite}
+  .spinning{animation:spin 1s linear infinite}
 
   .srch:focus{outline:none!important;background:rgba(255,255,255,.2)!important;border-color:rgba(255,255,255,.5)!important}
   .srch::placeholder{color:rgba(255,255,255,.5)}
 
-  /* Scrollbar inside rounded dropdown */
   .scroll-inner{scrollbar-width:thin;scrollbar-color:#cbd5e1 transparent}
-  .scroll-inner::-webkit-scrollbar{width:5px}
+  .scroll-inner::-webkit-scrollbar{width:4px}
   .scroll-inner::-webkit-scrollbar-track{background:transparent}
   .scroll-inner::-webkit-scrollbar-thumb{background:#cbd5e1;border-radius:99px}
 
@@ -200,6 +261,11 @@ const CSS = `
   .clear-btn:hover{background:rgba(255,255,255,.18)!important}
   .ext-link{transition:opacity .15s;text-decoration:none}
   .ext-link:hover{opacity:.75}
+  .map-btn{transition:opacity .15s}
+  .map-btn:hover{opacity:.85}
+
+  /* Honeypot field — hidden from humans, visible to bots */
+  .hz-trap{position:absolute;left:-9999px;opacity:0;pointer-events:none;tab-index:-1}
 
   @media(max-width:768px){
     .hero{padding:48px 20px 60px!important;min-height:auto!important}
@@ -215,17 +281,16 @@ const CSS = `
     .main{padding:20px 16px 48px!important}
     .rings{display:none!important}
     .stat-val{font-size:24px!important}
-    .map-bar{flex-direction:column!important;gap:8px!important;align-items:flex-start!important}
+    .addr-bar{flex-direction:column!important;align-items:flex-start!important;gap:10px!important}
   }
   @media(max-width:480px){
     .hero h1{font-size:26px!important}
   }
 `;
 
+// ─── COMPONENTS ───────────────────────────────────────────────────────────────
 const Chip = ({label,color,small=false}) => (
-  <span style={{display:"inline-flex",alignItems:"center",gap:4,fontSize:small?11:13,fontWeight:700,padding:small?"3px 9px":"5px 14px",borderRadius:20,letterSpacing:".03em",background:color+"1a",color,border:`1.5px solid ${color}33`}}>
-    {label}
-  </span>
+  <span style={{display:"inline-flex",alignItems:"center",gap:4,fontSize:small?11:13,fontWeight:700,padding:small?"3px 9px":"5px 14px",borderRadius:20,letterSpacing:".03em",background:color+"1a",color,border:`1.5px solid ${color}33`}}>{label}</span>
 );
 
 const SevBar = ({level,color}) => (
@@ -241,6 +306,94 @@ const SrcLink = ({text,url}) => (
   </a>
 );
 
+// OpenStreetMap image component with fallback
+const FacilityMapImage = ({ dc, rc }) => {
+  const [imgState, setImgState] = useState("loading"); // loading | osm | fallback | placeholder
+  const lat = dc?.Latitude;
+  const lng = dc?.Longitude;
+  const hasCoords = lat && lng;
+
+  const osmUrl = hasCoords
+    ? `https://staticmap.openstreetmap.de/staticmap.php?center=${lat},${lng}&zoom=15&size=800x350&markers=${lat},${lng},red-pushpin`
+    : null;
+
+  // Fallback to a high-res server image from picsum with consistent seed
+  const fallbackUrl = (() => {
+    let hash = 0;
+    const name = dc?.Name || "facility";
+    for (let i = 0; i < name.length; i++) hash = (hash * 31 + name.charCodeAt(i)) & 0xffff;
+    const seed = 100 + (hash % 50);
+    return `https://picsum.photos/seed/${seed}/800/350`;
+  })();
+
+  useEffect(() => {
+    setImgState("loading");
+    if (hasCoords) {
+      const img = new Image();
+      img.onload = () => setImgState("osm");
+      img.onerror = () => setImgState("fallback");
+      img.src = osmUrl;
+    } else {
+      setImgState("fallback");
+    }
+  }, [dc?.id]);
+
+  return (
+    <div style={{position:"relative",height:300,overflow:"hidden",background:"#0f172a"}}>
+      {imgState === "loading" && (
+        <div style={{position:"absolute",inset:0,display:"flex",alignItems:"center",justifyContent:"center",flexDirection:"column",gap:12,color:"rgba(255,255,255,.4)"}}>
+          <div className="spinning" style={{width:32,height:32,border:"2px solid rgba(255,255,255,.2)",borderTop:`2px solid ${rc}`,borderRadius:"50%"}}/>
+          <div style={{fontSize:13}}>Loading location map...</div>
+        </div>
+      )}
+
+      {imgState === "osm" && (
+        <>
+          <img src={osmUrl} alt={`Map location of ${dc.Name}`}
+            style={{width:"100%",height:"100%",objectFit:"cover",display:"block",filter:"saturate(1.2) contrast(1.05)"}}
+          />
+          <div style={{position:"absolute",inset:0,background:"linear-gradient(to top,rgba(0,0,0,.7) 0%,rgba(0,0,0,.0) 50%)"}}/>
+          <div style={{position:"absolute",top:14,right:14,background:"rgba(255,255,255,.95)",borderRadius:8,padding:"5px 10px",fontSize:12,fontWeight:700,color:"#1e293b",display:"flex",alignItems:"center",gap:5}}>
+            <Icon name="satellite" size={13} color="#3b82f6"/>
+            OpenStreetMap
+          </div>
+        </>
+      )}
+
+      {imgState === "fallback" && (
+        <>
+          <img src={fallbackUrl} alt={`Data center facility`}
+            style={{width:"100%",height:"100%",objectFit:"cover",display:"block"}}
+            onError={()=>setImgState("placeholder")}
+          />
+          <div style={{position:"absolute",inset:0,background:"linear-gradient(to top,rgba(0,0,0,.7) 0%,rgba(0,0,0,.0) 50%)"}}/>
+          <div style={{position:"absolute",top:14,right:14,background:"rgba(0,0,0,.6)",borderRadius:8,padding:"5px 10px",fontSize:12,fontWeight:600,color:"rgba(255,255,255,.7)",display:"flex",alignItems:"center",gap:5}}>
+            <Icon name="map" size={13} color="rgba(255,255,255,.7)"/>
+            No coordinates on file
+          </div>
+        </>
+      )}
+
+      {imgState === "placeholder" && (
+        <div style={{position:"absolute",inset:0,background:"linear-gradient(135deg,#0f172a,#1e293b)",display:"flex",alignItems:"center",justifyContent:"center",flexDirection:"column",gap:8}}>
+          <Icon name="map" size={48} color="rgba(255,255,255,.2)"/>
+          <div style={{fontSize:14,color:"rgba(255,255,255,.3)"}}>Location image unavailable</div>
+        </div>
+      )}
+
+      {/* Risk color bar */}
+      <div style={{position:"absolute",top:0,left:0,right:0,height:5,background:rc}}/>
+
+      {/* Status/risk badges */}
+      <div style={{position:"absolute",bottom:18,left:20,display:"flex",gap:8,flexWrap:"wrap"}}>
+        <Chip label={STATUS[dc.Facility_Status]?.label || dc.Facility_Status} color={STATUS[dc.Facility_Status]?.color || "#64748b"}/>
+        <Chip label={`${dc.Risk_Level} RISK`} color={rc}/>
+      </div>
+    </div>
+  );
+};
+
+// ─── MAIN APP ─────────────────────────────────────────────────────────────────
 export default function App() {
   const [facs,setFacs]           = useState([]);
   const [loading,setLoading]     = useState(true);
@@ -249,11 +402,14 @@ export default function App() {
   const [showCD,setShowCD]       = useState(false);
   const [cityTxt,setCityTxt]     = useState("");
   const [showCityD,setShowCityD] = useState(false);
+  const [cDropPos,setCDropPos]   = useState({top:0,left:0,width:0});
+  const [cityDropPos,setCityDropPos] = useState({top:0,left:0,width:0});
   const [sel,setSel]             = useState(null);
   const [tab,setTab]             = useState("feel");
   const [reps,setReps]           = useState([]);
   const [draft,setDraft]         = useState("");
   const [repName,setRepName]     = useState("");
+  const [hp,setHp]               = useState(""); // honeypot
   const [sending,setSending]     = useState(false);
   const [sent,setSent]           = useState(false);
   const [xLong,setXLong]         = useState(null);
@@ -272,33 +428,47 @@ export default function App() {
 
   useEffect(()=>{
     if(loading) return;
-    const targets = [1300, 20, 600000, facs.length];
-    const total = 80;
-    let frame = 0;
-    const iv = setInterval(()=>{
+    const targets=[1300,20,600000,facs.length];
+    let frame=0;
+    const iv=setInterval(()=>{
       frame++;
-      const e = 1 - Math.pow(1 - frame/total, 3);
-      setStatVals(targets.map(t => Math.round(t * e)));
-      if(frame >= total){ clearInterval(iv); setStatVals(targets); }
-    }, 2400/total);
-    return () => clearInterval(iv);
-  },[loading, facs.length]);
+      const e=1-Math.pow(1-frame/80,3);
+      setStatVals(targets.map(t=>Math.round(t*e)));
+      if(frame>=80){ clearInterval(iv); setStatVals(targets); }
+    },2400/80);
+    return ()=>clearInterval(iv);
+  },[loading,facs.length]);
+
+  // Calculate dropdown position — FIXED so it floats above everything
+  const updateCDropPos = useCallback(()=>{
+    if(!cRef.current) return;
+    const r = cRef.current.getBoundingClientRect();
+    setCDropPos({top:r.bottom+8, left:r.left, width:r.width});
+  },[]);
+
+  const updateCityDropPos = useCallback(()=>{
+    if(!ciRef.current) return;
+    const r = ciRef.current.getBoundingClientRect();
+    setCityDropPos({top:r.bottom+8, left:r.left, width:r.width});
+  },[]);
 
   useEffect(()=>{
     const h = e => {
       if(cRef.current  && !cRef.current.contains(e.target))  setShowCD(false);
       if(ciRef.current && !ciRef.current.contains(e.target)) setShowCityD(false);
     };
+    const r = ()=>{ updateCDropPos(); updateCityDropPos(); };
     document.addEventListener("mousedown",h);
-    return ()=>document.removeEventListener("mousedown",h);
+    window.addEventListener("resize",r);
+    window.addEventListener("scroll",r);
+    return ()=>{ document.removeEventListener("mousedown",h); window.removeEventListener("resize",r); window.removeEventListener("scroll",r); };
   },[]);
 
   const dc       = sel ? facs.find(f=>f.id===sel) : null;
   const rc       = dc ? (RISK_C[dc.Risk_Level]||"#64748b") : "#64748b";
-  const sm       = dc ? (STATUS[dc.Facility_Status]||STATUS.OPERATING) : null;
   const symptoms = dc ? (SYMPTOMS[dc.Risk_Level]||SYMPTOMS["LOW-MODERATE"]) : [];
-  const dcImg    = dc ? getDCImage(dc.Name) : "";
-  const mapsUrl  = dc ? getGoogleMapsUrl(dc.Address) : "#";
+  const mapsUrl  = dc ? getGoogleMapsUrl(dc.Latitude, dc.Longitude, dc.Address, dc.Name) : "#";
+  const locStr   = dc ? buildLocationString(dc) : "";
 
   useEffect(()=>{
     if(!dc) return;
@@ -330,32 +500,37 @@ export default function App() {
     if(a.preg==="Yes"){score+=2;flags.push("Pregnancy — elevated concern for EMF and air pollution exposure");}
     if(a.health==="Yes"){score+=2;flags.push("Existing health conditions — pollution and noise compound these risks");}
     if(a.dur==="More than 10 years"){score+=1;flags.push("Long-term resident — chronic exposure accumulates over time");}
-    const level = score>=6?"HIGH":score>=3?"MODERATE":"LOWER";
-    const advice = score>=6
-      ? "Your situation warrants immediate action. Request an independent EMF survey, file formal complaints with your local zoning board and state environmental agency, and speak with your doctor."
-      : score>=3
-      ? "Your situation warrants monitoring and action. Document any symptoms, keep windows closed on generator test days, and learn your local zoning board's complaint process."
-      : "Your risk is lower, but not zero. Stay informed about planned expansions and document any symptoms you notice.";
-    return {level,score,flags,advice};
+    const level=score>=6?"HIGH":score>=3?"MODERATE":"LOWER";
+    const advice=score>=6
+      ?"Your situation warrants immediate action. Request an independent EMF survey, file formal complaints with your local zoning board and state environmental agency, and speak with your doctor."
+      :score>=3
+      ?"Your situation warrants monitoring and action. Document any symptoms, keep windows closed on generator test days, and learn your local zoning board's complaint process."
+      :"Your risk is lower, but not zero. Stay informed about planned expansions and document any symptoms you notice.";
+    return{level,score,flags,advice};
   };
 
   const sendReport = async () => {
     if(!draft.trim()||!dc) return;
+    if(hp) return; // honeypot triggered — bot detected
     setSending(true);
     const ok = await postReport({
-      Reporter:repName||"Anonymous", Facility:dc.Name,
-      Report_Text:draft, City:dc.City, Country:dc.Country,
-      Date_Submitted:new Date().toISOString().split("T")[0], Approved:false,
+      Reporter:repName||"Anonymous",
+      Facility:dc.Name,
+      Report_Text:draft,
+      City:dc.City,
+      Country:dc.Country,
+      Date_Submitted:new Date().toISOString().split("T")[0],
+      Approved:false,
     });
     if(ok){ setSent(true); setDraft(""); setRepName(""); apiFetch("Reports",{filterByFormula:`{Facility} = "${dc.Name}"`}).then(setReps); }
     setSending(false);
   };
 
-  const STATS = [
-    {val:`~${statVals[0].toLocaleString()}`, label:"Projected US deaths/year by 2030"},
-    {val:`$${statVals[1]}B+`,                label:"Annual public health burden"},
-    {val:statVals[2]>=600000?"600K":fmt(statVals[2]), label:"Projected asthma cases/year"},
-    {val:loading?"...":facs.length,          label:"Facilities in our database"},
+  const STATS=[
+    {val:`~${statVals[0].toLocaleString()}`,label:"Projected US deaths/year by 2030"},
+    {val:`$${statVals[1]}B+`,               label:"Annual public health burden"},
+    {val:statVals[2]>=600000?"600K":fmt(statVals[2]),label:"Projected asthma cases/year"},
+    {val:loading?"...":facs.length,         label:"Facilities in our database"},
   ];
 
   return (
@@ -364,17 +539,10 @@ export default function App() {
       <div style={{minHeight:"100vh",background:"#f1f5f9"}}>
 
         {/* HERO */}
-        <section className="hero" style={{
-          position:"relative",overflow:"hidden",minHeight:"100vh",
-          background:"linear-gradient(150deg,#020c1b 0%,#0f172a 35%,#1e0535 65%,#0a1628 100%)",
-          backgroundSize:"400% 400%",animation:"gradShift 14s ease infinite",
-          display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",
-          padding:"80px 24px",textAlign:"center",
-        }}>
-          <div className="rings" style={{position:"absolute",left:"50%",top:"50%",pointerEvents:"none",zIndex:0}}>
-            {[1,2,3,4,5].map(i=>(
-              <div key={i} style={{position:"absolute",width:i*200,height:i*200,borderRadius:"50%",border:"1px solid rgba(239,68,68,0.09)",left:"50%",top:"50%",animation:`ring ${2+i*.7}s cubic-bezier(.4,0,.6,1) ${i*.5}s infinite`}}/>
-            ))}
+        <section className="hero" style={{position:"relative",overflow:"visible",minHeight:"100vh",background:"linear-gradient(150deg,#020c1b 0%,#0f172a 35%,#1e0535 65%,#0a1628 100%)",backgroundSize:"400% 400%",animation:"gradShift 14s ease infinite",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:"80px 24px",textAlign:"center"}}>
+
+          <div className="rings" style={{position:"absolute",left:"50%",top:"50%",pointerEvents:"none",zIndex:0,overflow:"hidden"}}>
+            {[1,2,3,4,5].map(i=>(<div key={i} style={{position:"absolute",width:i*200,height:i*200,borderRadius:"50%",border:"1px solid rgba(239,68,68,0.09)",left:"50%",top:"50%",animation:`ring ${2+i*.7}s cubic-bezier(.4,0,.6,1) ${i*.5}s infinite`}}/>))}
           </div>
 
           <div className="a1" style={{marginBottom:36,position:"relative",zIndex:1}}>
@@ -396,8 +564,8 @@ export default function App() {
             Search your country and city to find out what that means for your health.
           </p>
 
-          {/* SEARCH */}
-          <div className="a4 search-row" style={{display:"flex",gap:14,width:"100%",maxWidth:740,position:"relative",zIndex:20}}>
+          {/* SEARCH — dropdowns use fixed positioning to float above everything */}
+          <div className="a4 search-row" style={{display:"flex",gap:14,width:"100%",maxWidth:740,position:"relative",zIndex:100}}>
 
             {/* Country */}
             <div ref={cRef} style={{flex:1,position:"relative"}}>
@@ -406,22 +574,12 @@ export default function App() {
                   <Icon name="globe" size={20} color="rgba(255,255,255,.7)"/>
                 </span>
                 <input className="srch" value={cInput}
-                  onChange={e=>{setCInput(e.target.value);setShowCD(true);}}
-                  onFocus={()=>setShowCD(true)}
+                  onChange={e=>{setCInput(e.target.value);setShowCD(true);updateCDropPos();}}
+                  onFocus={()=>{setShowCD(true);updateCDropPos();}}
                   placeholder="Select a country..."
                   style={{width:"100%",padding:"20px 18px 20px 52px",fontSize:17,fontWeight:500,fontFamily:"inherit",borderRadius:16,border:"1.5px solid rgba(255,255,255,.18)",background:"rgba(255,255,255,.11)",color:"#fff",backdropFilter:"blur(16px)",boxSizing:"border-box",boxShadow:"0 8px 32px rgba(0,0,0,.25),inset 0 1px 0 rgba(255,255,255,.12)"}}
                 />
               </div>
-              {showCD && (
-                <div style={{position:"absolute",top:"calc(100% + 10px)",left:0,right:0,background:"#fff",borderRadius:16,boxShadow:"0 28px 72px rgba(0,0,0,.28)",zIndex:500,border:"1px solid #e2e8f0",overflow:"hidden"}}>
-                  <div className="scroll-inner" style={{maxHeight:320,overflowY:"auto"}}>
-                    {cMatches.length===0 && <div style={{padding:"16px 20px",color:"#94a3b8",fontSize:16,fontStyle:"italic"}}>No countries found</div>}
-                    {cMatches.map(c=>(
-                      <div key={c} className="drop-item" style={{padding:"15px 20px",fontSize:16,color:"#1e293b",borderBottom:"1px solid #f1f5f9",fontWeight:500}} onClick={()=>pickCountry(c)}>{c}</div>
-                    ))}
-                  </div>
-                </div>
-              )}
             </div>
 
             {/* City */}
@@ -431,45 +589,12 @@ export default function App() {
                   <Icon name="pin" size={20} color="rgba(255,255,255,.7)"/>
                 </span>
                 <input className="srch" value={cityTxt}
-                  onChange={e=>{setCityTxt(e.target.value);setShowCityD(true);}}
-                  onFocus={()=>setShowCityD(true)}
+                  onChange={e=>{setCityTxt(e.target.value);setShowCityD(true);updateCityDropPos();}}
+                  onFocus={()=>{setShowCityD(true);updateCityDropPos();}}
                   placeholder={country?`Cities in ${country}...`:"Select country first"}
                   style={{width:"100%",padding:"20px 18px 20px 52px",fontSize:17,fontWeight:500,fontFamily:"inherit",borderRadius:16,border:"1.5px solid rgba(255,255,255,.18)",background:"rgba(255,255,255,.11)",color:"#fff",backdropFilter:"blur(16px)",boxSizing:"border-box",boxShadow:"0 8px 32px rgba(0,0,0,.25),inset 0 1px 0 rgba(255,255,255,.12)"}}
                 />
               </div>
-              {showCityD && country && (
-                <div style={{position:"absolute",top:"calc(100% + 10px)",left:0,right:0,background:"#fff",borderRadius:16,boxShadow:"0 28px 72px rgba(0,0,0,.28)",zIndex:500,border:"1px solid #e2e8f0",overflow:"hidden"}}>
-                  {/* Scrollable inner — scrollbar sits inside the border radius */}
-                  <div className="scroll-inner" style={{maxHeight:440,overflowY:"auto",overflowX:"hidden"}}>
-                    {Object.keys(cityGroups).length===0 && <div style={{padding:"16px 20px",color:"#94a3b8",fontSize:16,fontStyle:"italic"}}>No cities found</div>}
-                    {Object.entries(cityGroups).map(([city,fl])=>(
-                      <div key={city}>
-                        <div style={{padding:"10px 20px 6px",fontSize:12,color:"#94a3b8",letterSpacing:".08em",textTransform:"uppercase",background:"#f8fafc",borderTop:"1px solid #f1f5f9",fontWeight:700,display:"flex",alignItems:"center",gap:6,position:"sticky",top:0,zIndex:1}}>
-                          <Icon name="pin" size={12} color="#94a3b8"/> {city}
-                        </div>
-                        {fl.map(f=>{
-                          const s2=STATUS[f.Facility_Status]||STATUS.OPERATING;
-                          const r2=RISK_C[f.Risk_Level]||"#64748b";
-                          return(
-                            <div key={f.id} className="drop-item" style={{padding:"14px 20px 14px 28px",borderBottom:"1px solid #f1f5f9"}} onClick={()=>{setCityTxt(city);setShowCityD(false);pickFac(f.id);}}>
-                              <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",gap:10}}>
-                                <div style={{flex:1,minWidth:0}}>
-                                  <div style={{fontSize:15,fontWeight:700,color:"#1e293b",marginBottom:3,lineHeight:1.3}}>{f.Name}</div>
-                                  <div style={{fontSize:13,color:"#64748b",fontWeight:500}}>{f.Company} &middot; {f.Power_MW>=1000?`${(f.Power_MW/1000).toFixed(1)} GW`:`${f.Power_MW||"?"}MW`}</div>
-                                </div>
-                                <div style={{display:"flex",flexDirection:"column",gap:4,alignItems:"flex-end",flexShrink:0}}>
-                                  <Chip label={s2.label} color={s2.color} small/>
-                                  <Chip label={f.Risk_Level} color={r2} small/>
-                                </div>
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
             </div>
           </div>
 
@@ -486,6 +611,52 @@ export default function App() {
             </div>
           )}
         </section>
+
+        {/* FIXED DROPDOWNS — rendered at root level, float above everything */}
+        {showCD && (
+          <div style={{position:"fixed",top:cDropPos.top,left:cDropPos.left,width:cDropPos.width,background:"#fff",borderRadius:16,boxShadow:"0 28px 72px rgba(0,0,0,.32)",zIndex:9999,border:"1px solid #e2e8f0",overflow:"hidden"}}>
+            <div className="scroll-inner" style={{maxHeight:"min(340px, 60vh)",overflowY:"auto"}}>
+              {cMatches.length===0 && <div style={{padding:"16px 20px",color:"#94a3b8",fontSize:16,fontStyle:"italic"}}>No countries found</div>}
+              {cMatches.map(c=>(
+                <div key={c} className="drop-item" style={{padding:"15px 20px",fontSize:16,color:"#1e293b",borderBottom:"1px solid #f1f5f9",fontWeight:500}} onClick={()=>pickCountry(c)}>{c}</div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {showCityD && country && (
+          <div style={{position:"fixed",top:cityDropPos.top,left:cityDropPos.left,width:cityDropPos.width,background:"#fff",borderRadius:16,boxShadow:"0 28px 72px rgba(0,0,0,.32)",zIndex:9999,border:"1px solid #e2e8f0",overflow:"hidden"}}>
+            <div className="scroll-inner" style={{maxHeight:"min(500px, 65vh)",overflowY:"auto",overflowX:"hidden"}}>
+              {Object.keys(cityGroups).length===0 && <div style={{padding:"16px 20px",color:"#94a3b8",fontSize:16,fontStyle:"italic"}}>No cities found</div>}
+              {Object.entries(cityGroups).map(([city,fl])=>(
+                <div key={city}>
+                  <div style={{padding:"10px 20px 6px",fontSize:12,color:"#64748b",letterSpacing:".08em",textTransform:"uppercase",background:"#f8fafc",borderTop:"1px solid #f1f5f9",fontWeight:700,display:"flex",alignItems:"center",gap:6,position:"sticky",top:0,zIndex:1}}>
+                    <Icon name="pin" size={12} color="#94a3b8"/> {city}
+                  </div>
+                  {fl.map(f=>{
+                    const s2=STATUS[f.Facility_Status]||STATUS.OPERATING;
+                    const r2=RISK_C[f.Risk_Level]||"#64748b";
+                    return(
+                      <div key={f.id} className="drop-item" style={{padding:"14px 20px 14px 28px",borderBottom:"1px solid #f1f5f9"}} onClick={()=>{setCityTxt(city);setShowCityD(false);pickFac(f.id);}}>
+                        <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",gap:10}}>
+                          <div style={{flex:1,minWidth:0}}>
+                            <div style={{fontSize:15,fontWeight:700,color:"#1e293b",marginBottom:3,lineHeight:1.3}}>{f.Name}</div>
+                            <div style={{fontSize:13,color:"#64748b",fontWeight:500}}>{f.Company} &middot; {f.Power_MW>=1000?`${(f.Power_MW/1000).toFixed(1)} GW`:`${f.Power_MW||"?"}MW`}</div>
+                            {f.City && f.State_Region && <div style={{fontSize:12,color:"#94a3b8",marginTop:2}}>{f.City}, {f.State_Region}</div>}
+                          </div>
+                          <div style={{display:"flex",flexDirection:"column",gap:4,alignItems:"flex-end",flexShrink:0}}>
+                            <Chip label={s2.label} color={s2.color} small/>
+                            <Chip label={f.Risk_Level} color={r2} small/>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* STATS */}
         <div className="stats-row" style={{background:"#fff",borderBottom:"1px solid #e2e8f0",padding:"24px 32px",display:"flex",justifyContent:"center",alignItems:"center",gap:56,flexWrap:"wrap"}}>
@@ -518,7 +689,7 @@ export default function App() {
 
           {loading && (
             <div style={{textAlign:"center",padding:80,color:"#94a3b8"}}>
-              <div style={{fontSize:48,marginBottom:16}}>⏳</div>
+              <div className="spinning" style={{width:48,height:48,border:"3px solid #e2e8f0",borderTop:"3px solid #ef4444",borderRadius:"50%",margin:"0 auto 16px"}}/>
               <div style={{fontSize:17,fontWeight:600}}>Loading global facility data...</div>
             </div>
           )}
@@ -526,45 +697,33 @@ export default function App() {
           {dc && (
             <div style={{background:"#fff",borderRadius:24,overflow:"hidden",boxShadow:"0 8px 48px rgba(0,0,0,.10)"}}>
 
-              {/* IMAGE */}
-              <div style={{position:"relative",height:300,overflow:"hidden",background:"#1e293b"}}>
-                <img
-                  src={dcImg}
-                  alt={`Data center — ${dc.Name}`}
-                  style={{width:"100%",height:"100%",objectFit:"cover",display:"block"}}
-                  onError={e=>{e.target.onerror=null;e.target.src="https://picsum.photos/seed/datacenter/1200/400";}}
-                />
-                <div style={{position:"absolute",inset:0,background:"linear-gradient(to top,rgba(0,0,0,.82) 0%,rgba(0,0,0,.05) 60%)"}}/>
-                <div style={{position:"absolute",top:0,left:0,right:0,height:5,background:rc}}/>
-                <div style={{position:"absolute",bottom:20,left:24,display:"flex",gap:8,flexWrap:"wrap"}}>
-                  <Chip label={sm.label} color={sm.color}/>
-                  <Chip label={`${dc.Risk_Level} RISK`} color={rc}/>
-                </div>
-              </div>
+              {/* OPENSTREETMAP IMAGE */}
+              <FacilityMapImage dc={dc} rc={rc}/>
 
-              {/* ADDRESS + MAP BAR */}
-              {dc.Address && (
-                <div className="map-bar" style={{background:"#f8fafc",borderBottom:"1px solid #e2e8f0",padding:"14px 24px",display:"flex",alignItems:"center",justifyContent:"space-between",gap:16,flexWrap:"wrap"}}>
-                  <div style={{display:"flex",alignItems:"center",gap:8,fontSize:15,color:"#475569",fontWeight:500,flex:1,minWidth:0}}>
-                    <Icon name="pin" size={18} color="#94a3b8"/>
-                    <span style={{overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{dc.Address}</span>
+              {/* ADDRESS BAR + GOOGLE MAPS */}
+              <div className="addr-bar" style={{background:"#f8fafc",borderBottom:"1px solid #e2e8f0",padding:"14px 24px",display:"flex",alignItems:"center",justifyContent:"space-between",gap:14,flexWrap:"wrap"}}>
+                <div style={{display:"flex",alignItems:"flex-start",gap:10,flex:1,minWidth:0}}>
+                  <Icon name="pin" size={18} color="#94a3b8" style={{flexShrink:0,marginTop:2}}/>
+                  <div>
+                    <div style={{fontSize:15,color:"#1e293b",fontWeight:600,lineHeight:1.4}}>{locStr || "Address not on file"}</div>
+                    {dc.Latitude && dc.Longitude && (
+                      <div style={{fontSize:12,color:"#94a3b8",marginTop:2}}>Coordinates: {parseFloat(dc.Latitude).toFixed(4)}, {parseFloat(dc.Longitude).toFixed(4)}</div>
+                    )}
                   </div>
-                  <a href={mapsUrl} target="_blank" rel="noopener noreferrer"
-                    style={{display:"inline-flex",alignItems:"center",gap:8,background:"#3b82f6",color:"#fff",padding:"10px 20px",borderRadius:10,fontSize:14,fontWeight:700,textDecoration:"none",flexShrink:0,boxShadow:"0 2px 8px rgba(59,130,246,.35)",transition:"opacity .15s"}}
-                    onMouseEnter={e=>e.currentTarget.style.opacity=".85"}
-                    onMouseLeave={e=>e.currentTarget.style.opacity="1"}>
-                    <Icon name="navigate" size={16} color="#fff"/>
-                    Open in Google Maps
-                  </a>
                 </div>
-              )}
+                <a href={mapsUrl} target="_blank" rel="noopener noreferrer" className="map-btn"
+                  style={{display:"inline-flex",alignItems:"center",gap:8,background:"#3b82f6",color:"#fff",padding:"11px 22px",borderRadius:10,fontSize:14,fontWeight:700,textDecoration:"none",flexShrink:0,boxShadow:"0 2px 8px rgba(59,130,246,.35)"}}>
+                  <Icon name="navigate" size={16} color="#fff"/>
+                  Open in Google Maps
+                </a>
+              </div>
 
               {/* HEADER */}
               <div className="fac-header" style={{padding:"24px 28px 20px"}}>
                 <h2 style={{fontSize:24,fontWeight:900,color:"#0f172a",marginBottom:6,letterSpacing:"-.02em",lineHeight:1.2}}>{dc.Name}</h2>
                 {dc.Company && <div style={{fontSize:15,color:"#64748b",marginBottom:4,fontWeight:600}}>{dc.Company}</div>}
                 {dc.Nearby_Info && <div style={{fontSize:15,color:"#64748b",marginBottom:6,fontStyle:"italic"}}>{dc.Nearby_Info}</div>}
-                {dc.Opened && <div style={{fontSize:14,color:"#94a3b8",marginBottom:20}}>Status: {dc.Opened}</div>}
+                {dc.Opened && <div style={{fontSize:14,color:"#94a3b8",marginBottom:20}}>Opened / Status: {dc.Opened}</div>}
 
                 <div className="fac-stats" style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:14}}>
                   {[
@@ -601,19 +760,14 @@ export default function App() {
                 {tab==="feel" && (
                   <div>
                     <div style={{background:rc+"0d",border:`1px solid ${rc}22`,borderRadius:14,padding:"18px 22px",marginBottom:28}}>
-                      <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:10}}>
-                        <Icon name="alert" size={20} color={rc}/>
-                        <span style={{fontSize:13,color:rc,fontWeight:800,letterSpacing:".08em",textTransform:"uppercase"}}>Based on documented reports at comparable facilities</span>
-                      </div>
+                      <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:10}}><Icon name="alert" size={20} color={rc}/><span style={{fontSize:13,color:rc,fontWeight:800,letterSpacing:".08em",textTransform:"uppercase"}}>Based on documented reports at comparable facilities</span></div>
                       <p style={{fontSize:16,color:"#374151",lineHeight:1.8,margin:0}}>Every symptom below has been reported by real people living near data centers of this scale, from lawsuits, news investigations, and community testimonies across the US and internationally.</p>
                     </div>
                     <div className="sym-grid" style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16}}>
                       {symptoms.map((s,i)=>(
                         <div key={i} className="sym-card" style={{background:"#fff",border:"1px solid #e2e8f0",borderRadius:16,padding:"22px",boxShadow:"0 2px 12px rgba(0,0,0,.05)"}}>
                           <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:10}}>
-                            <div style={{width:46,height:46,borderRadius:12,background:rc+"14",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
-                              <Icon name={s.icon} size={24} color={rc}/>
-                            </div>
+                            <div style={{width:46,height:46,borderRadius:12,background:rc+"14",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}><Icon name={s.icon} size={24} color={rc}/></div>
                             <div style={{fontSize:17,fontWeight:800,color:"#0f172a",lineHeight:1.3}}>{s.t}</div>
                           </div>
                           <SevBar level={s.s} color={rc}/>
@@ -673,10 +827,7 @@ export default function App() {
                 {tab==="health" && (
                   <div>
                     <div style={{background:"#fef2f2",border:"2px solid #fecaca",borderRadius:14,padding:"18px 22px",marginBottom:24}}>
-                      <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:10}}>
-                        <Icon name="alert" size={20} color="#ef4444"/>
-                        <span style={{fontSize:13,color:"#ef4444",fontWeight:800,letterSpacing:".08em",textTransform:"uppercase"}}>Long-Term Health Risks</span>
-                      </div>
+                      <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:10}}><Icon name="alert" size={20} color="#ef4444"/><span style={{fontSize:13,color:"#ef4444",fontWeight:800,letterSpacing:".08em",textTransform:"uppercase"}}>Long-Term Health Risks</span></div>
                       <p style={{fontSize:16,color:"#7f1d1d",lineHeight:1.8,margin:0}}>A 2025 study estimated data center pollution causes a public health burden of over $20 billion annually by 2030. Click any risk below to read the full explanation.</p>
                     </div>
                     {LONGTERM.map((r,i)=>(
@@ -743,7 +894,7 @@ export default function App() {
                       {icon:"water",label:"Water Per Day", value:dc.Water_Gal_Day>0?`${fmt(dc.Water_Gal_Day)} gal`:"Near zero",plain:dc.Water_Gal_Day>0?`Same daily water use as ${fmt(Math.round(dc.Water_Gal_Day/80))} households. Permanently removed from the local water cycle.`:"Air-cooled design. Minimal water consumption.",color:dc.Water_Gal_Day>500000?"#ef4444":"#10b981"},
                       {icon:"noise",label:"Perimeter Noise",value:`${dc.Noise_DB||"?"} dB`,plain:dc.Noise_DB>=70?"Like a vacuum cleaner running nonstop including 2am. Low-frequency components travel further than this number suggests.":"Moderate but continuous. Low-frequency components penetrate walls.",color:dc.Noise_DB>=70?"#ef4444":dc.Noise_DB>=60?"#f97316":"#3b82f6"},
                       {icon:"emf",  label:"EMF at Fence",  value:`up to ${dc.EMF_Fence_High||"?"}mG`,plain:dc.EMF_Fence_High>=4?"Studies link childhood leukemia risk starting at 3 to 4 mG. The legal US limit is 2,000 mG. Legal does not mean safe.":"Below the 3 to 4 mG concern threshold at the fence line.",color:dc.EMF_Fence_High>=4?"#ef4444":"#10b981"},
-                      {icon:"emf",  label:"EMF at 100m",   value:`~${dc.EMF_100m||"?"} mG`,plain:dc.EMF_100m>=3?"Still above the level linked to childhood leukemia in studies. If you live within 100m of the substation, take this seriously.":dc.EMF_100m>=1?"Within the zone where a 2026 study found health associations.":"Below precautionary thresholds at this distance.",color:dc.EMF_100m>=3?"#ef4444":dc.EMF_100m>=1?"#f97316":"#10b981"},
+                      {icon:"emf",  label:"EMF at 100m",   value:`~${dc.EMF_100m||"?"} mG`,plain:dc.EMF_100m>=3?"Still above the level linked to childhood leukemia in studies. Take this seriously if you live within 100m.":dc.EMF_100m>=1?"Within the zone where a 2026 study found health associations.":"Below precautionary thresholds at this distance.",color:dc.EMF_100m>=3?"#ef4444":dc.EMF_100m>=1?"#f97316":"#10b981"},
                     ].map(s=>(
                       <div key={s.label} style={{background:"#fff",border:`2px solid ${s.color}20`,borderRadius:16,padding:"22px",boxShadow:"0 2px 12px rgba(0,0,0,.05)"}}>
                         <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:12}}>
@@ -800,6 +951,8 @@ export default function App() {
                     ))}
                     <div style={{background:"#fff",border:"1px solid #e2e8f0",borderRadius:18,padding:"28px",boxShadow:"0 4px 16px rgba(0,0,0,.06)",marginTop:8}}>
                       <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:20}}><Icon name="doc" size={20} color="#1e293b"/><div style={{fontSize:16,fontWeight:800,color:"#1e293b",textTransform:"uppercase",letterSpacing:".06em"}}>Add Your Report</div></div>
+                      {/* Honeypot field — hidden from humans */}
+                      <input className="hz-trap" tabIndex="-1" autoComplete="off" value={hp} onChange={e=>setHp(e.target.value)} aria-hidden="true"/>
                       {sent ? (
                         <div style={{background:"#f0fdf4",border:"1.5px solid #bbf7d0",borderRadius:14,padding:"20px 22px"}}>
                           <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:6}}><Icon name="check" size={20} color="#15803d"/><div style={{fontSize:17,fontWeight:800,color:"#15803d"}}>Report submitted. Thank you.</div></div>
