@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 
 // ─── AIRTABLE CONFIG ──────────────────────────────────────────────────────────
 const AIRTABLE_BASE_ID = "app2FUPqq8VQSwQ64";
-const AIRTABLE_API_KEY = "HUMZONES_API_TOKEN_HERE";
+const AIRTABLE_API_KEY = import.meta.env.VITE_AIRTABLE_KEY;
 const AIRTABLE_URL = `https://api.airtable.com/v0/${AIRTABLE_BASE_ID}`;
 
 const airtableHeaders = {
