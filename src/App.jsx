@@ -1,33 +1,12 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 
-// ─── ANTI-SCRAPING: Obfuscated API access ────────────────────────────────────
-// Key is split and reassembled at runtime — harder to scrape statically
-const _b = ["app2FUPqq", "8VQSwQ64"];
-const _k = import.meta.env.VITE_AIRTABLE_KEY;
-const BASE = _b.join("");
+// ─── AIRTABLE CONNECTION ───────────────────────────────────────────────────────
+const BASE   = "app2FUPqq8VQSwQ64";
+const KEY    = import.meta.env.VITE_AIRTABLE_KEY;
 const APIURL = `https://api.airtable.com/v0/${BASE}`;
+const HDR    = { Authorization: `Bearer ${KEY}`, "Content-Type": "application/json" };
 
-// Rate limiting — track requests per session
-const _reqLog = { count: 0, start: Date.now(), blocked: false };
-const _rateLimit = () => {
-  const elapsed = Date.now() - _reqLog.start;
-  if (elapsed > 60000) { _reqLog.count = 0; _reqLog.start = Date.now(); }
-  _reqLog.count++;
-  if (_reqLog.count > 200) { _reqLog.blocked = true; return false; }
-  return true;
-};
-
-// Anti-scraping headers with fingerprint
-const _hdrs = () => ({
-  Authorization: `Bearer ${_k}`,
-  "Content-Type": "application/json",
-  "X-HZ-Session": btoa(Date.now().toString()).slice(0, 12),
-});
-
-// Obfuscated fetch with honeypot check
 async function apiFetch(table, params = {}) {
-  if (_reqLog.blocked) { console.warn("Rate limit reached"); return []; }
-  if (!_rateLimit()) return [];
   let all = [], offset = null;
   do {
     const url = new URL(`${APIURL}/${table}`);
@@ -35,7 +14,7 @@ async function apiFetch(table, params = {}) {
     if (offset) url.searchParams.set("offset", offset);
     url.searchParams.set("pageSize", "100");
     try {
-      const r = await fetch(url.toString(), { headers: _hdrs() });
+      const r = await fetch(url.toString(), { headers: HDR });
       if (!r.ok) break;
       const d = await r.json();
       all = [...all, ...(d.records||[])];
@@ -46,14 +25,11 @@ async function apiFetch(table, params = {}) {
 }
 
 async function postReport(fields) {
-  if (_reqLog.blocked) return false;
-  if (!_rateLimit()) return false;
-  // Honeypot: reject if bot fields filled
-  if (fields._hp || fields.website || fields.url) return false;
+  if (fields._hp) return false; // honeypot
   try {
     const r = await fetch(`${APIURL}/Reports`, {
       method: "POST",
-      headers: _hdrs(),
+      headers: HDR,
       body: JSON.stringify({ fields }),
     });
     return r.ok;
