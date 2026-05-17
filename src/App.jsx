@@ -421,6 +421,10 @@ export default function App() {
   const [reps,setReps]           = useState([]);
   const [draft,setDraft]         = useState("");
   const [repName,setRepName]     = useState("");
+  const [repEmail,setRepEmail]   = useState("");
+  const [repDuration,setRepDuration] = useState("");
+  const [repSymptoms,setRepSymptoms] = useState([]);
+  const [repDeclared,setRepDeclared] = useState(false);
   const [hp,setHp]               = useState(""); // honeypot
   const [sending,setSending]     = useState(false);
   const [sent,setSent]           = useState(false);
@@ -613,20 +617,40 @@ export default function App() {
     setQEmailSent(true);
   };
 
+  const SYMPTOM_OPTIONS = [
+    "Headaches","Sleep disruption","Dizziness or vertigo","Nausea",
+    "Ear ringing (tinnitus)","Anxiety or panic","Diesel exhaust smell","Chest pressure or tightness",
+  ];
+
+  const toggleSymptom = (s) => {
+    setRepSymptoms(prev => prev.includes(s) ? prev.filter(x=>x!==s) : [...prev,s]);
+  };
+
+  const canSubmit = draft.trim() && repEmail.trim() && repDeclared;
+
   const sendReport = async () => {
-    if(!draft.trim()||!dc) return;
-    if(hp) return; // honeypot triggered: bot detected
+    if(!canSubmit||!dc) return;
+    if(hp) return;
     setSending(true);
     const ok = await postReport({
-      Reporter:repName||"Anonymous",
-      Facility:dc.Name,
-      Report_Text:draft,
-      City:dc.City,
-      Country:dc.Country,
-      Date_Submitted:new Date().toISOString().split("T")[0],
-      Approved:false,
+      Reporter:       repName||"Anonymous",
+      Email:          repEmail.trim(),
+      Facility:       dc.Name,
+      Report_Text:    draft,
+      Symptoms:       repSymptoms.join(", "),
+      Duration:       repDuration,
+      City:           dc.City,
+      Country:        dc.Country,
+      Date_Submitted: new Date().toISOString().split("T")[0],
+      Declared:       true,
+      Approved:       false,
     });
-    if(ok){ setSent(true); setDraft(""); setRepName(""); apiFetch("Reports",{filterByFormula:`{Facility} = "${dc.Name}"`}).then(setReps); }
+    if(ok){
+      setSent(true);
+      setDraft(""); setRepName(""); setRepEmail("");
+      setRepDuration(""); setRepSymptoms([]); setRepDeclared(false);
+      apiFetch("Reports",{filterByFormula:`{Facility} = "${dc.Name}"`}).then(setReps);
+    }
     setSending(false);
   };
 
@@ -1163,31 +1187,127 @@ export default function App() {
                         <p style={{fontSize:16,color:"#374151",lineHeight:1.85,margin:0}}>{r.Report_Text}</p>
                       </div>
                     ))}
-                    <div style={{background:"#fff",border:"1px solid #e2e8f0",borderRadius:18,padding:"28px",boxShadow:"0 4px 16px rgba(0,0,0,.06)",marginTop:8}}>
-                      <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:20}}><Icon name="doc" size={20} color="#1e293b"/><div style={{fontSize:16,fontWeight:800,color:"#1e293b",textTransform:"uppercase",letterSpacing:".06em"}}>Add Your Report</div></div>
-                      {/* Honeypot field: hidden from humans */}
+                    <div style={{background:"#fff",border:"1px solid #e2e8f0",borderRadius:18,padding:"28px 30px",boxShadow:"0 4px 24px rgba(0,0,0,.07)"}}>
+
+                      {/* Header */}
+                      <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:8}}>
+                        <div style={{width:44,height:44,borderRadius:12,background:rc+"14",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
+                          <Icon name="doc" size={22} color={rc}/>
+                        </div>
+                        <div>
+                          <div style={{fontSize:18,fontWeight:800,color:"#0f172a"}}>Submit Your Resident Report</div>
+                          <div style={{fontSize:13,color:"#94a3b8",marginTop:2}}>All fields marked with an asterisk are required</div>
+                        </div>
+                      </div>
+
+                      {/* Why this matters */}
+                      <div style={{background:rc+"08",border:`1px solid ${rc}20`,borderRadius:12,padding:"14px 18px",marginBottom:24,marginTop:16}}>
+                        <p style={{fontSize:14,color:"#374151",lineHeight:1.75,margin:0}}>
+                          Reports submitted here are reviewed by HumZones and, with your permission, shared with regulatory bodies as part of our verified resident health registry. A verified email address and signed declaration make your report credible to regulators, public health authorities, and legal proceedings. Anonymous internet comments are easy to dismiss. Verified resident declarations are not.
+                        </p>
+                      </div>
+
+                      {/* Honeypot */}
                       <input className="hz-trap" tabIndex="-1" autoComplete="off" value={hp} onChange={e=>setHp(e.target.value)} aria-hidden="true"/>
+
                       {sent ? (
-                        <div style={{background:"#f0fdf4",border:"1.5px solid #bbf7d0",borderRadius:14,padding:"20px 22px"}}>
-                          <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:6}}><Icon name="check" size={20} color="#15803d"/><div style={{fontSize:17,fontWeight:800,color:"#15803d"}}>Report submitted. Thank you.</div></div>
-                          <div style={{fontSize:15,color:"#166534",lineHeight:1.7}}>Your report will be reviewed and published shortly. Community data like yours builds the evidence base for regulatory action.</div>
-                          <button onClick={()=>setSent(false)} style={{marginTop:14,fontSize:14,padding:"10px 20px",borderRadius:10,border:"1.5px solid #bbf7d0",background:"transparent",color:"#15803d",cursor:"pointer",fontFamily:"inherit",fontWeight:700}}>Submit another</button>
+                        <div style={{background:"#f0fdf4",border:"2px solid #bbf7d0",borderRadius:16,padding:"24px"}}>
+                          <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:10}}>
+                            <Icon name="check" size={24} color="#15803d"/>
+                            <div style={{fontSize:18,fontWeight:800,color:"#15803d"}}>Report submitted successfully.</div>
+                          </div>
+                          <p style={{fontSize:15,color:"#166534",lineHeight:1.75,marginBottom:16}}>
+                            Thank you for taking the time to document your experience. Your report has been received and will be reviewed within 48 hours. Once approved it will appear in this community registry and may be included in regulatory submissions on behalf of residents near this facility.
+                          </p>
+                          <p style={{fontSize:14,color:"#166534",lineHeight:1.65,marginBottom:20}}>
+                            You will receive a confirmation at the email address you provided. If your report is selected for inclusion in a formal regulatory filing, we will contact you for permission first.
+                          </p>
+                          <button onClick={()=>setSent(false)} style={{fontSize:14,padding:"10px 22px",borderRadius:10,border:"1.5px solid #bbf7d0",background:"transparent",color:"#15803d",cursor:"pointer",fontFamily:"inherit",fontWeight:700}}>Submit another report</button>
                         </div>
                       ) : (
-                        <>
-                          <input value={repName} onChange={e=>setRepName(e.target.value)} placeholder="Your name or Anonymous" style={{width:"100%",padding:"14px 18px",borderRadius:12,border:"1.5px solid #e2e8f0",fontSize:16,marginBottom:12,boxSizing:"border-box",outline:"none",fontFamily:"inherit",color:"#1e293b"}}/>
-                          <textarea value={draft} onChange={e=>setDraft(e.target.value)} rows={5} placeholder="What do you notice? Sounds, smells, symptoms, health changes since the facility opened. Any detail, however small, is useful." style={{width:"100%",padding:"14px 18px",borderRadius:12,border:"1.5px solid #e2e8f0",fontSize:16,resize:"vertical",outline:"none",boxSizing:"border-box",fontFamily:"inherit",lineHeight:1.75,color:"#1e293b"}}/>
-                          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginTop:16,gap:16,flexWrap:"wrap"}}>
-                            <button onClick={sendReport} disabled={sending||!draft.trim()} style={{padding:"14px 32px",borderRadius:12,border:"none",background:draft.trim()?rc:"#e2e8f0",color:draft.trim()?"#fff":"#94a3b8",fontSize:16,fontWeight:800,cursor:draft.trim()?"pointer":"default",fontFamily:"inherit",transition:"all .2s",boxShadow:draft.trim()?`0 4px 16px ${rc}44`:"none"}}>
-                              {sending?"Submitting...":"Submit Report"}
-                            </button>
-                            <div style={{fontSize:14,color:"#94a3b8",maxWidth:300,lineHeight:1.55}}>Reports reviewed before publishing. Anonymous option available. Data supports regulatory filings.</div>
+                        <div>
+                          {/* Name and email row */}
+                          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:16}}>
+                            <div>
+                              <label style={{fontSize:13,fontWeight:700,color:"#374151",display:"block",marginBottom:6}}>Your Name</label>
+                              <input value={repName} onChange={e=>setRepName(e.target.value)}
+                                placeholder="First name or Anonymous"
+                                style={{width:"100%",padding:"13px 16px",borderRadius:10,border:"1.5px solid #e2e8f0",fontSize:15,boxSizing:"border-box",outline:"none",fontFamily:"inherit",color:"#1e293b"}}/>
+                            </div>
+                            <div>
+                              <label style={{fontSize:13,fontWeight:700,color:"#374151",display:"block",marginBottom:6}}>Email Address *</label>
+                              <input value={repEmail} onChange={e=>setRepEmail(e.target.value)}
+                                placeholder="Required to verify your report"
+                                type="email"
+                                style={{width:"100%",padding:"13px 16px",borderRadius:10,border:`1.5px solid ${repEmail.trim()?"#3b82f6":"#e2e8f0"}`,fontSize:15,boxSizing:"border-box",outline:"none",fontFamily:"inherit",color:"#1e293b",transition:"border-color .2s"}}/>
+                              <div style={{fontSize:11,color:"#94a3b8",marginTop:4}}>Not displayed publicly. Used for verification only.</div>
+                            </div>
                           </div>
-                        </>
+
+                          {/* Duration at address */}
+                          <div style={{marginBottom:16}}>
+                            <label style={{fontSize:13,fontWeight:700,color:"#374151",display:"block",marginBottom:8}}>How long have you lived at this address?</label>
+                            <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+                              {["Less than 1 year","1 to 3 years","3 to 10 years","More than 10 years"].map(d=>(
+                                <button key={d} onClick={()=>setRepDuration(d)}
+                                  style={{padding:"9px 16px",borderRadius:20,border:`2px solid ${repDuration===d?rc:"#e2e8f0"}`,background:repDuration===d?rc+"12":"#fff",color:repDuration===d?rc:"#64748b",fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:"inherit",transition:"all .15s"}}>
+                                  {d}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+
+                          {/* Symptom checkboxes */}
+                          <div style={{marginBottom:16}}>
+                            <label style={{fontSize:13,fontWeight:700,color:"#374151",display:"block",marginBottom:8}}>Which of these have you experienced near this facility? <span style={{color:"#94a3b8",fontWeight:400}}>(select all that apply)</span></label>
+                            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
+                              {SYMPTOM_OPTIONS.map(s=>{
+                                const checked = repSymptoms.includes(s);
+                                return(
+                                  <div key={s} onClick={()=>toggleSymptom(s)}
+                                    style={{display:"flex",alignItems:"center",gap:10,padding:"11px 14px",borderRadius:10,border:`1.5px solid ${checked?rc:"#e2e8f0"}`,background:checked?rc+"0d":"#f8fafc",cursor:"pointer",transition:"all .15s"}}>
+                                    <div style={{width:18,height:18,borderRadius:4,border:`2px solid ${checked?rc:"#cbd5e1"}`,background:checked?rc:"transparent",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,transition:"all .15s"}}>
+                                      {checked && <Icon name="check" size={11} color="#fff"/>}
+                                    </div>
+                                    <span style={{fontSize:13,fontWeight:checked?600:400,color:checked?rc:"#374151"}}>{s}</span>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </div>
+
+                          {/* Report text */}
+                          <div style={{marginBottom:16}}>
+                            <label style={{fontSize:13,fontWeight:700,color:"#374151",display:"block",marginBottom:6}}>Your Report *</label>
+                            <textarea value={draft} onChange={e=>setDraft(e.target.value)} rows={6}
+                              placeholder="Describe what you have experienced living near this facility. Include when symptoms started, how frequently they occur, whether they improve when you leave the area, any events you have noticed such as generator tests, visible smoke, or unusual noise. The more detail you provide, the more useful your report is to regulators and researchers."
+                              style={{width:"100%",padding:"14px 16px",borderRadius:10,border:`1.5px solid ${draft.trim()?"#3b82f6":"#e2e8f0"}`,fontSize:15,resize:"vertical",outline:"none",boxSizing:"border-box",fontFamily:"inherit",lineHeight:1.75,color:"#1e293b",transition:"border-color .2s"}}/>
+                          </div>
+
+                          {/* Declaration */}
+                          <div onClick={()=>setRepDeclared(v=>!v)}
+                            style={{display:"flex",alignItems:"flex-start",gap:12,padding:"16px",borderRadius:12,border:`2px solid ${repDeclared?rc:"#e2e8f0"}`,background:repDeclared?rc+"08":"#f8fafc",cursor:"pointer",marginBottom:20,transition:"all .2s"}}>
+                            <div style={{width:22,height:22,borderRadius:5,border:`2px solid ${repDeclared?rc:"#94a3b8"}`,background:repDeclared?rc:"transparent",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,marginTop:1,transition:"all .2s"}}>
+                              {repDeclared && <Icon name="check" size={13} color="#fff"/>}
+                            </div>
+                            <div style={{fontSize:14,color:"#374151",lineHeight:1.7,fontWeight:repDeclared?600:400}}>
+                              * I declare that I am a real resident living near this facility and that the information in this report is truthful to the best of my knowledge. I understand that this report may be shared with public health authorities and regulatory bodies as part of a verified resident health registry.
+                            </div>
+                          </div>
+
+                          {/* Submit */}
+                          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:16,flexWrap:"wrap"}}>
+                            <button onClick={sendReport} disabled={sending||!canSubmit}
+                              style={{padding:"15px 36px",borderRadius:12,border:"none",background:canSubmit?rc:"#e2e8f0",color:canSubmit?"#fff":"#94a3b8",fontSize:16,fontWeight:800,cursor:canSubmit?"pointer":"default",fontFamily:"inherit",transition:"all .2s",boxShadow:canSubmit?`0 4px 20px ${rc}44`:"none"}}>
+                              {sending?"Submitting...":"Submit Verified Report"}
+                            </button>
+                            <div style={{fontSize:13,color:"#94a3b8",maxWidth:300,lineHeight:1.55}}>
+                              Reports reviewed within 48 hours. Email used for verification only, never displayed publicly.
+                            </div>
+                          </div>
+                        </div>
                       )}
-                    </div>
-                  </div>
-                )}
+                    </div>                )}
 
               </div>
             </div>
