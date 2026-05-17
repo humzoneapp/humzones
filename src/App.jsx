@@ -439,30 +439,46 @@ export default function App() {
     return ()=>clearInterval(iv);
   },[loading,facs.length]);
 
-  // Calculate dropdown position — FIXED so it floats above everything
-  const updateCDropPos = useCallback(()=>{
+  // Calculate dropdown position — called right when dropdown opens
+  const openCDrop = useCallback(()=>{
     if(!cRef.current) return;
     const r = cRef.current.getBoundingClientRect();
     setCDropPos({top:r.bottom+8, left:r.left, width:r.width});
+    setShowCD(true);
   },[]);
 
-  const updateCityDropPos = useCallback(()=>{
+  const openCityDrop = useCallback(()=>{
     if(!ciRef.current) return;
     const r = ciRef.current.getBoundingClientRect();
     setCityDropPos({top:r.bottom+8, left:r.left, width:r.width});
+    setShowCityD(true);
   },[]);
 
+  // Reposition on scroll/resize
   useEffect(()=>{
+    const reposition = ()=>{
+      if(showCD && cRef.current){
+        const r = cRef.current.getBoundingClientRect();
+        setCDropPos({top:r.bottom+8, left:r.left, width:r.width});
+      }
+      if(showCityD && ciRef.current){
+        const r = ciRef.current.getBoundingClientRect();
+        setCityDropPos({top:r.bottom+8, left:r.left, width:r.width});
+      }
+    };
     const h = e => {
       if(cRef.current  && !cRef.current.contains(e.target))  setShowCD(false);
       if(ciRef.current && !ciRef.current.contains(e.target)) setShowCityD(false);
     };
-    const r = ()=>{ updateCDropPos(); updateCityDropPos(); };
     document.addEventListener("mousedown",h);
-    window.addEventListener("resize",r);
-    window.addEventListener("scroll",r);
-    return ()=>{ document.removeEventListener("mousedown",h); window.removeEventListener("resize",r); window.removeEventListener("scroll",r); };
-  },[]);
+    window.addEventListener("resize",reposition);
+    window.addEventListener("scroll",reposition,true);
+    return ()=>{
+      document.removeEventListener("mousedown",h);
+      window.removeEventListener("resize",reposition);
+      window.removeEventListener("scroll",reposition,true);
+    };
+  },[showCD, showCityD]);
 
   const dc       = sel ? facs.find(f=>f.id===sel) : null;
   const rc       = dc ? (RISK_C[dc.Risk_Level]||"#64748b") : "#64748b";
@@ -574,8 +590,8 @@ export default function App() {
                   <Icon name="globe" size={20} color="rgba(255,255,255,.7)"/>
                 </span>
                 <input className="srch" value={cInput}
-                  onChange={e=>{setCInput(e.target.value);setShowCD(true);updateCDropPos();}}
-                  onFocus={()=>{setShowCD(true);updateCDropPos();}}
+                  onChange={e=>{setCInput(e.target.value);openCDrop();}}
+                  onFocus={openCDrop}
                   placeholder="Select a country..."
                   style={{width:"100%",padding:"20px 18px 20px 52px",fontSize:17,fontWeight:500,fontFamily:"inherit",borderRadius:16,border:"1.5px solid rgba(255,255,255,.18)",background:"rgba(255,255,255,.11)",color:"#fff",backdropFilter:"blur(16px)",boxSizing:"border-box",boxShadow:"0 8px 32px rgba(0,0,0,.25),inset 0 1px 0 rgba(255,255,255,.12)"}}
                 />
@@ -589,8 +605,8 @@ export default function App() {
                   <Icon name="pin" size={20} color="rgba(255,255,255,.7)"/>
                 </span>
                 <input className="srch" value={cityTxt}
-                  onChange={e=>{setCityTxt(e.target.value);setShowCityD(true);updateCityDropPos();}}
-                  onFocus={()=>{setShowCityD(true);updateCityDropPos();}}
+                  onChange={e=>{setCityTxt(e.target.value);openCityDrop();}}
+                  onFocus={openCityDrop}
                   placeholder={country?`Cities in ${country}...`:"Select country first"}
                   style={{width:"100%",padding:"20px 18px 20px 52px",fontSize:17,fontWeight:500,fontFamily:"inherit",borderRadius:16,border:"1.5px solid rgba(255,255,255,.18)",background:"rgba(255,255,255,.11)",color:"#fff",backdropFilter:"blur(16px)",boxSizing:"border-box",boxShadow:"0 8px 32px rgba(0,0,0,.25),inset 0 1px 0 rgba(255,255,255,.12)"}}
                 />
