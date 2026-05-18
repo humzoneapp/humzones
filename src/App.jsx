@@ -1291,7 +1291,9 @@ export default function App() {
             onMouseLeave={e=>{e.currentTarget.style.transform="scale(1)";e.currentTarget.style.boxShadow="0 4px 20px rgba(239,68,68,.45)";}}
             aria-label="Scroll to top"
           >
-            <Icon name="chevDown" size={22} color="#fff" style={{transform:"rotate(180deg)"}}/>
+            <div style={{transform:"rotate(180deg)",display:"flex",alignItems:"center",justifyContent:"center"}}>
+              <Icon name="chevDown" size={22} color="#fff"/>
+            </div>
           </button>
         )}
 
