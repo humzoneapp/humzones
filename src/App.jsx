@@ -433,6 +433,8 @@ export default function App() {
   const [repDuration,setRepDuration] = useState("");
   const [repSymptoms,setRepSymptoms] = useState([]);
   const [repDeclared,setRepDeclared] = useState(false);
+  const [expandedRep,setExpandedRep] = useState(null);
+  const MAX_REPORT_CHARS = 3000;
   const [hp,setHp]               = useState(""); // honeypot
   const [sending,setSending]     = useState(false);
   const [sent,setSent]           = useState(false);
@@ -1115,15 +1117,44 @@ export default function App() {
                     {reps.length===0 && (
                       <div style={{fontSize:16,color:"#94a3b8",fontStyle:"italic",marginBottom:28,padding:"16px 0"}}>No reports yet for this facility. Be the first to share your experience.</div>
                     )}
-                    {reps.map((r,i)=>(
-                      <div key={i} style={{background:"#fff",border:"1px solid #e2e8f0",borderRadius:16,padding:"20px 24px",marginBottom:12,boxShadow:"0 2px 8px rgba(0,0,0,.04)"}}>
-                        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
-                          <span style={{fontSize:15,fontWeight:800,color:rc,display:"flex",alignItems:"center",gap:6}}><Icon name="community" size={16} color={rc}/> {r.Reporter||"Anonymous"}</span>
-                          <span style={{fontSize:14,color:"#94a3b8"}}>{r.Date_Submitted}</span>
+                    {reps.map((r,i)=>{
+                      const isExpanded = expandedRep === i;
+                      const text = r.Report_Text || "";
+                      // Approx 3 lines at ~80 chars each
+                      const PREVIEW_LIMIT = 240;
+                      const isLong = text.length > PREVIEW_LIMIT;
+                      const displayText = isExpanded || !isLong ? text : text.slice(0, PREVIEW_LIMIT).trimEnd() + "...";
+                      return (
+                        <div key={i} style={{background:"#fff",border:"1px solid #e2e8f0",borderRadius:16,padding:"20px 24px",marginBottom:12,boxShadow:"0 2px 8px rgba(0,0,0,.04)"}}>
+                          <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:12,gap:12}}>
+                            <span style={{fontSize:15,fontWeight:800,color:rc,display:"flex",alignItems:"center",gap:6}}>
+                              <Icon name="community" size={16} color={rc}/> {r.Reporter||"Anonymous"}
+                            </span>
+                            <span style={{fontSize:13,color:"#94a3b8",flexShrink:0}}>{r.Date_Submitted}</span>
+                          </div>
+                          {r.Duration && (
+                            <div style={{fontSize:12,color:"#64748b",fontWeight:600,marginBottom:8,display:"flex",alignItems:"center",gap:6}}>
+                              <Icon name="pin" size={12} color="#94a3b8"/> Resident for {r.Duration}
+                            </div>
+                          )}
+                          {r.Symptoms && (
+                            <div style={{display:"flex",flexWrap:"wrap",gap:6,marginBottom:12}}>
+                              {r.Symptoms.split(", ").filter(Boolean).map((sym,si)=>(
+                                <span key={si} style={{fontSize:12,fontWeight:600,padding:"3px 10px",borderRadius:20,background:rc+"12",color:rc,border:`1px solid ${rc}22`}}>{sym}</span>
+                              ))}
+                            </div>
+                          )}
+                          <p style={{fontSize:15,color:"#374151",lineHeight:1.85,margin:0}}>{displayText}</p>
+                          {isLong && (
+                            <button onClick={()=>setExpandedRep(isExpanded?null:i)}
+                              style={{marginTop:10,background:"transparent",border:"none",color:rc,fontSize:14,fontWeight:700,cursor:"pointer",fontFamily:"inherit",padding:0,display:"flex",alignItems:"center",gap:4}}>
+                              {isExpanded ? "Show less" : "Read full report"}
+                              <span style={{fontSize:16,lineHeight:1}}>{isExpanded?"↑":"↓"}</span>
+                            </button>
+                          )}
                         </div>
-                        <p style={{fontSize:16,color:"#374151",lineHeight:1.85,margin:0}}>{r.Report_Text}</p>
-                      </div>
-                    ))}
+                      );
+                    })}
                     <div style={{background:"#fff",border:"1px solid #e2e8f0",borderRadius:18,padding:"28px 30px",boxShadow:"0 4px 24px rgba(0,0,0,.07)"}}>
                       <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:8}}>
                         <div style={{width:44,height:44,borderRadius:12,background:rc+"14",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}><Icon name="doc" size={22} color={rc}/></div>
@@ -1180,10 +1211,18 @@ export default function App() {
                             </div>
                           </div>
                           <div style={{marginBottom:16}}>
-                            <label style={{fontSize:13,fontWeight:700,color:"#374151",display:"block",marginBottom:6}}>Your Report *</label>
-                            <textarea value={draft} onChange={e=>setDraft(e.target.value)} rows={6}
-                              placeholder="Describe what you have experienced living near this facility. Include when symptoms started, how frequently they occur, whether they improve when you leave the area, any events you have noticed such as generator tests or visible smoke."
-                              style={{width:"100%",padding:"14px 16px",borderRadius:10,border:`1.5px solid ${draft.trim()?"#3b82f6":"#e2e8f0"}`,fontSize:15,resize:"vertical",outline:"none",boxSizing:"border-box",fontFamily:"inherit",lineHeight:1.75,color:"#1e293b",transition:"border-color .2s"}}/>
+                            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}}>
+                              <label style={{fontSize:13,fontWeight:700,color:"#374151"}}>Your Report *</label>
+                              <span style={{fontSize:12,fontWeight:600,color:draft.length>MAX_REPORT_CHARS?"#ef4444":draft.length>MAX_REPORT_CHARS*0.8?"#f97316":"#94a3b8"}}>
+                                {draft.length.toLocaleString()} / {MAX_REPORT_CHARS.toLocaleString()}
+                              </span>
+                            </div>
+                            <textarea value={draft} onChange={e=>{if(e.target.value.length<=MAX_REPORT_CHARS) setDraft(e.target.value);}} rows={6}
+                              placeholder="Describe what you have experienced living near this facility. Include when symptoms started, how frequently they occur, whether they improve when you leave the area, any events you have noticed such as generator tests or visible smoke. The more specific detail you provide the more useful your report is to regulators."
+                              style={{width:"100%",padding:"14px 16px",borderRadius:10,border:`1.5px solid ${draft.length>MAX_REPORT_CHARS*0.9?"#ef4444":draft.trim()?"#3b82f6":"#e2e8f0"}`,fontSize:15,resize:"vertical",outline:"none",boxSizing:"border-box",fontFamily:"inherit",lineHeight:1.75,color:"#1e293b",transition:"border-color .2s"}}/>
+                            {draft.length>=MAX_REPORT_CHARS && (
+                              <div style={{fontSize:12,color:"#ef4444",marginTop:4,fontWeight:600}}>Maximum length reached. Please edit your report to fit within 3,000 characters.</div>
+                            )}
                           </div>
                           <div onClick={()=>setRepDeclared(v=>!v)} style={{display:"flex",alignItems:"flex-start",gap:12,padding:"16px",borderRadius:12,border:`2px solid ${repDeclared?rc:"#e2e8f0"}`,background:repDeclared?rc+"08":"#f8fafc",cursor:"pointer",marginBottom:20,transition:"all .2s"}}>
                             <div style={{width:22,height:22,borderRadius:5,border:`2px solid ${repDeclared?rc:"#94a3b8"}`,background:repDeclared?rc:"transparent",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,marginTop:1,transition:"all .2s"}}>
