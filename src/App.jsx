@@ -423,9 +423,13 @@ export default function App() {
   const [country,setCountry]     = useState("");
   const [cInput,setCInput]       = useState("");
   const [showCD,setShowCD]       = useState(false);
+  const [region,setRegion]       = useState("");
+  const [rInput,setRInput]       = useState("");
+  const [showRD,setShowRD]       = useState(false);
   const [cityTxt,setCityTxt]     = useState("");
   const [showCityD,setShowCityD] = useState(false);
   const [cDropPos,setCDropPos]   = useState({top:0,left:0,width:0});
+  const [rDropPos,setRDropPos]   = useState({top:0,left:0,width:0});
   const [cityDropPos,setCityDropPos] = useState({top:0,left:0,width:0});
   const [sel,setSel]             = useState(null);
   const [tab,setTab]             = useState("feel");
@@ -452,8 +456,10 @@ export default function App() {
   const [statVals,setStatVals]   = useState([0,0,0,0]);
   const [showScrollTop,setShowScrollTop] = useState(false);
   const cRef    = useRef(null);
+  const rRef    = useRef(null);
   const ciRef   = useRef(null);
   const cDropRef  = useRef(null);
+  const rDropRef  = useRef(null);
   const cityDropRef = useRef(null);
   const topRef  = useRef(null);
 
@@ -488,6 +494,13 @@ export default function App() {
     setShowCD(true);
   },[]);
 
+  const openRDrop = useCallback(()=>{
+    if(!rRef.current) return;
+    const r = rRef.current.getBoundingClientRect();
+    setRDropPos({top:r.bottom+8, left:r.left, width:r.width});
+    setShowRD(true);
+  },[]);
+
   const openCityDrop = useCallback(()=>{
     if(!ciRef.current) return;
     const r = ciRef.current.getBoundingClientRect();
@@ -502,6 +515,10 @@ export default function App() {
         const r = cRef.current.getBoundingClientRect();
         setCDropPos({top:r.bottom+8, left:r.left, width:r.width});
       }
+      if(showRD && rRef.current){
+        const r = rRef.current.getBoundingClientRect();
+        setRDropPos({top:r.bottom+8, left:r.left, width:r.width});
+      }
       if(showCityD && ciRef.current){
         const r = ciRef.current.getBoundingClientRect();
         setCityDropPos({top:r.bottom+8, left:r.left, width:r.width});
@@ -510,9 +527,12 @@ export default function App() {
     const h = e => {
       const inCInput  = cRef.current   && cRef.current.contains(e.target);
       const inCDrop   = cDropRef.current && cDropRef.current.contains(e.target);
+      const inRInput  = rRef.current   && rRef.current.contains(e.target);
+      const inRDrop   = rDropRef.current && rDropRef.current.contains(e.target);
       const inCiInput = ciRef.current  && ciRef.current.contains(e.target);
       const inCiDrop  = cityDropRef.current && cityDropRef.current.contains(e.target);
       if(!inCInput  && !inCDrop)  setShowCD(false);
+      if(!inRInput  && !inRDrop)  setShowRD(false);
       if(!inCiInput && !inCiDrop) setShowCityD(false);
     };
     document.addEventListener("mousedown",h);
@@ -523,7 +543,7 @@ export default function App() {
       window.removeEventListener("resize",reposition);
       window.removeEventListener("scroll",reposition,true);
     };
-  },[showCD, showCityD]);
+  },[showCD, showRD, showCityD]);
 
   const dc       = sel ? facs.find(f=>f.id===sel) : null;
   const rc       = dc ? (RISK_C[dc.Risk_Level]||"#64748b") : "#64748b";
@@ -539,12 +559,29 @@ export default function App() {
 
   const countries   = [...new Set(facs.map(f=>f.Country).filter(Boolean))].sort();
   const cMatches    = cInput ? countries.filter(c=>c.toLowerCase().includes(cInput.toLowerCase())) : countries;
-  const citiesInC   = country ? [...new Map(facs.filter(f=>f.Country===country).map(f=>[f.City,f])).values()] : [];
+  // Label for the region selector adapts to the chosen country's terminology
+  const regionLabel = (()=>{
+    const c=(country||"").toLowerCase();
+    if(c==="united states"||c==="usa"||c==="us"||c==="united states of america") return "State";
+    if(c==="canada") return "Province";
+    if(c==="australia") return "State/Territory";
+    if(c==="united kingdom"||c==="uk") return "Country/Region";
+    return "State/Region";
+  })();
+  const regionsInC  = country ? [...new Set(facs.filter(f=>f.Country===country).map(f=>f.State_Region).filter(Boolean))].sort() : [];
+  const hasRegions  = regionsInC.length>0;
+  const rMatches    = rInput ? regionsInC.filter(r=>r.toLowerCase().includes(rInput.toLowerCase())) : regionsInC;
+  // Region is required for filtering only when the country actually has region data
+  const regionReady = !!country && (!hasRegions || !!region);
+  const citiesInC   = regionReady
+    ? [...new Map(facs.filter(f=>f.Country===country && (!region || f.State_Region===region)).map(f=>[f.City,f])).values()]
+    : [];
   const cityMatches = cityTxt ? citiesInC.filter(f=>f.City?.toLowerCase().includes(cityTxt.toLowerCase())) : citiesInC;
   const cityGroups  = cityMatches.reduce((a,f)=>{ if(!a[f.City])a[f.City]=[]; a[f.City].push(f); return a; },{});
 
-  const pickCountry = c => { setCountry(c); setCInput(c); setShowCD(false); setCityTxt(""); setSel(null); };
-  const clearAll    = () => { setCountry(""); setCInput(""); setCityTxt(""); setSel(null); setShowCD(false); setShowCityD(false); };
+  const pickCountry = c => { setCountry(c); setCInput(c); setShowCD(false); setRegion(""); setRInput(""); setShowRD(false); setCityTxt(""); setSel(null); };
+  const pickRegion  = r => { setRegion(r); setRInput(r); setShowRD(false); setCityTxt(""); setSel(null); };
+  const clearAll    = () => { setCountry(""); setCInput(""); setRegion(""); setRInput(""); setCityTxt(""); setSel(null); setShowCD(false); setShowRD(false); setShowCityD(false); };
   const pickFac     = id => {
     setSel(id); setTab("feel");
     setQStep(0); setQRes(null); setQAns({});
@@ -725,13 +762,23 @@ export default function App() {
                   style={{width:"100%",padding:"20px 18px 20px 52px",fontSize:17,fontWeight:500,fontFamily:"inherit",borderRadius:16,border:"1.5px solid rgba(255,255,255,.18)",background:"rgba(255,255,255,.11)",color:"#fff",backdropFilter:"blur(16px)",boxSizing:"border-box",boxShadow:"0 8px 32px rgba(0,0,0,.25),inset 0 1px 0 rgba(255,255,255,.12)"}}/>
               </div>
             </div>
-            <div ref={ciRef} style={{flex:1,position:"relative",opacity:country?1:.45,pointerEvents:country?"all":"none",transition:"opacity .2s"}}>
+            <div ref={rRef} style={{flex:1,position:"relative",opacity:(country&&hasRegions)?1:.45,pointerEvents:(country&&hasRegions)?"all":"none",transition:"opacity .2s"}}>
+              <div style={{position:"relative",display:"flex",alignItems:"center"}}>
+                <span style={{position:"absolute",left:18,zIndex:2,pointerEvents:"none",display:"flex"}}><Icon name="globe" size={20} color="rgba(255,255,255,.7)"/></span>
+                <input className="srch" value={rInput}
+                  onChange={e=>{setRInput(e.target.value);openRDrop();}}
+                  onFocus={openRDrop}
+                  placeholder={country?(hasRegions?`Select a ${regionLabel.toLowerCase()}...`:"No regions"):"Select country first"}
+                  style={{width:"100%",padding:"20px 18px 20px 52px",fontSize:17,fontWeight:500,fontFamily:"inherit",borderRadius:16,border:"1.5px solid rgba(255,255,255,.18)",background:"rgba(255,255,255,.11)",color:"#fff",backdropFilter:"blur(16px)",boxSizing:"border-box",boxShadow:"0 8px 32px rgba(0,0,0,.25),inset 0 1px 0 rgba(255,255,255,.12)"}}/>
+              </div>
+            </div>
+            <div ref={ciRef} style={{flex:1,position:"relative",opacity:regionReady?1:.45,pointerEvents:regionReady?"all":"none",transition:"opacity .2s"}}>
               <div style={{position:"relative",display:"flex",alignItems:"center"}}>
                 <span style={{position:"absolute",left:18,zIndex:2,pointerEvents:"none",display:"flex"}}><Icon name="pin" size={20} color="rgba(255,255,255,.7)"/></span>
                 <input className="srch" value={cityTxt}
                   onChange={e=>{setCityTxt(e.target.value);openCityDrop();}}
                   onFocus={openCityDrop}
-                  placeholder={country?`Cities in ${country}...`:"Select country first"}
+                  placeholder={regionReady?`Cities in ${region||country}...`:(country?`Select ${regionLabel.toLowerCase()} first`:"Select country first")}
                   style={{width:"100%",padding:"20px 18px 20px 52px",fontSize:17,fontWeight:500,fontFamily:"inherit",borderRadius:16,border:"1.5px solid rgba(255,255,255,.18)",background:"rgba(255,255,255,.11)",color:"#fff",backdropFilter:"blur(16px)",boxSizing:"border-box",boxShadow:"0 8px 32px rgba(0,0,0,.25),inset 0 1px 0 rgba(255,255,255,.12)"}}/>
               </div>
             </div>
@@ -763,7 +810,18 @@ export default function App() {
           </div>
         )}
 
-        {showCityD && country && (
+        {showRD && country && hasRegions && (
+          <div ref={rDropRef} style={{position:"fixed",top:rDropPos.top,left:rDropPos.left,width:rDropPos.width,background:"#fff",borderRadius:16,boxShadow:"0 28px 72px rgba(0,0,0,.32)",zIndex:9999,border:"1px solid #e2e8f0",overflow:"hidden"}}>
+            <div className="scroll-inner" style={{maxHeight:"min(340px, 60vh)",overflowY:"auto"}}>
+              {rMatches.length===0 && <div style={{padding:"16px 20px",color:"#94a3b8",fontSize:16,fontStyle:"italic"}}>No {regionLabel.toLowerCase()} found</div>}
+              {rMatches.map(r=>(
+                <div key={r} className="drop-item" style={{padding:"15px 20px",fontSize:16,color:"#1e293b",borderBottom:"1px solid #f1f5f9",fontWeight:500}} onClick={()=>pickRegion(r)}>{r}</div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {showCityD && regionReady && (
           <div ref={cityDropRef} style={{position:"fixed",top:cityDropPos.top,left:cityDropPos.left,width:cityDropPos.width,background:"#fff",borderRadius:16,boxShadow:"0 28px 72px rgba(0,0,0,.32)",zIndex:9999,border:"1px solid #e2e8f0",overflow:"hidden"}}>
             <div className="scroll-inner" style={{maxHeight:"min(500px, 65vh)",overflowY:"auto",overflowX:"hidden"}}>
               {Object.keys(cityGroups).length===0 && <div style={{padding:"16px 20px",color:"#94a3b8",fontSize:16,fontStyle:"italic"}}>No cities found</div>}
