@@ -32,8 +32,15 @@ async function postReport(fields) {
       headers: HDR,
       body: JSON.stringify({ fields }),
     });
+    if(!r.ok) {
+      const err = await r.json().catch(()=>({error:"unknown"}));
+      console.error("Airtable error:", JSON.stringify(err));
+    }
     return r.ok;
-  } catch { return false; }
+  } catch(e) {
+    console.error("Network error:", e);
+    return false;
+  }
 }
 
 // ─── OPENSTREETMAP STATIC MAP ─────────────────────────────────────────────────
@@ -633,19 +640,21 @@ export default function App() {
     if(!canSubmit||!dc) return;
     if(hp) return;
     setSending(true);
-    const ok = await postReport({
+    // Build fields - Facility is a linked record so pass as array of record IDs
+    const reportFields = {
       Reporter:       repName||"Anonymous",
       Email:          repEmail.trim(),
-      Facility:       dc.Name,
       Report_Text:    draft,
       Symptoms:       repSymptoms.join(", "),
       Duration:       repDuration,
-      City:           dc.City,
-      Country:        dc.Country,
+      City:           dc.City || "",
+      Country:        dc.Country || "",
       Date_Submitted: new Date().toISOString().split("T")[0],
       Declared:       true,
       Approved:       false,
-    });
+    };
+    if(dc.id) reportFields.Facility = [dc.id];
+    const ok = await postReport(reportFields);
     if(ok){
       setSent(true);
       setDraft(""); setRepName(""); setRepEmail("");
