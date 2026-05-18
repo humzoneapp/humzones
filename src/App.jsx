@@ -680,7 +680,7 @@ export default function App() {
     {val:`~${statVals[0].toLocaleString()}`,label:"Projected US deaths/year by 2030"},
     {val:`$${statVals[1]}B+`,               label:"Annual public health burden"},
     {val:statVals[2]>=600000?"600K":fmt(statVals[2]),label:"Projected asthma cases/year"},
-    {val:loading?"...":facs.length,         label:"Facilities in our database"},
+    {val:loading?"...":statVals[3],         label:"Facilities in our database"},
   ];
 
   return (
