@@ -522,7 +522,7 @@ export default function App() {
   useEffect(()=>{
     if(!dc) return;
     setReps([]);
-    apiFetch("Reports",{filterByFormula:`{Facility} = "${dc.Name}"`}).then(setReps);
+    apiFetch("Reports",{filterByFormula:`AND({Facility} = "${dc.Name}", {Approved} = 1)`}).then(setReps);
   },[sel]);
 
   const countries   = [...new Set(facs.map(f=>f.Country).filter(Boolean))].sort();
@@ -659,7 +659,7 @@ export default function App() {
       setSent(true);
       setDraft(""); setRepName(""); setRepEmail("");
       setRepDuration(""); setRepSymptoms([]); setRepDeclared(false);
-      apiFetch("Reports",{filterByFormula:`{Facility} = "${dc.Name}"`}).then(setReps);
+      apiFetch("Reports",{filterByFormula:`AND({Facility} = "${dc.Name}", {Approved} = 1)`}).then(setReps);
     }
     setSending(false);
   };
