@@ -475,7 +475,7 @@ export default function App() {
 
   useEffect(()=>{
     if(loading) return;
-    const targets=[1300,20,600000,facs.length];
+    const targets=[1000000000,4500000,1000000000000,facs.length];
     let frame=0;
     const iv=setInterval(()=>{
       frame++;
@@ -714,10 +714,10 @@ export default function App() {
   };
 
   const STATS=[
-    {val:`~${statVals[0].toLocaleString()}`,label:"Projected US deaths/year by 2030"},
-    {val:`$${statVals[1]}B+`,               label:"Annual public health burden"},
-    {val:statVals[2]>=600000?"600K":fmt(statVals[2]),label:"Projected asthma cases/year"},
-    {val:loading?"...":statVals[3],         label:"Facilities in our database"},
+    {val:`~${(statVals[0]/1e9).toFixed(2).replace(/\.?0+$/,"")} Billion`,    label:"Gallons of water consumed by data centers daily"},
+    {val:`~${(statVals[1]/1e6).toFixed(1)} Million`,                         label:"Americans living within 1 mile of a major data center"},
+    {val:`~${(statVals[2]/1e12).toFixed(2).replace(/\.?0+$/,"")} Trillion`,  label:"Watts of power consumed by data centers globally"},
+    {val:loading?"...":statVals[3],                                          label:"Facilities in our database"},
   ];
 
   return (
