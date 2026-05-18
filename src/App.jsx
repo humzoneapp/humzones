@@ -280,7 +280,8 @@ const CSS = `
 
   @media(max-width:768px){
     .hero{padding:48px 20px 60px!important;min-height:auto!important}
-    .hero h1{font-size:34px!important}
+    .hero h1{font-size:48px!important}
+    .scroll-hint{display:none!important}
     .search-row{flex-direction:column!important}
     .stats-row{gap:20px!important;padding:20px 16px!important}
     .sym-grid{grid-template-columns:1fr!important}
@@ -295,7 +296,8 @@ const CSS = `
     .addr-bar{flex-direction:column!important;align-items:flex-start!important;gap:10px!important}
   }
   @media(max-width:480px){
-    .hero h1{font-size:26px!important}
+    .hero h1{font-size:38px!important}
+    .scroll-hint{display:none!important}
   }
 `;
 
@@ -447,6 +449,7 @@ export default function App() {
   const [qEmailStep,setQEmailStep] = useState(false); // show email capture after quiz
   const [qEmailSent,setQEmailSent] = useState(false);
   const [statVals,setStatVals]   = useState([0,0,0,0]);
+  const [showScrollTop,setShowScrollTop] = useState(false);
   const cRef    = useRef(null);
   const ciRef   = useRef(null);
   const cDropRef  = useRef(null);
@@ -455,6 +458,12 @@ export default function App() {
 
   useEffect(()=>{
     apiFetch("Facilities").then(d=>{ setFacs(d); setLoading(false); });
+  },[]);
+
+  useEffect(()=>{
+    const handleScroll = () => setShowScrollTop(window.scrollY > 400);
+    window.addEventListener("scroll", handleScroll, {passive:true});
+    return () => window.removeEventListener("scroll", handleScroll);
   },[]);
 
   useEffect(()=>{
@@ -733,8 +742,8 @@ export default function App() {
             </button>
           )}
 
-          {!dc && (
-            <div className="floating" style={{position:"absolute",bottom:36,left:0,right:0,margin:"0 auto",color:"rgba(255,255,255,.25)",fontSize:14,zIndex:1,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:6,textAlign:"center",width:"100%"}}>
+          {!dc && !country && (
+            <div className="floating scroll-hint" style={{position:"absolute",bottom:36,left:0,right:0,margin:"0 auto",color:"rgba(255,255,255,.25)",fontSize:14,zIndex:1,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:6,textAlign:"center",width:"100%"}}>
               <span>scroll to learn more</span>
               <Icon name="chevDown" size={20} color="rgba(255,255,255,.25)"/>
             </div>
@@ -1256,6 +1265,35 @@ export default function App() {
             </div>
           )}
         </main>
+
+        {/* SCROLL TO TOP BUTTON */}
+        {showScrollTop && (
+          <button
+            onClick={()=>window.scrollTo({top:0,behavior:"smooth"})}
+            style={{
+              position:"fixed",
+              bottom:28,
+              right:28,
+              width:48,
+              height:48,
+              borderRadius:"50%",
+              background:"linear-gradient(135deg,#ef4444,#f97316)",
+              border:"none",
+              boxShadow:"0 4px 20px rgba(239,68,68,.45)",
+              cursor:"pointer",
+              zIndex:8888,
+              display:"flex",
+              alignItems:"center",
+              justifyContent:"center",
+              transition:"transform .2s, box-shadow .2s",
+            }}
+            onMouseEnter={e=>{e.currentTarget.style.transform="scale(1.12)";e.currentTarget.style.boxShadow="0 6px 28px rgba(239,68,68,.6)";}}
+            onMouseLeave={e=>{e.currentTarget.style.transform="scale(1)";e.currentTarget.style.boxShadow="0 4px 20px rgba(239,68,68,.45)";}}
+            aria-label="Scroll to top"
+          >
+            <Icon name="chevDown" size={22} color="#fff" style={{transform:"rotate(180deg)"}}/>
+          </button>
+        )}
 
         <footer style={{background:"#0a0f1e",padding:"48px 24px 36px",textAlign:"center"}}>
           <div style={{marginBottom:8}}>
