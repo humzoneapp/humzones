@@ -35,6 +35,28 @@ async function apiFetch(table, params = {}) {
   return all.map(r => ({ id: r.id, ...r.fields }));
 }
 
+// apiFetch with a 1-hour localStorage cache, so repeat visitors skip the
+// network round trip. Falls through to a fresh fetch if the cache is
+// missing, stale, corrupt, or localStorage is unavailable.
+const CACHE_TTL = 60 * 60 * 1000; // 1 hour
+
+async function cachedFetch(table, params = {}) {
+  const cacheKey = `hz_cache_${table}`;
+  try {
+    const raw = localStorage.getItem(cacheKey);
+    if (raw) {
+      const { ts, data } = JSON.parse(raw);
+      if (Array.isArray(data) && Date.now() - ts < CACHE_TTL) return data;
+    }
+  } catch { /* corrupt or unavailable cache: ignore and fetch fresh */ }
+
+  const data = await apiFetch(table, params);
+  try {
+    localStorage.setItem(cacheKey, JSON.stringify({ ts: Date.now(), data }));
+  } catch { /* quota exceeded or unavailable: skip caching */ }
+  return data;
+}
+
 async function postReport(fields) {
   if (fields._hp) return false; // honeypot
   try {
@@ -261,6 +283,7 @@ const CSS = `
   .a4{animation:fadeUp .55s .3s ease both}
   .floating{animation:floatAnim 5s ease-in-out infinite}
   .spinning{animation:spin 1s linear infinite}
+  .skeleton{background:linear-gradient(90deg,#e2e8f0 25%,#f1f5f9 50%,#e2e8f0 75%);background-size:200% 100%;animation:shimmer 1.4s linear infinite;border-radius:8px}
 
   .srch:focus{outline:none!important;background:rgba(255,255,255,.2)!important;border-color:rgba(255,255,255,.5)!important}
   .srch::placeholder{color:rgba(255,255,255,.5)}
@@ -465,7 +488,7 @@ export default function App() {
   const topRef  = useRef(null);
 
   useEffect(()=>{
-    apiFetch("Facilities").then(d=>{ setFacs(d); setLoading(false); });
+    cachedFetch("Facilities").then(d=>{ setFacs(d); setLoading(false); });
   },[]);
 
   useEffect(()=>{
@@ -885,9 +908,32 @@ export default function App() {
           )}
 
           {loading && (
-            <div style={{textAlign:"center",padding:80,color:"#94a3b8"}}>
-              <div className="spinning" style={{width:48,height:48,border:"3px solid #e2e8f0",borderTop:"3px solid #ef4444",borderRadius:"50%",margin:"0 auto 16px"}}/>
-              <div style={{fontSize:17,fontWeight:600}}>Loading global facility data...</div>
+            <div style={{background:"#fff",borderRadius:24,overflow:"hidden",boxShadow:"0 8px 48px rgba(0,0,0,.10)"}} aria-busy="true" aria-label="Loading facility data">
+              {/* image area placeholder */}
+              <div className="skeleton" style={{height:300,borderRadius:0}}/>
+              {/* address bar placeholder */}
+              <div style={{padding:"18px 24px",borderBottom:"1px solid #e2e8f0",display:"flex",flexDirection:"column",gap:9}}>
+                <div className="skeleton" style={{height:15,width:"55%"}}/>
+                <div className="skeleton" style={{height:11,width:"30%"}}/>
+              </div>
+              {/* body placeholder */}
+              <div style={{padding:"28px 24px"}}>
+                <div className="skeleton" style={{height:26,width:"58%",marginBottom:12}}/>
+                <div className="skeleton" style={{height:14,width:"34%",marginBottom:28}}/>
+                <div className="nums-grid" style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16}}>
+                  {[0,1,2,3,4,5].map(i=>(
+                    <div key={i} style={{border:"2px solid #f1f5f9",borderRadius:16,padding:22}}>
+                      <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:14}}>
+                        <div className="skeleton" style={{width:34,height:34,borderRadius:10}}/>
+                        <div className="skeleton" style={{height:13,width:"50%"}}/>
+                      </div>
+                      <div className="skeleton" style={{height:24,width:"42%",marginBottom:12}}/>
+                      <div className="skeleton" style={{height:11,width:"100%",marginBottom:7}}/>
+                      <div className="skeleton" style={{height:11,width:"78%"}}/>
+                    </div>
+                  ))}
+                </div>
+              </div>
             </div>
           )}
 
