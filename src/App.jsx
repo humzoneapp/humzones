@@ -295,7 +295,8 @@ const CSS = `
     .hero h1{font-size:48px!important}
     .scroll-hint{display:none!important}
     .search-row{flex-direction:column!important}
-    .stats-row{gap:20px!important;padding:20px 16px!important}
+    .stats-row{display:grid!important;grid-template-columns:1fr 1fr!important;gap:24px 16px!important;padding:20px 16px!important}
+    .stat-item{width:auto!important}
     .sym-grid{grid-template-columns:1fr!important}
     .nums-grid{grid-template-columns:1fr!important}
     .fac-stats{grid-template-columns:1fr 1fr!important}
@@ -304,7 +305,7 @@ const CSS = `
     .fac-header{padding:20px 16px!important}
     .main{padding:20px 16px 48px!important}
     .rings{display:none!important}
-    .stat-val{font-size:24px!important}
+    .stat-val{font-size:20px!important}
     .addr-bar{flex-direction:column!important;align-items:flex-start!important;gap:10px!important}
   }
   @media(max-width:480px){
@@ -857,9 +858,9 @@ export default function App() {
         {/* STATS */}
         <div className="stats-row" style={{background:"#fff",borderBottom:"1px solid #e2e8f0",padding:"24px 16px",display:"flex",justifyContent:"center",alignItems:"flex-start",gap:16,flexWrap:"nowrap"}}>
           {STATS.map((s,i)=>(
-            <div key={i} style={{textAlign:"center",flex:"1 1 25%",width:"25%",minWidth:0}}>
+            <div key={i} className="stat-item" style={{textAlign:"center",flex:"1 1 25%",width:"25%",minWidth:0}}>
               <div className="stat-val" style={{fontSize:32,fontWeight:900,letterSpacing:"-.02em",display:"block",lineHeight:1.1,background:"linear-gradient(135deg,#ef4444,#f97316)",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent"}}>{s.val}</div>
-              <div style={{fontSize:11,color:"#94a3b8",letterSpacing:".05em",textTransform:"uppercase",fontWeight:700,marginTop:5,lineHeight:1.35,display:"-webkit-box",WebkitLineClamp:2,WebkitBoxOrient:"vertical",overflow:"hidden"}}>{s.label}</div>
+              <div style={{fontSize:11,color:"#94a3b8",letterSpacing:".05em",textTransform:"uppercase",fontWeight:700,marginTop:5,lineHeight:1.35,overflowWrap:"break-word"}}>{s.label}</div>
             </div>
           ))}
         </div>
