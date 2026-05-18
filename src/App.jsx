@@ -855,11 +855,11 @@ export default function App() {
         )}
 
         {/* STATS */}
-        <div className="stats-row" style={{background:"#fff",borderBottom:"1px solid #e2e8f0",padding:"24px 32px",display:"flex",justifyContent:"center",alignItems:"center",gap:56,flexWrap:"wrap"}}>
+        <div className="stats-row" style={{background:"#fff",borderBottom:"1px solid #e2e8f0",padding:"24px 16px",display:"flex",justifyContent:"center",alignItems:"flex-start",gap:16,flexWrap:"nowrap"}}>
           {STATS.map((s,i)=>(
-            <div key={i} style={{textAlign:"center"}}>
+            <div key={i} style={{textAlign:"center",flex:"1 1 25%",width:"25%",minWidth:0}}>
               <div className="stat-val" style={{fontSize:32,fontWeight:900,letterSpacing:"-.02em",display:"block",lineHeight:1.1,background:"linear-gradient(135deg,#ef4444,#f97316)",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent"}}>{s.val}</div>
-              <div style={{fontSize:13,color:"#94a3b8",letterSpacing:".06em",textTransform:"uppercase",fontWeight:700,marginTop:5}}>{s.label}</div>
+              <div style={{fontSize:11,color:"#94a3b8",letterSpacing:".05em",textTransform:"uppercase",fontWeight:700,marginTop:5,lineHeight:1.35,display:"-webkit-box",WebkitLineClamp:2,WebkitBoxOrient:"vertical",overflow:"hidden"}}>{s.label}</div>
             </div>
           ))}
         </div>
