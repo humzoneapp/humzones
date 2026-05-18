@@ -6,6 +6,17 @@ const KEY    = import.meta.env.VITE_AIRTABLE_KEY;
 const APIURL = `https://api.airtable.com/v0/${BASE}`;
 const HDR    = { Authorization: `Bearer ${KEY}`, "Content-Type": "application/json" };
 
+// ─── ROTATING FACILITY PHOTOS ─────────────────────────────────────────────────
+// Assigned deterministically per facility (by Airtable record ID) so a given
+// facility always shows the same photo. Overridden by Photo_URL when present.
+const FACILITY_PHOTOS = [
+  "https://images.unsplash.com/photo-1584169417032-d34e8d805e8b?w=800&q=80",
+  "https://images.unsplash.com/photo-1580106815433-a5b1d1d53d85?w=800&q=80",
+  "https://images.unsplash.com/photo-1683322499436-f4383dd59f5a?w=800&q=80",
+  "https://images.unsplash.com/photo-1695668548342-c0c1ad479aee?w=800&q=80",
+  "https://images.unsplash.com/photo-1558494949-ef010cbdcc31?w=800&q=80"
+];
+
 async function apiFetch(table, params = {}) {
   let all = [], offset = null;
   do {
@@ -331,23 +342,12 @@ const FacilityMapImage = ({ dc, rc }) => {
     ? `https://staticmap.openstreetmap.de/staticmap.php?center=${lat},${lng}&zoom=15&size=800x350&markers=${lat},${lng},red-pushpin`
     : null;
 
-  // Curated data center / server room images: always relevant, always professional
-  const DC_IMGS = [
-    "https://images.unsplash.com/photo-1558494949-ef010cbdcc31?w=900&q=80",
-    "https://images.unsplash.com/photo-1573164713988-8665fc963095?w=900&q=80",
-    "https://images.unsplash.com/photo-1544197150-b99a580bb7a8?w=900&q=80",
-    "https://images.unsplash.com/photo-1606765962248-7ff407b51667?w=900&q=80",
-    "https://images.unsplash.com/photo-1580584126903-c17d41830450?w=900&q=80",
-    "https://images.unsplash.com/photo-1597852074816-d933c7d2b988?w=900&q=80",
-    "https://images.unsplash.com/photo-1531482615713-2afd69097998?w=900&q=80",
-    "https://images.unsplash.com/photo-1587440871875-191322ee64b0?w=900&q=80",
-  ];
-  const fallbackUrl = (() => {
-    let hash = 0;
-    const name = dc?.Name || "facility";
-    for (let i = 0; i < name.length; i++) hash = (hash * 31 + name.charCodeAt(i)) & 0xffff;
-    return DC_IMGS[hash % DC_IMGS.length];
-  })();
+  // Facility photo: Photo_URL from Airtable if present, otherwise a deterministic
+  // pick from the rotating FACILITY_PHOTOS pool keyed off the record ID.
+  const rotatedPhoto = dc?.id
+    ? FACILITY_PHOTOS[dc.id.charCodeAt(3) % FACILITY_PHOTOS.length]
+    : FACILITY_PHOTOS[0];
+  const fallbackUrl = dc?.Photo_URL || rotatedPhoto;
 
   useEffect(() => {
     setImgState("loading");
@@ -385,7 +385,7 @@ const FacilityMapImage = ({ dc, rc }) => {
 
       {imgState === "fallback" && (
         <>
-          <img src={fallbackUrl} alt={`Data center facility`}
+          <img src={fallbackUrl} alt={dc.Name}
             style={{width:"100%",height:"100%",objectFit:"cover",display:"block"}}
             onError={()=>setImgState("placeholder")}
           />
