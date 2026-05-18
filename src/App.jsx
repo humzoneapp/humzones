@@ -222,6 +222,7 @@ const TABS = [
 const fmt = n => n>=1e6?`${(n/1e6).toFixed(1)}M`:n>=1e3?`${(n/1e3).toFixed(0)}K`:`${n}`;
 
 // ─── CSS ──────────────────────────────────────────────────────────────────────
+
 const CSS = `
   @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
   *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
@@ -668,7 +669,6 @@ export default function App() {
 
         {/* HERO */}
         <section className="hero" style={{position:"relative",overflow:"visible",minHeight:"100vh",background:"linear-gradient(150deg,#020c1b 0%,#0f172a 35%,#1e0535 65%,#0a1628 100%)",backgroundSize:"400% 400%",animation:"gradShift 14s ease infinite",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:"80px 24px",textAlign:"center"}}>
-
           <div className="rings" style={{position:"absolute",left:"50%",top:"50%",pointerEvents:"none",zIndex:0,overflow:"hidden"}}>
             {[1,2,3,4,5].map(i=>(<div key={i} style={{position:"absolute",width:i*200,height:i*200,borderRadius:"50%",border:"1px solid rgba(239,68,68,0.09)",left:"50%",top:"50%",animation:`ring ${2+i*.7}s cubic-bezier(.4,0,.6,1) ${i*.5}s infinite`}}/>))}
           </div>
@@ -692,36 +692,26 @@ export default function App() {
             Search your country and city to find out what that means for your health.
           </p>
 
-          {/* SEARCH: dropdowns use fixed positioning to float above everything */}
+          {/* SEARCH */}
           <div className="a4 search-row" style={{display:"flex",gap:14,width:"100%",maxWidth:740,position:"relative",zIndex:100}}>
-
-            {/* Country */}
             <div ref={cRef} style={{flex:1,position:"relative"}}>
               <div style={{position:"relative",display:"flex",alignItems:"center"}}>
-                <span style={{position:"absolute",left:18,zIndex:2,pointerEvents:"none",display:"flex"}}>
-                  <Icon name="globe" size={20} color="rgba(255,255,255,.7)"/>
-                </span>
+                <span style={{position:"absolute",left:18,zIndex:2,pointerEvents:"none",display:"flex"}}><Icon name="globe" size={20} color="rgba(255,255,255,.7)"/></span>
                 <input className="srch" value={cInput}
                   onChange={e=>{setCInput(e.target.value);openCDrop();}}
                   onFocus={openCDrop}
                   placeholder="Select a country..."
-                  style={{width:"100%",padding:"20px 18px 20px 52px",fontSize:17,fontWeight:500,fontFamily:"inherit",borderRadius:16,border:"1.5px solid rgba(255,255,255,.18)",background:"rgba(255,255,255,.11)",color:"#fff",backdropFilter:"blur(16px)",boxSizing:"border-box",boxShadow:"0 8px 32px rgba(0,0,0,.25),inset 0 1px 0 rgba(255,255,255,.12)"}}
-                />
+                  style={{width:"100%",padding:"20px 18px 20px 52px",fontSize:17,fontWeight:500,fontFamily:"inherit",borderRadius:16,border:"1.5px solid rgba(255,255,255,.18)",background:"rgba(255,255,255,.11)",color:"#fff",backdropFilter:"blur(16px)",boxSizing:"border-box",boxShadow:"0 8px 32px rgba(0,0,0,.25),inset 0 1px 0 rgba(255,255,255,.12)"}}/>
               </div>
             </div>
-
-            {/* City */}
             <div ref={ciRef} style={{flex:1,position:"relative",opacity:country?1:.45,pointerEvents:country?"all":"none",transition:"opacity .2s"}}>
               <div style={{position:"relative",display:"flex",alignItems:"center"}}>
-                <span style={{position:"absolute",left:18,zIndex:2,pointerEvents:"none",display:"flex"}}>
-                  <Icon name="pin" size={20} color="rgba(255,255,255,.7)"/>
-                </span>
+                <span style={{position:"absolute",left:18,zIndex:2,pointerEvents:"none",display:"flex"}}><Icon name="pin" size={20} color="rgba(255,255,255,.7)"/></span>
                 <input className="srch" value={cityTxt}
                   onChange={e=>{setCityTxt(e.target.value);openCityDrop();}}
                   onFocus={openCityDrop}
                   placeholder={country?`Cities in ${country}...`:"Select country first"}
-                  style={{width:"100%",padding:"20px 18px 20px 52px",fontSize:17,fontWeight:500,fontFamily:"inherit",borderRadius:16,border:"1.5px solid rgba(255,255,255,.18)",background:"rgba(255,255,255,.11)",color:"#fff",backdropFilter:"blur(16px)",boxSizing:"border-box",boxShadow:"0 8px 32px rgba(0,0,0,.25),inset 0 1px 0 rgba(255,255,255,.12)"}}
-                />
+                  style={{width:"100%",padding:"20px 18px 20px 52px",fontSize:17,fontWeight:500,fontFamily:"inherit",borderRadius:16,border:"1.5px solid rgba(255,255,255,.18)",background:"rgba(255,255,255,.11)",color:"#fff",backdropFilter:"blur(16px)",boxSizing:"border-box",boxShadow:"0 8px 32px rgba(0,0,0,.25),inset 0 1px 0 rgba(255,255,255,.12)"}}/>
               </div>
             </div>
           </div>
@@ -740,7 +730,7 @@ export default function App() {
           )}
         </section>
 
-        {/* FIXED DROPDOWNS: rendered at root level, float above everything */}
+        {/* FIXED DROPDOWNS */}
         {showCD && (
           <div ref={cDropRef} style={{position:"fixed",top:cDropPos.top,left:cDropPos.left,width:cDropPos.width,background:"#fff",borderRadius:16,boxShadow:"0 28px 72px rgba(0,0,0,.32)",zIndex:9999,border:"1px solid #e2e8f0",overflow:"hidden"}}>
             <div className="scroll-inner" style={{maxHeight:"min(340px, 60vh)",overflowY:"auto"}}>
@@ -764,13 +754,12 @@ export default function App() {
                   {fl.map(f=>{
                     const s2=STATUS[f.Facility_Status]||STATUS.OPERATING;
                     const r2=RISK_C[f.Risk_Level]||"#64748b";
-                    return(
+                    return (
                       <div key={f.id} className="drop-item" style={{padding:"14px 20px 14px 28px",borderBottom:"1px solid #f1f5f9"}} onClick={()=>{setCityTxt(city);setShowCityD(false);pickFac(f.id);}}>
                         <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",gap:10}}>
                           <div style={{flex:1,minWidth:0}}>
                             <div style={{fontSize:15,fontWeight:700,color:"#1e293b",marginBottom:3,lineHeight:1.3}}>{f.Name}</div>
                             <div style={{fontSize:13,color:"#64748b",fontWeight:500}}>{f.Company} &middot; {f.Power_MW>=1000?`${(f.Power_MW/1000).toFixed(1)} GW`:`${f.Power_MW||"?"}MW`}</div>
-                            {f.City && f.State_Region && <div style={{fontSize:12,color:"#94a3b8",marginTop:2}}>{f.City}, {f.State_Region}</div>}
                           </div>
                           <div style={{display:"flex",flexDirection:"column",gap:4,alignItems:"flex-end",flexShrink:0}}>
                             <Chip label={s2.label} color={s2.color} small/>
@@ -825,34 +814,31 @@ export default function App() {
           {dc && (
             <div style={{background:"#fff",borderRadius:24,overflow:"hidden",boxShadow:"0 8px 48px rgba(0,0,0,.10)"}}>
 
-              {/* OPENSTREETMAP IMAGE */}
               <FacilityMapImage dc={dc} rc={rc}/>
 
-              {/* ADDRESS BAR + GOOGLE MAPS */}
-              <div className="addr-bar" style={{background:"#f8fafc",borderBottom:"1px solid #e2e8f0",padding:"14px 24px",display:"flex",alignItems:"center",justifyContent:"space-between",gap:14,flexWrap:"wrap"}}>
-                <div style={{display:"flex",alignItems:"flex-start",gap:10,flex:1,minWidth:0}}>
-                  <Icon name="pin" size={18} color="#94a3b8" style={{flexShrink:0,marginTop:2}}/>
-                  <div>
-                    <div style={{fontSize:15,color:"#1e293b",fontWeight:600,lineHeight:1.4}}>{locStr || "Address not on file"}</div>
-                    {dc.Latitude && dc.Longitude && (
-                      <div style={{fontSize:12,color:"#94a3b8",marginTop:2}}>Coordinates: {parseFloat(dc.Latitude).toFixed(4)}, {parseFloat(dc.Longitude).toFixed(4)}</div>
-                    )}
+              {dc.Address && (
+                <div className="addr-bar" style={{background:"#f8fafc",borderBottom:"1px solid #e2e8f0",padding:"14px 24px",display:"flex",alignItems:"center",justifyContent:"space-between",gap:14,flexWrap:"wrap"}}>
+                  <div style={{display:"flex",alignItems:"flex-start",gap:10,flex:1,minWidth:0}}>
+                    <Icon name="pin" size={18} color="#94a3b8"/>
+                    <div>
+                      <div style={{fontSize:15,color:"#1e293b",fontWeight:600,lineHeight:1.4}}>{locStr || "Address not on file"}</div>
+                      {dc.Latitude && dc.Longitude && (
+                        <div style={{fontSize:12,color:"#94a3b8",marginTop:2}}>Coordinates: {parseFloat(dc.Latitude).toFixed(4)}, {parseFloat(dc.Longitude).toFixed(4)}</div>
+                      )}
+                    </div>
                   </div>
+                  <a href={mapsUrl} target="_blank" rel="noopener noreferrer" className="map-btn"
+                    style={{display:"inline-flex",alignItems:"center",gap:8,background:"#3b82f6",color:"#fff",padding:"11px 22px",borderRadius:10,fontSize:14,fontWeight:700,textDecoration:"none",flexShrink:0,boxShadow:"0 2px 8px rgba(59,130,246,.35)"}}>
+                    <Icon name="navigate" size={16} color="#fff"/> Open in Google Maps
+                  </a>
                 </div>
-                <a href={mapsUrl} target="_blank" rel="noopener noreferrer" className="map-btn"
-                  style={{display:"inline-flex",alignItems:"center",gap:8,background:"#3b82f6",color:"#fff",padding:"11px 22px",borderRadius:10,fontSize:14,fontWeight:700,textDecoration:"none",flexShrink:0,boxShadow:"0 2px 8px rgba(59,130,246,.35)"}}>
-                  <Icon name="navigate" size={16} color="#fff"/>
-                  Open in Google Maps
-                </a>
-              </div>
+              )}
 
-              {/* HEADER */}
               <div className="fac-header" style={{padding:"24px 28px 20px"}}>
                 <h2 style={{fontSize:24,fontWeight:900,color:"#0f172a",marginBottom:6,letterSpacing:"-.02em",lineHeight:1.2}}>{dc.Name}</h2>
                 {dc.Company && <div style={{fontSize:15,color:"#64748b",marginBottom:4,fontWeight:600}}>{dc.Company}</div>}
                 {dc.Nearby_Info && <div style={{fontSize:15,color:"#64748b",marginBottom:6,fontStyle:"italic"}}>{dc.Nearby_Info}</div>}
                 {dc.Opened && <div style={{fontSize:14,color:"#94a3b8",marginBottom:20}}>Opened / Status: {dc.Opened}</div>}
-
                 <div className="fac-stats" style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:14}}>
                   {[
                     {icon:"power",label:"Power Draw",   value:dc.Power_MW>=1000?`${(dc.Power_MW/1000).toFixed(1)} GW`:`${dc.Power_MW||"?"}MW`,color:rc},
@@ -869,7 +855,6 @@ export default function App() {
                 </div>
               </div>
 
-              {/* TABS */}
               <div style={{borderTop:"1px solid #f1f5f9",background:"#fafafa"}}>
                 <div className="tabs-row" style={{display:"flex",gap:8,padding:"18px 24px",overflowX:"auto",flexWrap:"wrap"}}>
                   {TABS.map(t=>(
@@ -882,7 +867,6 @@ export default function App() {
                 </div>
               </div>
 
-              {/* TAB CONTENT */}
               <div className="tab-content" style={{padding:"28px 32px 36px"}}>
 
                 {tab==="feel" && (
@@ -907,43 +891,76 @@ export default function App() {
                   </div>
                 )}
 
+                {tab==="numbers" && (
+                  <div className="nums-grid" style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16}}>
+                    {[
+                      {icon:"power",label:"Power Draw",    value:dc.Power_MW>=1000?`${(dc.Power_MW/1000).toFixed(1)} GW`:`${dc.Power_MW||"?"}MW`,plain:dc.Power_MW?`Enough to power ${fmt(Math.round(dc.Power_MW*1000/1.25))} average homes continuously, 24 hours a day, 365 days a year.`:"Power data pending verification.",color:rc},
+                      {icon:"co2",  label:"CO2 Per Year",  value:dc.CO2_Tons_Year>0?`${fmt(dc.CO2_Tons_Year)} tons`:"Near zero",plain:dc.CO2_Tons_Year>0?`Same as ${fmt(Math.round(dc.CO2_Tons_Year/4.6))} cars driven for a full year.`:"Powered by renewable energy.",color:dc.CO2_Tons_Year>200000?"#ef4444":"#10b981"},
+                      {icon:"water",label:"Water Per Day", value:dc.Water_Gal_Day>0?`${fmt(dc.Water_Gal_Day)} gal`:"Near zero",plain:dc.Water_Gal_Day>0?`Same daily water use as ${fmt(Math.round(dc.Water_Gal_Day/80))} households. Permanently removed from the local water cycle.`:"Air-cooled design. Minimal water consumption.",color:dc.Water_Gal_Day>500000?"#ef4444":"#10b981"},
+                      {icon:"noise",label:"Perimeter Noise",value:`${dc.Noise_DB||"?"} dB`,plain:dc.Noise_DB>=70?"Like a vacuum cleaner running nonstop including 2am. Low-frequency components travel further than this number suggests.":"Moderate but continuous. Low-frequency components penetrate walls.",color:dc.Noise_DB>=70?"#ef4444":dc.Noise_DB>=60?"#f97316":"#3b82f6"},
+                      {icon:"emf",  label:"EMF at Fence",  value:`up to ${dc.EMF_Fence_High||"?"}mG`,plain:dc.EMF_Fence_High>=4?"Studies link childhood leukemia risk starting at 3 to 4 mG. The legal US limit is 2,000 mG. Legal does not mean safe.":"Below the 3 to 4 mG concern threshold at the fence line.",color:dc.EMF_Fence_High>=4?"#ef4444":"#10b981"},
+                      {icon:"emf",  label:"EMF at 100m",   value:`~${dc.EMF_100m||"?"} mG`,plain:dc.EMF_100m>=3?"Still above the level linked to childhood leukemia in studies. Take this seriously if you live within 100m.":dc.EMF_100m>=1?"Within the zone where a 2026 study found health associations.":"Below precautionary thresholds at this distance.",color:dc.EMF_100m>=3?"#ef4444":dc.EMF_100m>=1?"#f97316":"#10b981"},
+                    ].map(s=>(
+                      <div key={s.label} style={{background:"#fff",border:`2px solid ${s.color}20`,borderRadius:16,padding:"22px",boxShadow:"0 2px 12px rgba(0,0,0,.05)"}}>
+                        <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:12}}>
+                          <div style={{width:40,height:40,borderRadius:10,background:s.color+"14",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}><Icon name={s.icon} size={20} color={s.color}/></div>
+                          <div style={{fontSize:13,color:"#94a3b8",fontWeight:700,textTransform:"uppercase",letterSpacing:".06em"}}>{s.label}</div>
+                        </div>
+                        <div style={{fontSize:30,fontWeight:900,color:s.color,marginBottom:10,letterSpacing:"-.02em",lineHeight:1}}>{s.value}</div>
+                        <p style={{fontSize:15,color:"#475569",lineHeight:1.7,margin:0}}>{s.plain}</p>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
                 {tab==="quiz" && (
                   <div>
                     <h3 style={{fontSize:22,fontWeight:900,color:"#0f172a",marginBottom:10}}>Your Personal Risk Assessment</h3>
                     <p style={{fontSize:16,color:"#64748b",marginBottom:28,lineHeight:1.75}}>Answer five questions to receive a detailed, personalized assessment based on your proximity and household situation.</p>
-
-                    {/* RESULTS */}
-                    {qRes && !qEmailStep && (
+                    {qRes ? (
                       <div>
-                        {/* Risk level header */}
                         <div style={{background:(RISK_C[qRes.level]||"#64748b")+"0d",border:`2px solid ${(RISK_C[qRes.level]||"#64748b")}22`,borderRadius:18,padding:"28px",marginBottom:20}}>
                           <div style={{fontSize:13,color:"#94a3b8",fontWeight:800,letterSpacing:".1em",textTransform:"uppercase",marginBottom:12}}>Your Personal Risk Level</div>
                           <div style={{fontSize:60,fontWeight:900,color:RISK_C[qRes.level]||"#64748b",letterSpacing:"-.02em",marginBottom:16,lineHeight:1}}>{qRes.level}</div>
-                          <p style={{fontSize:16,color:"#374151",lineHeight:1.85,marginBottom:0}}>{qRes.summary}</p>
+                          <p style={{fontSize:16,color:"#374151",lineHeight:1.85}}>{qRes.summary}</p>
                         </div>
-
-                        {/* Full details: only visible after email entered */}
+                        {!qEmailSent && (
+                          <div style={{background:"linear-gradient(135deg,#0f172a,#1e0535)",borderRadius:16,padding:"28px",marginBottom:20,border:"1px solid rgba(255,255,255,.08)"}}>
+                            <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:10}}>
+                              <div style={{width:36,height:36,borderRadius:10,background:rc+"33",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}><Icon name="doc" size={20} color={rc}/></div>
+                              <div style={{fontSize:18,fontWeight:800,color:"#fff"}}>Your full report is ready</div>
+                            </div>
+                            <div style={{fontSize:15,color:"rgba(255,255,255,.65)",marginBottom:22,lineHeight:1.7}}>Enter your email to unlock your complete risk breakdown and personalized action plan. We store your email privately and will not contact you again.</div>
+                            <div style={{display:"flex",gap:10,flexWrap:"wrap"}}>
+                              <input value={qEmail} onChange={e=>setQEmail(e.target.value)}
+                                placeholder="Enter your email address" type="email"
+                                onKeyDown={e=>{if(e.key==="Enter"&&qEmail.trim()) saveQuizEmail();}}
+                                style={{flex:1,minWidth:220,padding:"14px 18px",borderRadius:12,border:`1.5px solid ${qEmail.trim()?"rgba(255,255,255,.4)":"rgba(255,255,255,.15)"}`,background:"rgba(255,255,255,.1)",color:"#fff",fontSize:16,outline:"none",fontFamily:"inherit",transition:"border-color .2s"}}/>
+                              <button onClick={()=>{if(qEmail.trim()) saveQuizEmail();}} disabled={!qEmail.trim()}
+                                style={{padding:"14px 28px",borderRadius:12,border:"none",background:qEmail.trim()?rc:"rgba(255,255,255,.12)",color:qEmail.trim()?"#fff":"rgba(255,255,255,.3)",fontSize:16,fontWeight:800,cursor:qEmail.trim()?"pointer":"default",fontFamily:"inherit",transition:"all .2s",whiteSpace:"nowrap",boxShadow:qEmail.trim()?`0 4px 16px ${rc}55`:"none"}}>
+                                Unlock My Report
+                              </button>
+                            </div>
+                            <div style={{fontSize:12,color:"rgba(255,255,255,.3)",marginTop:12}}>Stored privately. We will not send you anything else.</div>
+                          </div>
+                        )}
                         {qEmailSent && (
                           <div>
-                            {/* Green confirmation bubble sits right above the detailed content */}
                             <div style={{background:"#f0fdf4",border:"1.5px solid #bbf7d0",borderRadius:12,padding:"14px 18px",marginBottom:20,display:"flex",alignItems:"center",gap:10}}>
                               <Icon name="check" size={18} color="#15803d"/>
-                              <div style={{fontSize:14,color:"#166534",fontWeight:700}}>Your full report is unlocked. Your email has been saved privately.</div>
+                              <div style={{fontSize:14,color:"#166534",fontWeight:700}}>Your full report is unlocked. Email saved privately.</div>
                             </div>
                             <div style={{background:"#fff",border:"1px solid #e2e8f0",borderRadius:16,padding:"22px 24px",marginBottom:16,boxShadow:"0 2px 8px rgba(0,0,0,.04)"}}>
                               <div style={{fontSize:13,color:"#94a3b8",fontWeight:800,textTransform:"uppercase",letterSpacing:".08em",marginBottom:14}}>What this means for your situation</div>
                               {qRes.flags.map((f,i)=>(
                                 <div key={i} style={{display:"flex",gap:12,alignItems:"flex-start",padding:"10px 0",borderBottom:i<qRes.flags.length-1?"1px solid #f8fafc":"none"}}>
-                                  <div style={{width:28,height:28,borderRadius:"50%",background:(RISK_C[qRes.level]||"#64748b")+"14",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
-                                    <Icon name="alert" size={14} color={RISK_C[qRes.level]||"#64748b"}/>
-                                  </div>
+                                  <div style={{width:28,height:28,borderRadius:"50%",background:(RISK_C[qRes.level]||"#64748b")+"14",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}><Icon name="alert" size={14} color={RISK_C[qRes.level]||"#64748b"}/></div>
                                   <div style={{fontSize:15,color:"#374151",lineHeight:1.7}}>{f}</div>
                                 </div>
                               ))}
                             </div>
-
                             {qRes.actions && qRes.actions.length>0 && (
-                              <div style={{background:"#fff",border:"1px solid #e2e8f0",borderRadius:16,padding:"22px 24px",marginBottom:20,boxShadow:"0 2px 8px rgba(0,0,0,.04)"}}>
+                              <div style={{background:"#fff",border:"1px solid #e2e8f0",borderRadius:16,padding:"22px 24px",marginBottom:24,boxShadow:"0 2px 8px rgba(0,0,0,.04)"}}>
                                 <div style={{fontSize:13,color:"#94a3b8",fontWeight:800,textTransform:"uppercase",letterSpacing:".08em",marginBottom:14}}>Your specific recommended actions</div>
                                 {qRes.actions.map((a,i)=>(
                                   <div key={i} style={{display:"flex",gap:12,alignItems:"flex-start",padding:"10px 0",borderBottom:i<qRes.actions.length-1?"1px solid #f8fafc":"none"}}>
@@ -955,57 +972,18 @@ export default function App() {
                             )}
                           </div>
                         )}
-
-                        {/* Email gate: required to unlock full details */}
-                        {!qEmailSent && (
-                          <div style={{background:"linear-gradient(135deg,#0f172a,#1e0535)",borderRadius:16,padding:"28px",marginBottom:20,border:"1px solid rgba(255,255,255,.08)"}}>
-                            <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:10}}>
-                              <div style={{width:36,height:36,borderRadius:10,background:rc+"33",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
-                                <Icon name="doc" size={20} color={rc}/>
-                              </div>
-                              <div style={{fontSize:18,fontWeight:800,color:"#fff"}}>Your full report is ready</div>
-                            </div>
-                            <div style={{fontSize:15,color:"rgba(255,255,255,.65)",marginBottom:22,lineHeight:1.7}}>
-                              Enter your email to unlock your complete risk breakdown and personalized action plan. We store your email privately and will not contact you again.
-                            </div>
-                            <div style={{display:"flex",gap:10,flexWrap:"wrap"}}>
-                              <input value={qEmail} onChange={e=>setQEmail(e.target.value)}
-                                placeholder="Enter your email address"
-                                type="email"
-                                onKeyDown={e=>{ if(e.key==="Enter"&&qEmail.trim()) saveQuizEmail(); }}
-                                style={{flex:1,minWidth:220,padding:"14px 18px",borderRadius:12,border:`1.5px solid ${qEmail.trim()?"rgba(255,255,255,.4)":"rgba(255,255,255,.15)"}`,background:"rgba(255,255,255,.1)",color:"#fff",fontSize:16,outline:"none",fontFamily:"inherit",transition:"border-color .2s"}}/>
-                              <button
-                                onClick={()=>{ if(qEmail.trim()) saveQuizEmail(); }}
-                                disabled={!qEmail.trim()}
-                                style={{padding:"14px 28px",borderRadius:12,border:"none",background:qEmail.trim()?rc:"rgba(255,255,255,.12)",color:qEmail.trim()?"#fff":"rgba(255,255,255,.3)",fontSize:16,fontWeight:800,cursor:qEmail.trim()?"pointer":"default",fontFamily:"inherit",transition:"all .2s",whiteSpace:"nowrap",boxShadow:qEmail.trim()?`0 4px 16px ${rc}55`:"none"}}>
-                                Unlock My Report
-                              </button>
-                            </div>
-                            <div style={{fontSize:12,color:"rgba(255,255,255,.3)",marginTop:12}}>
-                              Stored privately. We will not send you anything else.
-                            </div>
-                          </div>
-                        )}
-
-
-
-
-                        <button onClick={()=>{setQStep(0);setQRes(null);setQAns({});setQEmailStep(false);setQEmailSent(false);setQEmail("");}}
+                        <button onClick={()=>{setQStep(0);setQRes(null);setQAns({});setQEmailSent(false);setQEmail("");}}
                           style={{padding:"12px 26px",borderRadius:12,border:`2px solid ${rc}`,background:"transparent",color:rc,fontSize:15,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}>
                           Retake Quiz
                         </button>
                       </div>
-                    )}
-
-                    {/* QUESTIONS */}
-                    {!qRes && (
+                    ) : (
                       <div>
                         <div style={{fontSize:14,color:"#94a3b8",fontWeight:700,textTransform:"uppercase",letterSpacing:".08em",marginBottom:16}}>Question {qStep+1} of {QUIZ.length}</div>
                         <div style={{background:"#f8fafc",borderRadius:16,padding:"26px",marginBottom:18}}>
                           <p style={{fontSize:18,color:"#0f172a",fontWeight:700,marginBottom:22,lineHeight:1.55}}>{QUIZ[qStep].q}</p>
                           {QUIZ[qStep].o.map(opt=>(
-                            <button key={opt} className="q-opt"
-                              style={{display:"block",width:"100%",padding:"16px 20px",borderRadius:12,border:"2px solid #e2e8f0",background:"#fff",color:"#374151",fontSize:16,marginBottom:10,boxShadow:"0 1px 4px rgba(0,0,0,.05)",fontWeight:500}}
+                            <button key={opt} className="q-opt" style={{display:"block",width:"100%",padding:"16px 20px",borderRadius:12,border:"2px solid #e2e8f0",background:"#fff",color:"#374151",fontSize:16,marginBottom:10,boxShadow:"0 1px 4px rgba(0,0,0,.05)",fontWeight:500}}
                               onClick={()=>{
                                 const a={...qAns,[QUIZ[qStep].k]:opt};
                                 setQAns(a);
@@ -1074,88 +1052,36 @@ export default function App() {
                           </div>
                           <div style={{fontSize:24,color:"#94a3b8",fontWeight:300,flexShrink:0,marginLeft:16}}>{xKid===i?"−":"+"}</div>
                         </div>
-                        {xKid===i && (<div style={{padding:"0 24px 24px",borderTop:"1px solid #f1f5f9"}}><p style={{fontSize:16,color:"#374151",lineHeight:1.9,margin:"18px 0 0"}}>{k.d}</p></div>)}
+                        {xKid===i && (
+                          <div style={{padding:"0 24px 24px",borderTop:"1px solid #f1f5f9"}}>
+                            <p style={{fontSize:16,color:"#374151",lineHeight:1.9,margin:"18px 0 0"}}>{k.d}</p>
+                          </div>
+                        )}
                       </div>
                     ))}
                     <div style={{background:"#f0fdf4",border:"2px solid #bbf7d0",borderRadius:16,padding:"20px 24px",marginTop:12}}>
                       <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:14}}><Icon name="megaphone" size={20} color="#15803d"/><span style={{fontSize:13,color:"#15803d",fontWeight:800,letterSpacing:".08em",textTransform:"uppercase"}}>What Parents Are Demanding</span></div>
                       {["Mandatory independent EMF and air quality monitoring before and after construction","Minimum setback requirements from schools, daycare centers, and playgrounds","Real-time public air quality data near each facility","Advance notice of generator test schedules so parents can keep children indoors","Community right-to-know reporting on all emission events"].map((p,i)=>(
-                        <div key={i} style={{display:"flex",gap:12,padding:"9px 0",borderBottom:i<4?"1px solid #dcfce7":"none",alignItems:"flex-start"}}><Icon name="check" size={18} color="#15803d"/><div style={{fontSize:15,color:"#166534",lineHeight:1.65}}>{p}</div></div>
+                        <div key={i} style={{display:"flex",gap:12,padding:"9px 0",borderBottom:i<4?"1px solid #dcfce7":"none",alignItems:"flex-start"}}>
+                          <Icon name="check" size={18} color="#15803d"/>
+                          <div style={{fontSize:15,color:"#166534",lineHeight:1.65}}>{p}</div>
+                        </div>
                       ))}
                     </div>
-                  </div>
-                )}
-
-                {tab==="numbers" && (
-                  <div className="nums-grid" style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16}}>
-                    {[
-                      {icon:"power",label:"Power Draw",    value:dc.Power_MW>=1000?`${(dc.Power_MW/1000).toFixed(1)} GW`:`${dc.Power_MW||"?"}MW`,plain:dc.Power_MW?`Enough to power ${fmt(Math.round(dc.Power_MW*1000/1.25))} average homes continuously, 24 hours a day, 365 days a year.`:"Power data pending verification.",color:rc},
-                      {icon:"co2",  label:"CO2 Per Year",  value:dc.CO2_Tons_Year>0?`${fmt(dc.CO2_Tons_Year)} tons`:"Near zero",plain:dc.CO2_Tons_Year>0?`Same as ${fmt(Math.round(dc.CO2_Tons_Year/4.6))} cars driven for a full year.`:"Powered by renewable energy.",color:dc.CO2_Tons_Year>200000?"#ef4444":"#10b981"},
-                      {icon:"water",label:"Water Per Day", value:dc.Water_Gal_Day>0?`${fmt(dc.Water_Gal_Day)} gal`:"Near zero",plain:dc.Water_Gal_Day>0?`Same daily water use as ${fmt(Math.round(dc.Water_Gal_Day/80))} households. Permanently removed from the local water cycle.`:"Air-cooled design. Minimal water consumption.",color:dc.Water_Gal_Day>500000?"#ef4444":"#10b981"},
-                      {icon:"noise",label:"Perimeter Noise",value:`${dc.Noise_DB||"?"} dB`,plain:dc.Noise_DB>=70?"Like a vacuum cleaner running nonstop including 2am. Low-frequency components travel further than this number suggests.":"Moderate but continuous. Low-frequency components penetrate walls.",color:dc.Noise_DB>=70?"#ef4444":dc.Noise_DB>=60?"#f97316":"#3b82f6"},
-                      {icon:"emf",  label:"EMF at Fence",  value:`up to ${dc.EMF_Fence_High||"?"}mG`,plain:dc.EMF_Fence_High>=4?"Studies link childhood leukemia risk starting at 3 to 4 mG. The legal US limit is 2,000 mG. Legal does not mean safe.":"Below the 3 to 4 mG concern threshold at the fence line.",color:dc.EMF_Fence_High>=4?"#ef4444":"#10b981"},
-                      {icon:"emf",  label:"EMF at 100m",   value:`~${dc.EMF_100m||"?"} mG`,plain:dc.EMF_100m>=3?"Still above the level linked to childhood leukemia in studies. Take this seriously if you live within 100m.":dc.EMF_100m>=1?"Within the zone where a 2026 study found health associations.":"Below precautionary thresholds at this distance.",color:dc.EMF_100m>=3?"#ef4444":dc.EMF_100m>=1?"#f97316":"#10b981"},
-                    ].map(s=>(
-                      <div key={s.label} style={{background:"#fff",border:`2px solid ${s.color}20`,borderRadius:16,padding:"22px",boxShadow:"0 2px 12px rgba(0,0,0,.05)"}}>
-                        <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:12}}>
-                          <div style={{width:40,height:40,borderRadius:10,background:s.color+"14",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}><Icon name={s.icon} size={20} color={s.color}/></div>
-                          <div style={{fontSize:13,color:"#94a3b8",fontWeight:700,textTransform:"uppercase",letterSpacing:".06em"}}>{s.label}</div>
-                        </div>
-                        <div style={{fontSize:30,fontWeight:900,color:s.color,marginBottom:10,letterSpacing:"-.02em",lineHeight:1}}>{s.value}</div>
-                        <p style={{fontSize:15,color:"#475569",lineHeight:1.7,margin:0}}>{s.plain}</p>
-                      </div>
-                    ))}
                   </div>
                 )}
 
                 {tab==="act" && (
                   <div>
                     <h3 style={{fontSize:22,fontWeight:900,color:"#0f172a",marginBottom:10}}>You Are Not Powerless</h3>
-                    <p style={{fontSize:16,color:"#64748b",marginBottom:28,lineHeight:1.75}}>Every data center regulation that exists was won by residents who organized, documented, and demanded accountability. Here is a complete guide to protecting yourself and your family.</p>
+                    <p style={{fontSize:16,color:"#64748b",marginBottom:28,lineHeight:1.75}}>Every data center regulation that exists was won by residents who organized, documented, and demanded accountability.</p>
                     {[
-                      {icon:"doc",      t:"Document everything starting today", c:"#ef4444",steps:[
-                        "Start a dedicated symptom log tonight. Record headaches, sleep disruption, dizziness, ear ringing, anxiety, and nausea. Include the date, time of day, duration, and severity on a scale of 1 to 10. Do this every day for at least two weeks.",
-                        "Note every time you smell diesel exhaust. Record the date, time, approximate wind direction, duration, and how strong the smell was. This is almost certainly a generator test. Over time this log will reveal a pattern.",
-                        "Photograph or video any visible smoke, unusual emissions, or visible vibration effects. Include the timestamp shown in your phone. These records become evidence.",
-                        "Note whether your symptoms improve when you spend time away from home, such as on vacation, at work, or visiting relatives in a different area. This leave-and-return pattern is one of the most diagnostically significant indicators of an environmental cause.",
-                        "Keep all of this in a dated format, even a notes app on your phone works. Regulators and lawyers both need patterns, not isolated incidents.",
-                      ]},
-                      {icon:"megaphone",t:"File formal complaints through every available channel", c:"#f97316",steps:[
-                        "File a written noise complaint with your city or county zoning office. Reference the facility by name and address. Ask specifically what noise conditions are attached to its operating permit and request a copy of those permit conditions.",
-                        "File a separate air quality complaint with your state or provincial environmental agency. In the US, search for your state name plus Department of Environmental Quality. In Canada, contact your provincial Ministry of Environment. Describe the diesel exhaust events specifically.",
-                        "File with your national environmental regulator. In the US this is the Environmental Protection Agency at epa.gov. In Canada it is Environment and Climate Change Canada. In the UK it is the Environment Agency.",
-                        "Write to your elected representative at every level: municipal, state or provincial, and federal. Written correspondence creates a paper trail. Ask them to inquire on your behalf about the facility's permit compliance and to request environmental monitoring data.",
-                        "File with your local public health department. Describe the symptoms you and your neighbors are experiencing and request that an environmental health investigation be opened.",
-                      ]},
-                      {icon:"monitor",  t:"Request independent professional monitoring", c:"#eab308",steps:[
-                        "Hire a certified environmental health consultant to conduct an EMF survey of your property. Make sure they measure ELF magnetic fields specifically, not just radiofrequency, and that they measure in milligauss at multiple points inside and outside your home.",
-                        "Contact your local health department and ask them to monitor outdoor air quality near the facility during generator test days. You can also purchase a personal PM2.5 monitor online for under 100 dollars to document air quality yourself.",
-                        "If there is a school, daycare, or playground within half a mile of the facility, contact the school board or facility operator in writing. They have independent legal standing to demand environmental assessments and noise impact studies.",
-                        "Ask the facility directly, in writing, for their generator test schedule, their noise monitoring data, and their air permit compliance reports. They are often legally required to provide this. Their response or non-response is itself informative.",
-                        "Keep copies of everything you send and receive. Every email, every letter, every response. This documentation has value in regulatory proceedings and potential legal action.",
-                      ]},
-                      {icon:"group",    t:"Organize with your neighbors", c:"#8b5cf6",steps:[
-                        "Talk to your immediate neighbors first. Ask if they have noticed anything. You may find that others have symptoms they did not connect to the facility, or that they have already started documenting. Shared patterns across multiple households are far more difficult for authorities to dismiss.",
-                        "Start or join a neighborhood group, even a simple group chat. Organize your documentation collectively. Decide together on a date to submit coordinated complaints. The volume of complaints matters enormously in regulatory responses.",
-                        "Research what other communities have done. Residents in Prince William County and Loudoun County Virginia fought back against data center expansion through organized advocacy and won meaningful concessions and ordinance changes. Their organizing strategies are documented and replicable.",
-                        "Contact Earthjustice at earthjustice.org. They are the largest environmental law organization in the United States and have represented communities facing industrial noise and air quality issues. Initial consultations are free.",
-                        "Contact your local legal aid society or a private environmental attorney for a consultation. In many jurisdictions, property damage caused by industrial noise is actionable. The Granbury Texas lawsuit established important precedents for data center-adjacent residents.",
-                      ]},
-                      {icon:"shield",   t:"Protect your family starting right now", c:"#3b82f6",steps:[
-                        "Request the facility's generator test schedule in writing today. This is typically monthly, often on a specific day of the month. On test days, keep all windows and doors closed, bring children indoors, and avoid outdoor activities near the facility.",
-                        "Install HEPA air purifiers in your bedroom and any rooms where children spend significant time. Look for units rated for PM2.5 filtration with a CADR rating appropriate for the room size. Run them continuously, not just on test days.",
-                        "Rearrange sleeping arrangements so that bedrooms are on the side of your home furthest from the facility. The difference in noise and vibration between the nearest and furthest walls of a home can be significant.",
-                        "Talk to your family doctor specifically about your proximity to industrial infrastructure. Ask them to note your symptoms and their environmental context in your medical record. This documentation matters if health impacts need to be legally demonstrated later.",
-                        "Consider acoustic treatments for your bedroom: heavy curtains, door seals, and soft furnishings reduce high-frequency noise. For low-frequency noise and vibration, a white noise or brown noise generator playing through the night can help mask the signal enough to improve sleep quality.",
-                        "If you have children, speak to their pediatrician about the potential for noise and EMF exposure effects on development. Request hearing tests if they have been living near the facility for more than a year. Document everything.",
-                      ]},
-                      {icon:"star",     t:"Know your legal rights", c:"#10b981",steps:[
-                        "In most jurisdictions, industrial operations that cause demonstrable harm to neighboring properties, including noise-induced health impacts, can constitute a legal nuisance. Consult an environmental attorney about whether the facility's operations meet this standard in your area.",
-                        "Property value impacts from nearby industrial development can sometimes be recovered through legal action or through property tax assessment challenges. Document any difference between your home's estimated value and comparable homes outside the impact zone.",
-                        "Freedom of Information requests, called FOIA in the US and ATI in Canada, can be used to obtain the facility's permit applications, environmental impact assessments, noise monitoring data, and any complaints previously filed. This information is often revealing.",
-                        "If you are renting, your landlord may have a disclosure obligation regarding industrial neighbors depending on your jurisdiction. Research your local tenant rights laws.",
-                        "Keep records of any time you raise the issue with the facility operator directly. Their awareness of your complaints and their response to them is relevant in any future legal or regulatory proceeding.",
-                      ]},
+                      {icon:"doc",      t:"Document everything starting today",c:"#ef4444",steps:["Start a dedicated symptom log tonight. Record headaches, sleep disruption, dizziness, ear ringing, anxiety, and nausea. Include the date, time of day, duration, and severity on a scale of 1 to 10.","Note every time you smell diesel exhaust. Record the date, time, approximate wind direction, duration, and how strong the smell was.","Photograph or video any visible smoke, unusual emissions, or visible vibration effects. Include the timestamp shown in your phone.","Note whether your symptoms improve when you spend time away from home. This leave-and-return pattern is one of the most diagnostically significant indicators of an environmental cause.","Keep all of this in a dated format. Regulators and lawyers both need patterns, not isolated incidents."]},
+                      {icon:"megaphone",t:"File formal complaints through every available channel",c:"#f97316",steps:["File a written noise complaint with your city or county zoning office. Ask specifically what noise conditions are attached to its operating permit and request a copy of those permit conditions.","File a separate air quality complaint with your state or provincial environmental agency. Describe the diesel exhaust events specifically.","File with your national environmental regulator. In the US this is the EPA at epa.gov. In Canada it is Environment and Climate Change Canada.","Write to your elected representative at every level. Written correspondence creates a paper trail. Ask them to inquire about the facility's permit compliance.","File with your local public health department. Describe the symptoms you and your neighbors are experiencing."]},
+                      {icon:"monitor",  t:"Request independent professional monitoring",c:"#eab308",steps:["Hire a certified environmental health consultant to conduct an EMF survey of your property. Measure ELF magnetic fields specifically in milligauss at multiple points inside and outside your home.","Contact your local health department and ask them to monitor outdoor air quality near the facility during generator test days.","If there is a school or daycare within half a mile, contact the school board in writing. They have independent legal standing to demand environmental assessments.","Ask the facility directly in writing for their generator test schedule, noise monitoring data, and air permit compliance reports.","Keep copies of everything you send and receive."]},
+                      {icon:"group",    t:"Organize with your neighbors",c:"#8b5cf6",steps:["Talk to your immediate neighbors first. You may find others have symptoms they have not connected to the facility.","Start or join a neighborhood group. Organize your documentation collectively. The volume of complaints matters enormously in regulatory responses.","Research what other communities have done. Residents in Prince William County and Loudoun County Virginia fought back through organized advocacy and won meaningful concessions.","Contact Earthjustice at earthjustice.org. They represent communities facing industrial noise and air quality issues. Initial consultations are free.","Consult a private environmental attorney. In many jurisdictions, property damage caused by industrial noise is actionable."]},
+                      {icon:"shield",   t:"Protect your family starting right now",c:"#3b82f6",steps:["Request the facility's generator test schedule in writing today. On test days, keep all windows and doors closed, bring children indoors, and avoid outdoor activities.","Install HEPA air purifiers in your bedroom and any rooms where children spend significant time. Run them continuously.","Rearrange sleeping arrangements so bedrooms are on the side of your home furthest from the facility.","Talk to your family doctor specifically about proximity to industrial infrastructure. Ask them to note your symptoms in your medical record.","Consider acoustic treatments for your bedroom: heavy curtains, door seals, and a white noise or brown noise generator for sleep."]},
+                      {icon:"star",     t:"Know your legal rights",c:"#10b981",steps:["In most jurisdictions, industrial operations that cause demonstrable harm to neighboring properties can constitute a legal nuisance. Consult an environmental attorney.","Property value impacts from nearby industrial development can sometimes be recovered through legal action or property tax assessment challenges.","Freedom of Information requests can obtain the facility's permit applications, environmental impact assessments, and noise monitoring data.","If you are renting, your landlord may have a disclosure obligation regarding industrial neighbors depending on your jurisdiction.","Keep records of any time you raise the issue with the facility operator directly. Their awareness and response are relevant in legal proceedings."]},
                     ].map((s,i)=>(
                       <div key={i} style={{background:"#fff",border:"1px solid #e2e8f0",borderRadius:16,overflow:"hidden",marginBottom:14,boxShadow:"0 2px 8px rgba(0,0,0,.04)"}}>
                         <div style={{padding:"18px 24px",borderBottom:"1px solid #f1f5f9",display:"flex",alignItems:"center",gap:12}}>
@@ -1176,8 +1102,10 @@ export default function App() {
                 {tab==="reports" && (
                   <div>
                     <h3 style={{fontSize:22,fontWeight:900,color:"#0f172a",marginBottom:10}}>Community Reports</h3>
-                    <p style={{fontSize:16,color:"#64748b",marginBottom:28,lineHeight:1.75}}>One person's symptom diary is anecdote. Three hundred people's diaries near the same facility, all spiking on generator test days, is a public health study. Your report matters.</p>
-                    {reps.length===0 && <div style={{fontSize:16,color:"#94a3b8",fontStyle:"italic",marginBottom:28,padding:"16px 0"}}>No reports yet for this facility. Be the first to share your experience.</div>}
+                    <p style={{fontSize:16,color:"#64748b",marginBottom:28,lineHeight:1.75}}>One person's symptom diary is anecdote. Three hundred people's diaries near the same facility is a public health study. Your report matters.</p>
+                    {reps.length===0 && (
+                      <div style={{fontSize:16,color:"#94a3b8",fontStyle:"italic",marginBottom:28,padding:"16px 0"}}>No reports yet for this facility. Be the first to share your experience.</div>
+                    )}
                     {reps.map((r,i)=>(
                       <div key={i} style={{background:"#fff",border:"1px solid #e2e8f0",borderRadius:16,padding:"20px 24px",marginBottom:12,boxShadow:"0 2px 8px rgba(0,0,0,.04)"}}>
                         <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
@@ -1188,84 +1116,51 @@ export default function App() {
                       </div>
                     ))}
                     <div style={{background:"#fff",border:"1px solid #e2e8f0",borderRadius:18,padding:"28px 30px",boxShadow:"0 4px 24px rgba(0,0,0,.07)"}}>
-
-                      {/* Header */}
                       <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:8}}>
-                        <div style={{width:44,height:44,borderRadius:12,background:rc+"14",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
-                          <Icon name="doc" size={22} color={rc}/>
-                        </div>
+                        <div style={{width:44,height:44,borderRadius:12,background:rc+"14",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}><Icon name="doc" size={22} color={rc}/></div>
                         <div>
                           <div style={{fontSize:18,fontWeight:800,color:"#0f172a"}}>Submit Your Resident Report</div>
-                          <div style={{fontSize:13,color:"#94a3b8",marginTop:2}}>All fields marked with an asterisk are required</div>
+                          <div style={{fontSize:13,color:"#94a3b8",marginTop:2}}>Fields marked with an asterisk are required</div>
                         </div>
                       </div>
-
-                      {/* Why this matters */}
                       <div style={{background:rc+"08",border:`1px solid ${rc}20`,borderRadius:12,padding:"14px 18px",marginBottom:24,marginTop:16}}>
-                        <p style={{fontSize:14,color:"#374151",lineHeight:1.75,margin:0}}>
-                          Reports submitted here are reviewed by HumZones and, with your permission, shared with regulatory bodies as part of our verified resident health registry. A verified email address and signed declaration make your report credible to regulators, public health authorities, and legal proceedings. Anonymous internet comments are easy to dismiss. Verified resident declarations are not.
-                        </p>
+                        <p style={{fontSize:14,color:"#374151",lineHeight:1.75,margin:0}}>Reports submitted here are reviewed by HumZones and may be shared with regulatory bodies as part of our verified resident health registry. A verified email address and signed declaration make your report credible to regulators and public health authorities.</p>
                       </div>
-
-                      {/* Honeypot */}
                       <input className="hz-trap" tabIndex="-1" autoComplete="off" value={hp} onChange={e=>setHp(e.target.value)} aria-hidden="true"/>
-
                       {sent ? (
                         <div style={{background:"#f0fdf4",border:"2px solid #bbf7d0",borderRadius:16,padding:"24px"}}>
-                          <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:10}}>
-                            <Icon name="check" size={24} color="#15803d"/>
-                            <div style={{fontSize:18,fontWeight:800,color:"#15803d"}}>Report submitted successfully.</div>
-                          </div>
-                          <p style={{fontSize:15,color:"#166534",lineHeight:1.75,marginBottom:16}}>
-                            Thank you for taking the time to document your experience. Your report has been received and will be reviewed within 48 hours. Once approved it will appear in this community registry and may be included in regulatory submissions on behalf of residents near this facility.
-                          </p>
-                          <p style={{fontSize:14,color:"#166534",lineHeight:1.65,marginBottom:20}}>
-                            You will receive a confirmation at the email address you provided. If your report is selected for inclusion in a formal regulatory filing, we will contact you for permission first.
-                          </p>
+                          <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:10}}><Icon name="check" size={24} color="#15803d"/><div style={{fontSize:18,fontWeight:800,color:"#15803d"}}>Report submitted successfully.</div></div>
+                          <p style={{fontSize:15,color:"#166534",lineHeight:1.75,marginBottom:20}}>Thank you. Your report has been received and will be reviewed within 48 hours. Once approved it will appear in this community registry.</p>
                           <button onClick={()=>setSent(false)} style={{fontSize:14,padding:"10px 22px",borderRadius:10,border:"1.5px solid #bbf7d0",background:"transparent",color:"#15803d",cursor:"pointer",fontFamily:"inherit",fontWeight:700}}>Submit another report</button>
                         </div>
                       ) : (
                         <div>
-                          {/* Name and email row */}
                           <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:16}}>
                             <div>
                               <label style={{fontSize:13,fontWeight:700,color:"#374151",display:"block",marginBottom:6}}>Your Name</label>
-                              <input value={repName} onChange={e=>setRepName(e.target.value)}
-                                placeholder="First name or Anonymous"
-                                style={{width:"100%",padding:"13px 16px",borderRadius:10,border:"1.5px solid #e2e8f0",fontSize:15,boxSizing:"border-box",outline:"none",fontFamily:"inherit",color:"#1e293b"}}/>
+                              <input value={repName} onChange={e=>setRepName(e.target.value)} placeholder="First name or Anonymous" style={{width:"100%",padding:"13px 16px",borderRadius:10,border:"1.5px solid #e2e8f0",fontSize:15,boxSizing:"border-box",outline:"none",fontFamily:"inherit",color:"#1e293b"}}/>
                             </div>
                             <div>
                               <label style={{fontSize:13,fontWeight:700,color:"#374151",display:"block",marginBottom:6}}>Email Address *</label>
-                              <input value={repEmail} onChange={e=>setRepEmail(e.target.value)}
-                                placeholder="Required to verify your report"
-                                type="email"
-                                style={{width:"100%",padding:"13px 16px",borderRadius:10,border:`1.5px solid ${repEmail.trim()?"#3b82f6":"#e2e8f0"}`,fontSize:15,boxSizing:"border-box",outline:"none",fontFamily:"inherit",color:"#1e293b",transition:"border-color .2s"}}/>
-                              <div style={{fontSize:11,color:"#94a3b8",marginTop:4}}>Not displayed publicly. Used for verification only.</div>
+                              <input value={repEmail} onChange={e=>setRepEmail(e.target.value)} placeholder="Required to verify your report" type="email" style={{width:"100%",padding:"13px 16px",borderRadius:10,border:`1.5px solid ${repEmail.trim()?"#3b82f6":"#e2e8f0"}`,fontSize:15,boxSizing:"border-box",outline:"none",fontFamily:"inherit",color:"#1e293b",transition:"border-color .2s"}}/>
+                              <div style={{fontSize:11,color:"#94a3b8",marginTop:4}}>Not displayed publicly. Verification only.</div>
                             </div>
                           </div>
-
-                          {/* Duration at address */}
                           <div style={{marginBottom:16}}>
                             <label style={{fontSize:13,fontWeight:700,color:"#374151",display:"block",marginBottom:8}}>How long have you lived at this address?</label>
                             <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
                               {["Less than 1 year","1 to 3 years","3 to 10 years","More than 10 years"].map(d=>(
-                                <button key={d} onClick={()=>setRepDuration(d)}
-                                  style={{padding:"9px 16px",borderRadius:20,border:`2px solid ${repDuration===d?rc:"#e2e8f0"}`,background:repDuration===d?rc+"12":"#fff",color:repDuration===d?rc:"#64748b",fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:"inherit",transition:"all .15s"}}>
-                                  {d}
-                                </button>
+                                <button key={d} onClick={()=>setRepDuration(d)} style={{padding:"9px 16px",borderRadius:20,border:`2px solid ${repDuration===d?rc:"#e2e8f0"}`,background:repDuration===d?rc+"12":"#fff",color:repDuration===d?rc:"#64748b",fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:"inherit",transition:"all .15s"}}>{d}</button>
                               ))}
                             </div>
                           </div>
-
-                          {/* Symptom checkboxes */}
                           <div style={{marginBottom:16}}>
-                            <label style={{fontSize:13,fontWeight:700,color:"#374151",display:"block",marginBottom:8}}>Which of these have you experienced near this facility? <span style={{color:"#94a3b8",fontWeight:400}}>(select all that apply)</span></label>
+                            <label style={{fontSize:13,fontWeight:700,color:"#374151",display:"block",marginBottom:8}}>Which of these have you experienced? <span style={{color:"#94a3b8",fontWeight:400}}>(select all that apply)</span></label>
                             <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
                               {SYMPTOM_OPTIONS.map(s=>{
-                                const checked = repSymptoms.includes(s);
-                                return(
-                                  <div key={s} onClick={()=>toggleSymptom(s)}
-                                    style={{display:"flex",alignItems:"center",gap:10,padding:"11px 14px",borderRadius:10,border:`1.5px solid ${checked?rc:"#e2e8f0"}`,background:checked?rc+"0d":"#f8fafc",cursor:"pointer",transition:"all .15s"}}>
+                                const checked=repSymptoms.includes(s);
+                                return (
+                                  <div key={s} onClick={()=>toggleSymptom(s)} style={{display:"flex",alignItems:"center",gap:10,padding:"11px 14px",borderRadius:10,border:`1.5px solid ${checked?rc:"#e2e8f0"}`,background:checked?rc+"0d":"#f8fafc",cursor:"pointer",transition:"all .15s"}}>
                                     <div style={{width:18,height:18,borderRadius:4,border:`2px solid ${checked?rc:"#cbd5e1"}`,background:checked?rc:"transparent",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,transition:"all .15s"}}>
                                       {checked && <Icon name="check" size={11} color="#fff"/>}
                                     </div>
@@ -1275,47 +1170,35 @@ export default function App() {
                               })}
                             </div>
                           </div>
-
-                          {/* Report text */}
                           <div style={{marginBottom:16}}>
                             <label style={{fontSize:13,fontWeight:700,color:"#374151",display:"block",marginBottom:6}}>Your Report *</label>
                             <textarea value={draft} onChange={e=>setDraft(e.target.value)} rows={6}
-                              placeholder="Describe what you have experienced living near this facility. Include when symptoms started, how frequently they occur, whether they improve when you leave the area, any events you have noticed such as generator tests, visible smoke, or unusual noise. The more detail you provide, the more useful your report is to regulators and researchers."
+                              placeholder="Describe what you have experienced living near this facility. Include when symptoms started, how frequently they occur, whether they improve when you leave the area, any events you have noticed such as generator tests or visible smoke."
                               style={{width:"100%",padding:"14px 16px",borderRadius:10,border:`1.5px solid ${draft.trim()?"#3b82f6":"#e2e8f0"}`,fontSize:15,resize:"vertical",outline:"none",boxSizing:"border-box",fontFamily:"inherit",lineHeight:1.75,color:"#1e293b",transition:"border-color .2s"}}/>
                           </div>
-
-                          {/* Declaration */}
-                          <div onClick={()=>setRepDeclared(v=>!v)}
-                            style={{display:"flex",alignItems:"flex-start",gap:12,padding:"16px",borderRadius:12,border:`2px solid ${repDeclared?rc:"#e2e8f0"}`,background:repDeclared?rc+"08":"#f8fafc",cursor:"pointer",marginBottom:20,transition:"all .2s"}}>
+                          <div onClick={()=>setRepDeclared(v=>!v)} style={{display:"flex",alignItems:"flex-start",gap:12,padding:"16px",borderRadius:12,border:`2px solid ${repDeclared?rc:"#e2e8f0"}`,background:repDeclared?rc+"08":"#f8fafc",cursor:"pointer",marginBottom:20,transition:"all .2s"}}>
                             <div style={{width:22,height:22,borderRadius:5,border:`2px solid ${repDeclared?rc:"#94a3b8"}`,background:repDeclared?rc:"transparent",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,marginTop:1,transition:"all .2s"}}>
                               {repDeclared && <Icon name="check" size={13} color="#fff"/>}
                             </div>
-                            <div style={{fontSize:14,color:"#374151",lineHeight:1.7,fontWeight:repDeclared?600:400}}>
-                              * I declare that I am a real resident living near this facility and that the information in this report is truthful to the best of my knowledge. I understand that this report may be shared with public health authorities and regulatory bodies as part of a verified resident health registry.
-                            </div>
+                            <div style={{fontSize:14,color:"#374151",lineHeight:1.7,fontWeight:repDeclared?600:400}}>* I declare that I am a real resident living near this facility and that the information in this report is truthful to the best of my knowledge. I understand this report may be shared with public health authorities and regulatory bodies.</div>
                           </div>
-
-                          {/* Submit */}
                           <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:16,flexWrap:"wrap"}}>
-                            <button onClick={sendReport} disabled={sending||!canSubmit}
-                              style={{padding:"15px 36px",borderRadius:12,border:"none",background:canSubmit?rc:"#e2e8f0",color:canSubmit?"#fff":"#94a3b8",fontSize:16,fontWeight:800,cursor:canSubmit?"pointer":"default",fontFamily:"inherit",transition:"all .2s",boxShadow:canSubmit?`0 4px 20px ${rc}44`:"none"}}>
+                            <button onClick={sendReport} disabled={sending||!canSubmit} style={{padding:"15px 36px",borderRadius:12,border:"none",background:canSubmit?rc:"#e2e8f0",color:canSubmit?"#fff":"#94a3b8",fontSize:16,fontWeight:800,cursor:canSubmit?"pointer":"default",fontFamily:"inherit",transition:"all .2s",boxShadow:canSubmit?`0 4px 20px ${rc}44`:"none"}}>
                               {sending?"Submitting...":"Submit Verified Report"}
                             </button>
-                            <div style={{fontSize:13,color:"#94a3b8",maxWidth:300,lineHeight:1.55}}>
-                              Reports reviewed within 48 hours. Email used for verification only, never displayed publicly.
-                            </div>
+                            <div style={{fontSize:13,color:"#94a3b8",maxWidth:300,lineHeight:1.55}}>Reports reviewed within 48 hours. Email used for verification only, never displayed publicly.</div>
                           </div>
                         </div>
                       )}
                     </div>
-                        )}
+                  </div>
+                )}
 
               </div>
             </div>
           )}
         </main>
 
-        {/* FOOTER */}
         <footer style={{background:"#0a0f1e",padding:"48px 24px 36px",textAlign:"center"}}>
           <div style={{marginBottom:8}}>
             <span style={{fontSize:26,fontWeight:900,letterSpacing:".08em",background:"linear-gradient(90deg,#ef4444,#f97316)",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent"}}>HumZones</span>
@@ -1331,8 +1214,7 @@ export default function App() {
               {t:"BioInitiative",  url:"https://www.bioinitiative.org"},
               {t:"PubMed",         url:"https://pubmed.ncbi.nlm.nih.gov"},
             ].map(s=>(
-              <a key={s.t} href={s.url} target="_blank" rel="noopener noreferrer" className="ext-link"
-                style={{color:"#3b82f6",display:"flex",alignItems:"center",gap:4,fontSize:15,fontWeight:600}}>
+              <a key={s.t} href={s.url} target="_blank" rel="noopener noreferrer" className="ext-link" style={{color:"#3b82f6",display:"flex",alignItems:"center",gap:4,fontSize:15,fontWeight:600}}>
                 {s.t} <Icon name="external" size={13} color="#3b82f6"/>
               </a>
             ))}
