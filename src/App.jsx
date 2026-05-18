@@ -1120,10 +1120,10 @@ export default function App() {
                     {reps.map((r,i)=>{
                       const isExpanded = expandedRep === i;
                       const text = r.Report_Text || "";
-                      // Approx 3 lines at ~80 chars each
-                      const PREVIEW_LIMIT = 240;
-                      const isLong = text.length > PREVIEW_LIMIT;
-                      const displayText = isExpanded || !isLong ? text : text.slice(0, PREVIEW_LIMIT).trimEnd() + "...";
+                      // Always clamp to 3 lines visually, show button to expand
+                      // Use a word count threshold so short reports don't show the button
+                      const wordCount = text.trim().split(/\s+/).length;
+                      const isLong = wordCount > 25 || text.length > 160;
                       return (
                         <div key={i} style={{background:"#fff",border:"1px solid #e2e8f0",borderRadius:16,padding:"20px 24px",marginBottom:12,boxShadow:"0 2px 8px rgba(0,0,0,.04)"}}>
                           <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:12,gap:12}}>
@@ -1144,12 +1144,22 @@ export default function App() {
                               ))}
                             </div>
                           )}
-                          <p style={{fontSize:15,color:"#374151",lineHeight:1.85,margin:0}}>{displayText}</p>
+                          <div style={{position:"relative"}}>
+                            <p style={{
+                              fontSize:15,color:"#374151",lineHeight:1.85,margin:0,
+                              overflow:"hidden",
+                              display:"-webkit-box",
+                              WebkitLineClamp:isExpanded?999:3,
+                              WebkitBoxOrient:"vertical",
+                            }}>{text}</p>
+                            {!isExpanded && isLong && (
+                              <div style={{position:"absolute",bottom:0,left:0,right:0,height:36,background:"linear-gradient(to bottom, transparent, #fff)"}}/>
+                            )}
+                          </div>
                           {isLong && (
                             <button onClick={()=>setExpandedRep(isExpanded?null:i)}
-                              style={{marginTop:10,background:"transparent",border:"none",color:rc,fontSize:14,fontWeight:700,cursor:"pointer",fontFamily:"inherit",padding:0,display:"flex",alignItems:"center",gap:4}}>
-                              {isExpanded ? "Show less" : "Read full report"}
-                              <span style={{fontSize:16,lineHeight:1}}>{isExpanded?"↑":"↓"}</span>
+                              style={{marginTop:8,background:"transparent",border:"none",color:rc,fontSize:14,fontWeight:700,cursor:"pointer",fontFamily:"inherit",padding:0,display:"flex",alignItems:"center",gap:4}}>
+                              {isExpanded ? "Show less ↑" : "Read full report ↓"}
                             </button>
                           )}
                         </div>
