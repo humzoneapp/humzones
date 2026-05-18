@@ -91,6 +91,7 @@ const Icon = ({ name, size = 24, color = "currentColor" }) => {
     pin:       <svg style={s} viewBox="0 0 24 24"><path d="M21 10c0 7-9 13-9 13S3 17 3 10a9 9 0 0118 0z" {...p}/><circle cx="12" cy="10" r="3" {...p}/></svg>,
     close:     <svg style={s} viewBox="0 0 24 24"><path d="M18 6L6 18M6 6l12 12" {...p}/></svg>,
     chevDown:  <svg style={s} viewBox="0 0 24 24"><path d="M6 9l6 6 6-6" {...p}/></svg>,
+    chevUp:    <svg style={s} viewBox="0 0 24 24"><path d="M18 15l-6-6-6 6" {...p}/></svg>,
     alert:     <svg style={s} viewBox="0 0 24 24"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" {...p}/><line x1="12" y1="9" x2="12" y2="13" {...p}/><circle cx="12" cy="17" r=".5" fill={color} stroke={color} strokeWidth="1"/></svg>,
     sound:     <svg style={s} viewBox="0 0 24 24"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" {...p}/><path d="M15.54 8.46a5 5 0 010 7.07M19.07 4.93a10 10 0 010 14.14" {...p}/></svg>,
     head:      <svg style={s} viewBox="0 0 24 24"><circle cx="12" cy="9" r="6" {...p}/><path d="M12 15v6M9 21h6M10 8l1 2M14 8l-1 2" {...p}/></svg>,
@@ -1291,9 +1292,7 @@ export default function App() {
             onMouseLeave={e=>{e.currentTarget.style.transform="scale(1)";e.currentTarget.style.boxShadow="0 4px 20px rgba(239,68,68,.45)";}}
             aria-label="Scroll to top"
           >
-            <div style={{transform:"rotate(180deg)",display:"flex",alignItems:"center",justifyContent:"center"}}>
-              <Icon name="chevDown" size={22} color="#fff"/>
-            </div>
+            <Icon name="chevUp" size={22} color="#fff"/>
           </button>
         )}
 
