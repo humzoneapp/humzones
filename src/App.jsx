@@ -1,3 +1,4 @@
+// Build marker: 2026-05-19 — force fresh Vercel deployment.
 import { useState, useEffect, useRef, useCallback } from "react";
 
 // ─── AIRTABLE CONNECTION ───────────────────────────────────────────────────────
