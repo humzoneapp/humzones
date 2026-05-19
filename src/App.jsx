@@ -404,7 +404,10 @@ const CSS = `
     .main{padding:20px 16px 48px!important}
     .rings{display:none!important}
     .stat-val{font-size:20px!important}
-    .addr-bar{flex-direction:column!important;align-items:flex-start!important;gap:10px!important}
+    .addr-bar{flex-direction:column!important;align-items:flex-start!important;gap:10px!important;padding:14px 16px!important}
+    .near-panel{padding:22px 16px 18px!important}
+    .near-card{padding:16px!important}
+    .near-card .near-right{margin-left:auto!important}
   }
   @media(max-width:480px){
     .hero h1{font-size:38px!important}
@@ -1118,7 +1121,7 @@ export default function App() {
         <main className="main" ref={topRef} style={{maxWidth:1040,margin:"0 auto",padding:"36px 24px 72px"}}>
 
           {/* FIND DATA CENTERS NEAR ME */}
-          <section style={{background:"#fff",borderRadius:24,boxShadow:"0 8px 48px rgba(0,0,0,.10)",padding:"26px 26px 22px",marginBottom:28}}>
+          <section className="near-panel" style={{background:"#fff",borderRadius:24,boxShadow:"0 8px 48px rgba(0,0,0,.10)",padding:"26px 26px 22px",marginBottom:28}}>
             <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:18,flexWrap:"wrap"}}>
               <span style={{fontSize:26,lineHeight:1}} role="img" aria-label="Pin">📍</span>
               <h2 style={{fontSize:22,fontWeight:900,color:"#0f172a",letterSpacing:"-.01em",margin:0}}>Find Data Centers Near Me</h2>
@@ -1194,13 +1197,13 @@ export default function App() {
                 const rclr = RISK_C[f.Risk_Level] || "#64748b";
                 const dclr = distColor(f._km);
                 return (
-                  <div key={f.id} className="sym-card" onClick={()=>pickFac(f.id)} style={{background:"#fff",borderRadius:18,boxShadow:"0 4px 18px rgba(0,0,0,.06)",padding:"18px 22px",cursor:"pointer",display:"flex",alignItems:"center",gap:16,flexWrap:"wrap"}}>
+                  <div key={f.id} className="sym-card near-card" onClick={()=>pickFac(f.id)} style={{background:"#fff",borderRadius:18,boxShadow:"0 4px 18px rgba(0,0,0,.06)",padding:"18px 22px",cursor:"pointer",display:"flex",alignItems:"center",gap:16,flexWrap:"wrap"}}>
                     <div style={{flex:1,minWidth:0}}>
                       <div style={{fontSize:17,fontWeight:800,color:"#0f172a",marginBottom:4,lineHeight:1.3}}>{f.Name}</div>
                       <div style={{fontSize:13,color:"#64748b",fontWeight:600}}>{f.Company} &middot; {[f.City,f.State_Region,f.Country].filter(Boolean).join(", ")}</div>
                       <div style={{fontSize:13,color:"#64748b",fontWeight:600,marginTop:2}}>{f.Power_MW>=1000?`${(f.Power_MW/1000).toFixed(1)} GW`:`${f.Power_MW||"?"}MW`}</div>
                     </div>
-                    <div style={{display:"flex",flexDirection:"column",gap:8,alignItems:"flex-end",flexShrink:0}}>
+                    <div className="near-right" style={{display:"flex",flexDirection:"column",gap:8,alignItems:"flex-end",flexShrink:0,marginLeft:"auto"}}>
                       <div style={{padding:"6px 12px",borderRadius:999,background:dclr,color:"#fff",fontWeight:800,fontSize:13,letterSpacing:".02em",boxShadow:`0 4px 14px ${dclr}55`}}>
                         {f._km.toFixed(1)} km away
                       </div>
