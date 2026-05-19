@@ -95,7 +95,10 @@ async function cachedFetch(table, params = {}) {
       const parsed = JSON.parse(raw);
       if (Array.isArray(parsed.data)) {
         cached = parsed;
-        if (Date.now() - parsed.ts < CACHE_TTL) return parsed.data;
+        if (Date.now() - parsed.ts < CACHE_TTL) {
+          console.log(`[HumZones] ${table}: served ${parsed.data.length} records from localStorage cache "${cacheKey}" (age ${Math.round((Date.now()-parsed.ts)/1000)}s). Clear this key for a fresh fetch.`);
+          return parsed.data;
+        }
       }
     }
   } catch { /* corrupt or unavailable cache: ignore and fetch fresh */ }
@@ -104,6 +107,7 @@ async function cachedFetch(table, params = {}) {
     // apiFetch only resolves when every page was retrieved, so a partial
     // result can never be cached as if it were complete.
     const data = await apiFetch(table, params);
+    console.log(`[HumZones] ${table}: fetched ${data.length} records fresh from Airtable`);
     try {
       localStorage.setItem(cacheKey, JSON.stringify({ ts: Date.now(), data }));
     } catch { /* quota exceeded or unavailable: skip caching */ }
@@ -547,8 +551,8 @@ export default function App() {
 
   useEffect(()=>{
     cachedFetch("Facilities",{"fields[]":FACILITY_LIST_FIELDS})
-      .then(d=>{ setFacs(d); })
-      .catch(e=>{ console.error("Facilities fetch failed:",e); })
+      .then(d=>{ setFacs(d); console.log(`[HumZones] facs.length = ${d.length} (this is what the app rendered)`); })
+      .catch(e=>{ console.error("[HumZones] Facilities fetch failed:",e); })
       .finally(()=>setLoading(false));
   },[]);
 
