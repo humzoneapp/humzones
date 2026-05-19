@@ -80,15 +80,15 @@ async function fetchRecord(table, id) {
   } catch { return null; }
 }
 
-// apiFetch with a 1-hour localStorage cache, so repeat visitors skip the
-// network round trip. Falls through to a fresh fetch if the cache is
-// missing, stale, corrupt, or localStorage is unavailable.
-const CACHE_TTL = 60 * 60 * 1000; // 1 hour
+// apiFetch with a short-lived localStorage cache, so repeat visitors skip
+// the network round trip while listings still stay current. Falls through
+// to a fresh fetch if the cache is missing, stale, corrupt, or unavailable.
+const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
 
 async function cachedFetch(table, params = {}) {
-  // v3: cache key bumped to purge any truncated/partial result sets
-  // cached before pagination was made resilient.
-  const cacheKey = `hz_cache_v3_${table}`;
+  // v4: cache key bumped to immediately discard any stale cached sets;
+  // short TTL (see CACHE_TTL) keeps listings current without further bumps.
+  const cacheKey = `hz_cache_v4_${table}`;
   let cached = null;
   try {
     const raw = localStorage.getItem(cacheKey);
