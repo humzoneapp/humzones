@@ -503,8 +503,92 @@ const FacilityMapImage = ({ dc, rc }) => {
   );
 };
 
+// ─── METHODOLOGY PAGE ─────────────────────────────────────────────────────────
+const METHODOLOGY_SECTIONS = [
+  {t:"Facility Data Sources",b:"We identify data centers from public databases including datacenters.com, operator press releases, utility interconnection filings, FERC applications, municipal permit records, and industry publications. Facility names, addresses, coordinates, and operational status are cross-referenced across multiple sources where possible."},
+  {t:"Power Draw (MW)",b:"Power figures are sourced from operator announcements, utility interconnection applications, planning permit filings, and industry reporting. Where exact figures are unavailable, we apply conservative estimates based on facility size class and cooling type. Hyperscale campuses (100MW+) are typically sourced from public utility filings or operator sustainability reports."},
+  {t:"Noise (dB)",b:"Perimeter noise levels are estimated using facility power class and cooling type as primary inputs, cross-referenced against EPA industrial noise guidelines and published acoustic studies of comparable data center facilities. Evaporative and chilled water cooling systems produce different noise profiles at the perimeter. These are modeled estimates and will vary by facility design, wind direction, and local terrain."},
+  {t:"CO2 Emissions (tons per year)",b:"Annual CO2 estimates are calculated by multiplying Power_MW by annual operating hours (8,760) and applying the EPA eGRID regional emissions factor for the relevant utility grid region. Facilities powered by renewable energy contracts may have lower actual emissions. We use the grid average as a conservative baseline."},
+  {t:"Water Consumption (gallons per day)",b:"Daily water consumption is estimated using industry-standard Water Usage Effectiveness (WUE) ratios published by ASHRAE and the Green Grid consortium, applied to facility power draw and cooling type. Evaporative cooling systems consume significantly more water than air-cooled or chilled water systems. These are modeled estimates."},
+  {t:"EMF Estimates",b:"Electromagnetic field values shown are modeled estimates derived from facility power draw, substation proximity, and cooling infrastructure. They are not certified measurements and should not be cited as such. We reference WHO and IARC published research on extremely low frequency EMF (ELF-EMF) for context on exposure thresholds. The legal US limit of 2,000 mG does not imply safety at lower levels."},
+  {t:"Risk Level",b:"Risk levels (LOW, MODERATE, HIGH) are assigned based on three factors: facility power scale, estimated proximity to nearest residential structures, and cooling type. HIGH is assigned when Power_MW is 50 or above, or when residential structures are estimated within 500 meters. MODERATE applies to facilities between 15 and 50 MW or with residences 500 to 1,000 meters away. LOW applies to smaller facilities in rural or industrial areas with residences beyond 1,000 meters."},
+  {t:"What We Do Not Claim",b:"We do not claim that any specific facility has caused harm to any specific person. We do not provide medical advice. Risk levels are relative indicators for public awareness only. Residents with health concerns should consult qualified medical and environmental professionals."},
+  {t:"Contact and Corrections",b:"If you are a facility operator or researcher and believe any data is materially incorrect, please contact us. We are committed to accuracy and will review and correct verified errors promptly."},
+];
+
+const MethodologyPage = ({ onBack }) => {
+  const backLink = (
+    <a href="/" onClick={e=>{e.preventDefault();onBack();}} className="ext-link" style={{display:"inline-flex",alignItems:"center",gap:8,color:"#ef4444",textDecoration:"none",fontSize:14,fontWeight:800,letterSpacing:".06em"}}>
+      <span style={{fontSize:18,lineHeight:1}}>&larr;</span> BACK TO HUMZONES
+    </a>
+  );
+
+  return (
+    <div style={{minHeight:"100vh",background:"#f1f5f9"}}>
+      {/* TOP BAR */}
+      <div style={{background:"linear-gradient(135deg,#020c1b 0%,#0f172a 50%,#1e0535 100%)",padding:"22px 24px",display:"flex",alignItems:"center",justifyContent:"space-between",gap:14,flexWrap:"wrap"}}>
+        <a href="/" onClick={e=>{e.preventDefault();onBack();}} className="ext-link" style={{display:"inline-flex",alignItems:"center",gap:8,color:"rgba(255,255,255,.85)",textDecoration:"none",fontSize:13,fontWeight:800,letterSpacing:".10em"}}>
+          <span style={{fontSize:18,lineHeight:1}}>&larr;</span> BACK TO HUMZONES
+        </a>
+        <div>
+          <span style={{fontSize:22,fontWeight:900,letterSpacing:".08em",background:"linear-gradient(90deg,#ef4444,#f97316)",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent"}}>HumZones</span>
+          <sup style={{fontSize:12,color:"#f97316",fontWeight:700,verticalAlign:"super",marginLeft:2}}>TM</sup>
+        </div>
+      </div>
+
+      {/* CONTENT */}
+      <main style={{maxWidth:880,margin:"0 auto",padding:"48px 24px 72px"}}>
+        <div style={{background:"#fff",borderRadius:24,boxShadow:"0 8px 48px rgba(0,0,0,.10)",padding:"48px 40px 40px"}}>
+          <div style={{fontSize:12,color:"#94a3b8",letterSpacing:".18em",textTransform:"uppercase",fontWeight:800,marginBottom:14}}>Methodology</div>
+          <h1 style={{fontSize:34,fontWeight:900,lineHeight:1.18,letterSpacing:"-.02em",marginBottom:24,background:"linear-gradient(135deg,#ef4444,#f97316)",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent",display:"inline-block"}}>
+            How We Research and Model Our Data
+          </h1>
+          <p style={{fontSize:17,color:"#475569",lineHeight:1.75,marginBottom:40}}>
+            HumZones compiles facility data from public sources and applies documented modeling methods to estimate environmental metrics. No figures on this site represent certified field measurements. All estimates are clearly labeled as such and are intended to inform public awareness, not to serve as legal or scientific evidence.
+          </p>
+
+          {METHODOLOGY_SECTIONS.map((s,i)=>(
+            <section key={s.t} style={{marginBottom:30}}>
+              <div style={{display:"flex",alignItems:"baseline",gap:12,marginBottom:10}}>
+                <div style={{fontSize:13,fontWeight:900,color:"#ef4444",letterSpacing:".06em",minWidth:26}}>{String(i+1).padStart(2,"0")}</div>
+                <h2 style={{fontSize:14,color:"#0f172a",letterSpacing:".12em",textTransform:"uppercase",fontWeight:800,margin:0,lineHeight:1.4}}>{s.t}</h2>
+              </div>
+              <p style={{fontSize:16,color:"#475569",lineHeight:1.75,marginLeft:38}}>{s.b}</p>
+            </section>
+          ))}
+
+          <div style={{borderTop:"1px solid #e2e8f0",marginTop:40,paddingTop:24}}>
+            <p style={{fontSize:12,color:"#94a3b8",lineHeight:1.7}}>
+              Data Disclaimer: All figures shown including noise levels, EMF readings, power consumption, CO2 estimates, and water usage are research-based estimates compiled from public sources, permit filings, and industry standards. They are not certified measurements. Actual readings may vary by facility design, operating conditions, and season. HumZones is an informational resource only and does not constitute medical, legal, or environmental advice.
+            </p>
+          </div>
+
+          <div style={{marginTop:32,textAlign:"center"}}>
+            {backLink}
+          </div>
+        </div>
+      </main>
+    </div>
+  );
+};
+
 // ─── MAIN APP ─────────────────────────────────────────────────────────────────
 export default function App() {
+  // Lightweight client-side routing: track pathname, listen for back/forward,
+  // and update via history.pushState. Vercel rewrites all paths to index.html
+  // (see vercel.json) so deep links like /methodology work on direct load.
+  const [path,setPath] = useState(typeof window!=="undefined"?window.location.pathname:"/");
+  useEffect(()=>{
+    const onPop = ()=>setPath(window.location.pathname);
+    window.addEventListener("popstate",onPop);
+    return ()=>window.removeEventListener("popstate",onPop);
+  },[]);
+  const navigate = (to)=>{
+    if(to !== window.location.pathname) window.history.pushState({},"",to);
+    setPath(to);
+    window.scrollTo(0,0);
+  };
+
   const [facs,setFacs]           = useState([]);
   const [loading,setLoading]     = useState(true);
   const [country,setCountry]     = useState("");
@@ -821,6 +905,9 @@ export default function App() {
   return (
     <>
       <style>{CSS}</style>
+      {path === "/methodology" ? (
+        <MethodologyPage onBack={()=>navigate("/")}/>
+      ) : (
       <div style={{minHeight:"100vh",background:"#f1f5f9"}}>
 
         {/* HERO */}
@@ -1478,6 +1565,8 @@ export default function App() {
         <div style={{borderTop:"1px solid #e2e8f0",padding:"28px 24px",textAlign:"center"}}>
           <p style={{fontSize:12,color:"#94a3b8",lineHeight:1.7,maxWidth:760,margin:"0 auto"}}>
             Data Disclaimer: All figures shown including noise levels, EMF readings, power consumption, CO2 estimates, and water usage are research-based estimates compiled from public sources, permit filings, and industry standards. They are not certified measurements. Actual readings may vary by facility design, operating conditions, and season. HumZones is an informational resource only and does not constitute medical, legal, or environmental advice.
+            {" "}
+            <a href="/methodology" onClick={e=>{e.preventDefault();navigate("/methodology");}} className="ext-link" style={{color:"#ef4444",fontWeight:700,textDecoration:"none"}}>Methodology</a>
           </p>
         </div>
 
@@ -1510,6 +1599,7 @@ export default function App() {
         </footer>
 
       </div>
+      )}
     </>
   );
 }
