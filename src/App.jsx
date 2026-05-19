@@ -85,8 +85,9 @@ async function fetchRecord(table, id) {
 const CACHE_TTL = 60 * 60 * 1000; // 1 hour
 
 async function cachedFetch(table, params = {}) {
-  // v2: cache key bumped when the Facilities field set was trimmed.
-  const cacheKey = `hz_cache_v2_${table}`;
+  // v3: cache key bumped to purge any truncated/partial result sets
+  // cached before pagination was made resilient.
+  const cacheKey = `hz_cache_v3_${table}`;
   let cached = null;
   try {
     const raw = localStorage.getItem(cacheKey);
