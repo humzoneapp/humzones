@@ -21,7 +21,10 @@ async function apiFetch(table, params = {}) {
   let all = [], offset = null;
   do {
     const url = new URL(`${APIURL}/${table}`);
-    Object.entries(params).forEach(([k,v]) => url.searchParams.set(k,v));
+    Object.entries(params).forEach(([k,v]) => {
+      if (Array.isArray(v)) v.forEach(item => url.searchParams.append(k, item));
+      else url.searchParams.set(k, v);
+    });
     if (offset) url.searchParams.set("offset", offset);
     url.searchParams.set("pageSize", "100");
     try {
@@ -35,13 +38,33 @@ async function apiFetch(table, params = {}) {
   return all.map(r => ({ id: r.id, ...r.fields }));
 }
 
+// Lightweight field set for the initial Facilities load: just what the
+// dropdowns and facility stat cards need. Heavy/rarely-used fields
+// (Address, Nearby_Info, etc.) are lazy-loaded per facility on selection.
+const FACILITY_LIST_FIELDS = [
+  "Name","Company","Country","State_Region","City","Facility_Status",
+  "Risk_Level","Power_MW","Noise_DB","CO2_Tons_Year","Water_Gal_Day",
+  "EMF_Fence_High","EMF_100m","Latitude","Longitude","Opened","Photo_URL",
+];
+
+// Fetch a single full record by ID (all fields), for the detail view.
+async function fetchRecord(table, id) {
+  try {
+    const r = await fetch(`${APIURL}/${table}/${id}`, { headers: HDR });
+    if (!r.ok) return null;
+    const d = await r.json();
+    return { id: d.id, ...d.fields };
+  } catch { return null; }
+}
+
 // apiFetch with a 1-hour localStorage cache, so repeat visitors skip the
 // network round trip. Falls through to a fresh fetch if the cache is
 // missing, stale, corrupt, or localStorage is unavailable.
 const CACHE_TTL = 60 * 60 * 1000; // 1 hour
 
 async function cachedFetch(table, params = {}) {
-  const cacheKey = `hz_cache_${table}`;
+  // v2: cache key bumped when the Facilities field set was trimmed.
+  const cacheKey = `hz_cache_v2_${table}`;
   try {
     const raw = localStorage.getItem(cacheKey);
     if (raw) {
@@ -488,7 +511,7 @@ export default function App() {
   const topRef  = useRef(null);
 
   useEffect(()=>{
-    cachedFetch("Facilities").then(d=>{ setFacs(d); setLoading(false); });
+    cachedFetch("Facilities",{"fields[]":FACILITY_LIST_FIELDS}).then(d=>{ setFacs(d); setLoading(false); });
   },[]);
 
   useEffect(()=>{
@@ -611,6 +634,14 @@ export default function App() {
     setQStep(0); setQRes(null); setQAns({});
     setXLong(null); setXKid(null); setSent(false);
     setTimeout(()=>topRef.current?.scrollIntoView({behavior:"smooth"}),100);
+    // Lazy-load heavy fields (Address, Nearby_Info, ...) excluded from the
+    // initial list fetch; merge them into the record once, on first select.
+    const existing = facs.find(f=>f.id===id);
+    if(existing && !existing._full){
+      fetchRecord("Facilities",id).then(full=>{
+        if(full) setFacs(prev=>prev.map(f=>f.id===id?{...f,...full,_full:true}:f));
+      });
+    }
   };
 
   const calcQuiz = a => {
@@ -826,7 +857,7 @@ export default function App() {
         {showCD && (
           <div ref={cDropRef} style={{position:"fixed",top:cDropPos.top,left:cDropPos.left,width:cDropPos.width,background:"#fff",borderRadius:16,boxShadow:"0 28px 72px rgba(0,0,0,.32)",zIndex:9999,border:"1px solid #e2e8f0",overflow:"hidden"}}>
             <div className="scroll-inner" style={{maxHeight:"min(340px, 60vh)",overflowY:"auto"}}>
-              {cMatches.length===0 && <div style={{padding:"16px 20px",color:"#94a3b8",fontSize:16,fontStyle:"italic"}}>No countries found</div>}
+              {cMatches.length===0 && <div style={{padding:"16px 20px",color:"#94a3b8",fontSize:16,fontStyle:"italic"}}>{loading?"Loading countries...":"No countries found"}</div>}
               {cMatches.map(c=>(
                 <div key={c} className="drop-item" style={{padding:"15px 20px",fontSize:16,color:"#1e293b",borderBottom:"1px solid #f1f5f9",fontWeight:500}} onClick={()=>pickCountry(c)}>{c}</div>
               ))}
