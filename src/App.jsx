@@ -166,6 +166,18 @@ const getGoogleMapsUrl = (lat, lng, address, name) => {
   return `https://www.google.com/maps/search/?api=1&query=${q}`;
 };
 
+// Haversine distance in kilometres between two lat/lng points.
+const distanceKm = (lat1, lon1, lat2, lon2) => {
+  const R = 6371, toRad = d => d * Math.PI / 180;
+  const dLat = toRad(lat2 - lat1), dLon = toRad(lon2 - lon1);
+  const a = Math.sin(dLat/2)**2 +
+            Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon/2)**2;
+  return 2 * R * Math.asin(Math.sqrt(a));
+};
+
+// Colour the "X km away" badge by how close a facility is.
+const distColor = km => km < 1 ? "#ef4444" : km < 5 ? "#f97316" : km < 25 ? "#eab308" : "#3b82f6";
+
 // Build a human-readable location string
 const buildLocationString = (dc) => {
   const parts = [];
@@ -626,6 +638,13 @@ export default function App() {
   const [qEmailSent,setQEmailSent] = useState(false);
   const [statVals,setStatVals]   = useState([0,0,0,0]);
   const [showScrollTop,setShowScrollTop] = useState(false);
+  // "Find Data Centers Near Me" panel state
+  const [nearLoc,setNearLoc]     = useState(null);       // {lat,lng,label}
+  const [nearAddr,setNearAddr]   = useState("");
+  const [nearRadius,setNearRadius] = useState(10);       // km
+  const [nearRisk,setNearRisk]   = useState("ALL");      // ALL | HIGH | HIGH_MOD
+  const [nearStatus,setNearStatus] = useState("idle");   // idle | locating | geocoding
+  const [nearError,setNearError] = useState("");
   const cRef    = useRef(null);
   const rRef    = useRef(null);
   const ciRef   = useRef(null);
@@ -770,6 +789,52 @@ export default function App() {
       });
     }
   };
+
+  // "Find Data Centers Near Me" — geolocation, geocoding, results
+  const handleGeolocate = () => {
+    if(!("geolocation" in navigator)){ setNearError("Geolocation is not available in this browser."); return; }
+    setNearStatus("locating"); setNearError("");
+    navigator.geolocation.getCurrentPosition(
+      pos => {
+        setNearLoc({lat:pos.coords.latitude,lng:pos.coords.longitude,label:"My location"});
+        setNearStatus("idle"); setSel(null);
+      },
+      err => {
+        setNearError(err.code===1?"Location permission denied. Try entering an address instead.":"Could not determine your location.");
+        setNearStatus("idle");
+      },
+      {timeout:10000,maximumAge:60000}
+    );
+  };
+  const handleGeocode = async () => {
+    const q = nearAddr.trim();
+    if(!q) return;
+    setNearStatus("geocoding"); setNearError("");
+    try{
+      const r = await fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(q)}&format=json&limit=1`);
+      const j = await r.json();
+      if(!Array.isArray(j) || !j[0]){ setNearError("Address not found. Try a more specific search."); setNearStatus("idle"); return; }
+      setNearLoc({lat:parseFloat(j[0].lat),lng:parseFloat(j[0].lon),label:j[0].display_name||q});
+      setNearStatus("idle"); setSel(null);
+    }catch{
+      setNearError("Address lookup failed. Check your connection and try again.");
+      setNearStatus("idle");
+    }
+  };
+  const clearNear = () => { setNearLoc(null); setNearAddr(""); setNearError(""); setNearStatus("idle"); };
+
+  const nearResults = nearLoc ? facs
+    .map(f => {
+      const lat = parseFloat(f.Latitude), lng = parseFloat(f.Longitude);
+      if(!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
+      return { ...f, _km: distanceKm(nearLoc.lat, nearLoc.lng, lat, lng) };
+    })
+    .filter(f => f && f._km <= nearRadius)
+    .filter(f => nearRisk==="ALL"
+              || (nearRisk==="HIGH" && f.Risk_Level==="HIGH")
+              || (nearRisk==="HIGH_MOD" && (f.Risk_Level==="HIGH" || f.Risk_Level==="MODERATE")))
+    .sort((a,b) => a._km - b._km)
+    : [];
 
   const calcQuiz = a => {
     let score=0; const flags=[];
@@ -1052,7 +1117,112 @@ export default function App() {
         {/* MAIN */}
         <main className="main" ref={topRef} style={{maxWidth:1040,margin:"0 auto",padding:"36px 24px 72px"}}>
 
-          {!dc && !loading && (
+          {/* FIND DATA CENTERS NEAR ME */}
+          <section style={{background:"#fff",borderRadius:24,boxShadow:"0 8px 48px rgba(0,0,0,.10)",padding:"26px 26px 22px",marginBottom:28}}>
+            <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:18,flexWrap:"wrap"}}>
+              <span style={{fontSize:26,lineHeight:1}} role="img" aria-label="Pin">📍</span>
+              <h2 style={{fontSize:22,fontWeight:900,color:"#0f172a",letterSpacing:"-.01em",margin:0}}>Find Data Centers Near Me</h2>
+            </div>
+
+            <div className="search-row" style={{display:"flex",gap:12,flexWrap:"wrap",marginBottom:14}}>
+              <button
+                onClick={handleGeolocate}
+                disabled={nearStatus==="locating"}
+                style={{padding:"12px 22px",borderRadius:12,border:"none",background:"linear-gradient(135deg,#ef4444,#f97316)",color:"#fff",fontWeight:800,fontSize:15,letterSpacing:".01em",cursor:nearStatus==="locating"?"wait":"pointer",boxShadow:"0 6px 20px rgba(239,68,68,.35)",display:"inline-flex",alignItems:"center",gap:8,fontFamily:"inherit",opacity:nearStatus==="locating"?.75:1}}
+              >
+                {nearStatus==="locating" ? "Locating..." : "📍 Use My Location"}
+              </button>
+              <div style={{flex:1,minWidth:240,display:"flex",gap:8}}>
+                <input
+                  value={nearAddr}
+                  onChange={e=>setNearAddr(e.target.value)}
+                  onKeyDown={e=>{ if(e.key==="Enter") handleGeocode(); }}
+                  placeholder="Or enter any address..."
+                  style={{flex:1,padding:"12px 16px",fontSize:15,borderRadius:12,border:"1px solid #e2e8f0",outline:"none",fontFamily:"inherit",color:"#0f172a",background:"#fff"}}
+                />
+                <button
+                  onClick={handleGeocode}
+                  disabled={!nearAddr.trim() || nearStatus==="geocoding"}
+                  style={{padding:"12px 18px",borderRadius:12,border:"1px solid #e2e8f0",background:"#f1f5f9",color:"#1e293b",fontWeight:700,fontSize:14,cursor:(!nearAddr.trim()||nearStatus==="geocoding")?"default":"pointer",fontFamily:"inherit",opacity:(!nearAddr.trim()||nearStatus==="geocoding")?.6:1}}
+                >
+                  {nearStatus==="geocoding" ? "..." : "Search"}
+                </button>
+              </div>
+            </div>
+
+            <div style={{display:"flex",flexWrap:"wrap",gap:20,alignItems:"center",marginTop:6}}>
+              <div style={{display:"flex",alignItems:"center",gap:8,flexWrap:"wrap"}}>
+                <span style={{fontSize:12,fontWeight:800,color:"#64748b",letterSpacing:".08em",textTransform:"uppercase"}}>Radius:</span>
+                {[1,5,10,25,50].map(r=>(
+                  <button key={r} onClick={()=>setNearRadius(r)} style={{padding:"6px 12px",borderRadius:999,border:"1px solid "+(nearRadius===r?"#ef4444":"#e2e8f0"),background:nearRadius===r?"#ef4444":"#fff",color:nearRadius===r?"#fff":"#475569",fontWeight:700,fontSize:13,cursor:"pointer",fontFamily:"inherit"}}>{r}km</button>
+                ))}
+              </div>
+              <div style={{display:"flex",alignItems:"center",gap:8,flexWrap:"wrap"}}>
+                <span style={{fontSize:12,fontWeight:800,color:"#64748b",letterSpacing:".08em",textTransform:"uppercase"}}>Risk:</span>
+                {[{k:"ALL",l:"All Risk Levels"},{k:"HIGH",l:"HIGH only"},{k:"HIGH_MOD",l:"HIGH and MODERATE"}].map(o=>(
+                  <button key={o.k} onClick={()=>setNearRisk(o.k)} style={{padding:"6px 12px",borderRadius:999,border:"1px solid "+(nearRisk===o.k?"#ef4444":"#e2e8f0"),background:nearRisk===o.k?"#ef4444":"#fff",color:nearRisk===o.k?"#fff":"#475569",fontWeight:700,fontSize:13,cursor:"pointer",fontFamily:"inherit"}}>{o.l}</button>
+                ))}
+              </div>
+            </div>
+
+            {nearError && (
+              <div style={{fontSize:14,color:"#dc2626",fontWeight:600,marginTop:14}}>{nearError}</div>
+            )}
+
+            {nearLoc && (
+              <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:14,paddingTop:14,borderTop:"1px solid #f1f5f9",marginTop:16,flexWrap:"wrap"}}>
+                <div style={{fontSize:13,color:"#475569",flex:1,minWidth:0}}>
+                  Searching near: <strong style={{color:"#0f172a"}}>{nearLoc.label.length>80 ? nearLoc.label.slice(0,80)+"..." : nearLoc.label}</strong>
+                  {" "}<span style={{color:"#94a3b8"}}>({nearResults.length} within {nearRadius}km)</span>
+                </div>
+                <button onClick={clearNear} style={{padding:"6px 14px",borderRadius:8,border:"1px solid #e2e8f0",background:"#fff",color:"#475569",fontWeight:700,fontSize:13,cursor:"pointer",fontFamily:"inherit"}}>Clear</button>
+              </div>
+            )}
+          </section>
+
+          {/* NEARBY RESULTS */}
+          {nearLoc && !dc && loading && (
+            <div style={{background:"#fff",borderRadius:18,padding:"44px 24px",textAlign:"center",boxShadow:"0 4px 18px rgba(0,0,0,.06)",marginBottom:28,color:"#64748b",fontWeight:600,fontSize:15}}>
+              <div className="spinning" style={{width:32,height:32,border:"3px solid #e2e8f0",borderTop:"3px solid #ef4444",borderRadius:"50%",margin:"0 auto 14px"}}/>
+              Loading facility data...
+            </div>
+          )}
+          {nearLoc && !dc && !loading && (nearResults.length > 0 ? (
+            <div style={{display:"flex",flexDirection:"column",gap:14,marginBottom:28}}>
+              {nearResults.map(f => {
+                const st = STATUS[f.Facility_Status] || STATUS.OPERATING;
+                const rclr = RISK_C[f.Risk_Level] || "#64748b";
+                const dclr = distColor(f._km);
+                return (
+                  <div key={f.id} className="sym-card" onClick={()=>pickFac(f.id)} style={{background:"#fff",borderRadius:18,boxShadow:"0 4px 18px rgba(0,0,0,.06)",padding:"18px 22px",cursor:"pointer",display:"flex",alignItems:"center",gap:16,flexWrap:"wrap"}}>
+                    <div style={{flex:1,minWidth:0}}>
+                      <div style={{fontSize:17,fontWeight:800,color:"#0f172a",marginBottom:4,lineHeight:1.3}}>{f.Name}</div>
+                      <div style={{fontSize:13,color:"#64748b",fontWeight:600}}>{f.Company} &middot; {[f.City,f.State_Region,f.Country].filter(Boolean).join(", ")}</div>
+                      <div style={{fontSize:13,color:"#64748b",fontWeight:600,marginTop:2}}>{f.Power_MW>=1000?`${(f.Power_MW/1000).toFixed(1)} GW`:`${f.Power_MW||"?"}MW`}</div>
+                    </div>
+                    <div style={{display:"flex",flexDirection:"column",gap:8,alignItems:"flex-end",flexShrink:0}}>
+                      <div style={{padding:"6px 12px",borderRadius:999,background:dclr,color:"#fff",fontWeight:800,fontSize:13,letterSpacing:".02em",boxShadow:`0 4px 14px ${dclr}55`}}>
+                        {f._km.toFixed(1)} km away
+                      </div>
+                      <div style={{display:"flex",gap:6}}>
+                        <Chip label={st.label} color={st.color} small/>
+                        <Chip label={f.Risk_Level} color={rclr} small/>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            <div style={{background:"#fff",borderRadius:18,padding:"44px 24px",textAlign:"center",boxShadow:"0 4px 18px rgba(0,0,0,.06)",marginBottom:28}}>
+              <div style={{fontSize:42,marginBottom:12}}>📍</div>
+              <div style={{fontSize:17,color:"#475569",fontWeight:600,lineHeight:1.6,maxWidth:480,margin:"0 auto"}}>
+                No data centers found within {nearRadius}km. Try expanding your search radius.
+              </div>
+            </div>
+          ))}
+
+          {!dc && !nearLoc && !loading && (
             <div style={{textAlign:"center",padding:"80px 24px"}}>
               <div className="floating" style={{fontSize:80,marginBottom:24}}>🌍</div>
               <h2 style={{fontSize:28,fontWeight:800,color:"#0f172a",marginBottom:12}}>Search for a data center near you</h2>
@@ -1068,7 +1238,7 @@ export default function App() {
             </div>
           )}
 
-          {loading && (
+          {loading && !nearLoc && (
             <div style={{background:"#fff",borderRadius:24,overflow:"hidden",boxShadow:"0 8px 48px rgba(0,0,0,.10)"}} aria-busy="true" aria-label="Loading facility data">
               {/* image area placeholder */}
               <div className="skeleton" style={{height:300,borderRadius:0}}/>
