@@ -62,7 +62,7 @@ async function apiFetch(table, params = {}) {
 
 // Lightweight field set for the initial Facilities load: just what the
 // dropdowns and facility stat cards need. Heavy/rarely-used fields
-// (Address, Nearby_Info, etc.) are lazy-loaded per facility on selection.
+// (Address, Nearby, etc.) are lazy-loaded per facility on selection.
 const FACILITY_LIST_FIELDS = [
   "Name","Company","Country","State_Region","City","Facility_Status",
   "Risk_Level","Power_MW","Noise_DB","CO2_Tons_Year","Water_Gal_Day",
@@ -672,7 +672,7 @@ export default function App() {
     setQStep(0); setQRes(null); setQAns({});
     setXLong(null); setXKid(null); setSent(false);
     setTimeout(()=>topRef.current?.scrollIntoView({behavior:"smooth"}),100);
-    // Lazy-load heavy fields (Address, Nearby_Info, ...) excluded from the
+    // Lazy-load heavy fields (Address, Nearby, ...) excluded from the
     // initial list fetch; merge them into the record once, on first select.
     const existing = facs.find(f=>f.id===id);
     if(existing && !existing._full){
@@ -1032,7 +1032,7 @@ export default function App() {
               <div className="fac-header" style={{padding:"24px 28px 20px"}}>
                 <h2 style={{fontSize:24,fontWeight:900,color:"#0f172a",marginBottom:6,letterSpacing:"-.02em",lineHeight:1.2}}>{dc.Name}</h2>
                 {dc.Company && <div style={{fontSize:15,color:"#64748b",marginBottom:4,fontWeight:600}}>{dc.Company}</div>}
-                {dc.Nearby_Info && <div style={{fontSize:15,color:"#64748b",marginBottom:6,fontStyle:"italic"}}>{dc.Nearby_Info}</div>}
+                {dc.Nearby && <div style={{fontSize:15,color:"#64748b",marginBottom:6,fontStyle:"italic"}}>{dc.Nearby}</div>}
                 {dc.Opened && <div style={{fontSize:14,color:"#94a3b8",marginBottom:20}}>Status / Opened: {dc.Opened}</div>}
                 <div className="fac-stats" style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:14}}>
                   {[
