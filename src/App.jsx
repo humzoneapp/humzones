@@ -17,6 +17,14 @@ const FACILITY_PHOTOS = [
   "https://images.unsplash.com/photo-1558494949-ef010cbdcc31?w=800&q=80"
 ];
 
+const delay = ms => new Promise(res => setTimeout(res, ms));
+
+// Fetch every record from a table. Airtable returns at most 100 records per
+// response and includes an `offset` cursor when more pages remain; we loop
+// until no cursor comes back. A page that fails transiently (rate limit,
+// server error, network blip) is retried so a single failure can never
+// silently truncate the result set. If a page ultimately fails, the whole
+// call throws rather than returning a partial set.
 async function apiFetch(table, params = {}) {
   let all = [], offset = null;
   do {
@@ -26,14 +34,28 @@ async function apiFetch(table, params = {}) {
       else url.searchParams.set(k, v);
     });
     if (offset) url.searchParams.set("offset", offset);
-    url.searchParams.set("pageSize", "100");
-    try {
-      const r = await fetch(url.toString(), { headers: HDR });
-      if (!r.ok) break;
-      const d = await r.json();
-      all = [...all, ...(d.records||[])];
-      offset = d.offset || null;
-    } catch { break; }
+    url.searchParams.set("pageSize", "100"); // 100 = Airtable maximum
+
+    let d = null;
+    for (let attempt = 0; ; attempt++) {
+      let r;
+      try {
+        r = await fetch(url.toString(), { headers: HDR });
+      } catch {
+        if (attempt < 3) { await delay(500 * (attempt + 1)); continue; }
+        throw new Error(`apiFetch(${table}): network error after retries`);
+      }
+      if (r.ok) { d = await r.json(); break; }
+      // Rate limits (429) and server errors (5xx) are transient: retry.
+      if ((r.status === 429 || r.status >= 500) && attempt < 3) {
+        await delay(500 * (attempt + 1));
+        continue;
+      }
+      throw new Error(`apiFetch(${table}): Airtable responded ${r.status}`);
+    }
+
+    all = [...all, ...(d.records || [])];
+    offset = d.offset || null; // present only while more pages remain
   } while (offset);
   return all.map(r => ({ id: r.id, ...r.fields }));
 }
@@ -65,19 +87,31 @@ const CACHE_TTL = 60 * 60 * 1000; // 1 hour
 async function cachedFetch(table, params = {}) {
   // v2: cache key bumped when the Facilities field set was trimmed.
   const cacheKey = `hz_cache_v2_${table}`;
+  let cached = null;
   try {
     const raw = localStorage.getItem(cacheKey);
     if (raw) {
-      const { ts, data } = JSON.parse(raw);
-      if (Array.isArray(data) && Date.now() - ts < CACHE_TTL) return data;
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed.data)) {
+        cached = parsed;
+        if (Date.now() - parsed.ts < CACHE_TTL) return parsed.data;
+      }
     }
   } catch { /* corrupt or unavailable cache: ignore and fetch fresh */ }
 
-  const data = await apiFetch(table, params);
   try {
-    localStorage.setItem(cacheKey, JSON.stringify({ ts: Date.now(), data }));
-  } catch { /* quota exceeded or unavailable: skip caching */ }
-  return data;
+    // apiFetch only resolves when every page was retrieved, so a partial
+    // result can never be cached as if it were complete.
+    const data = await apiFetch(table, params);
+    try {
+      localStorage.setItem(cacheKey, JSON.stringify({ ts: Date.now(), data }));
+    } catch { /* quota exceeded or unavailable: skip caching */ }
+    return data;
+  } catch (err) {
+    // Fresh fetch failed: fall back to stale cache rather than nothing.
+    if (cached) return cached.data;
+    throw err;
+  }
 }
 
 async function postReport(fields) {
@@ -511,7 +545,10 @@ export default function App() {
   const topRef  = useRef(null);
 
   useEffect(()=>{
-    cachedFetch("Facilities",{"fields[]":FACILITY_LIST_FIELDS}).then(d=>{ setFacs(d); setLoading(false); });
+    cachedFetch("Facilities",{"fields[]":FACILITY_LIST_FIELDS})
+      .then(d=>{ setFacs(d); })
+      .catch(e=>{ console.error("Facilities fetch failed:",e); })
+      .finally(()=>setLoading(false));
   },[]);
 
   useEffect(()=>{
@@ -601,7 +638,7 @@ export default function App() {
   useEffect(()=>{
     if(!dc) return;
     setReps([]);
-    apiFetch("Reports",{filterByFormula:`AND({Facility} = "${dc.Name}", {Approved} = 1)`}).then(setReps);
+    apiFetch("Reports",{filterByFormula:`AND({Facility} = "${dc.Name}", {Approved} = 1)`}).then(setReps).catch(()=>setReps([]));
   },[sel]);
 
   const countries   = [...new Set(facs.map(f=>f.Country).filter(Boolean))].sort();
@@ -763,7 +800,7 @@ export default function App() {
       setSent(true);
       setDraft(""); setRepName(""); setRepEmail("");
       setRepDuration(""); setRepSymptoms([]); setRepDeclared(false);
-      apiFetch("Reports",{filterByFormula:`AND({Facility} = "${dc.Name}", {Approved} = 1)`}).then(setReps);
+      apiFetch("Reports",{filterByFormula:`AND({Facility} = "${dc.Name}", {Approved} = 1)`}).then(setReps).catch(()=>setReps([]));
     }
     setSending(false);
   };
