@@ -942,6 +942,14 @@ export default function App() {
     setNearEmailUnlocked(true);
     setJustUnlocked(true);
     const isGPS = nearLoc && nearLoc.label === "My location";
+    // Silently roll up the total facilities within 100km of the user (ignoring
+    // their chosen radius and risk filter) so we know the full scope for any
+    // follow-up paid report. The on-screen results still respect their filters.
+    const facilities100km = nearLoc ? facs.reduce((n,f)=>{
+      const lat = parseFloat(f.Latitude), lng = parseFloat(f.Longitude);
+      if(!Number.isFinite(lat) || !Number.isFinite(lng)) return n;
+      return distanceKm(nearLoc.lat,nearLoc.lng,lat,lng) <= 100 ? n+1 : n;
+    },0) : 0;
     postEmail({
       Email: email,
       Date: new Date().toISOString().slice(0,10),
@@ -951,6 +959,7 @@ export default function App() {
       Longitude: nearLoc ? nearLoc.lng : null,
       Radius_KM: nearRadius,
       Facilities_Count: nearResults.length,
+      Facilities_100km: facilities100km,
       Risk_Summary: buildRiskSummary(nearResults),
     }).finally(()=>setNearEmailSending(false));
   };
@@ -1293,7 +1302,7 @@ export default function App() {
             <div style={{display:"flex",flexWrap:"wrap",gap:20,alignItems:"center",marginTop:6}}>
               <div style={{display:"flex",alignItems:"center",gap:8,flexWrap:"wrap"}}>
                 <span style={{fontSize:12,fontWeight:800,color:"#64748b",letterSpacing:".08em",textTransform:"uppercase"}}>Radius:</span>
-                {[1,5,10,25,50].map(r=>(
+                {[1,5,10,25,50,100].map(r=>(
                   <button key={r} onClick={()=>setNearRadius(r)} style={{padding:"6px 12px",borderRadius:999,border:"1px solid "+(nearRadius===r?"#ef4444":"#e2e8f0"),background:nearRadius===r?"#ef4444":"#fff",color:nearRadius===r?"#fff":"#475569",fontWeight:700,fontSize:13,cursor:"pointer",fontFamily:"inherit"}}>{r}km</button>
                 ))}
               </div>
