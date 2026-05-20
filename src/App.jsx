@@ -379,6 +379,8 @@ const CSS = `
   @keyframes ctaPulse{0%,100%{box-shadow:0 10px 32px rgba(239,68,68,.45);transform:scale(1)}50%{box-shadow:0 16px 50px rgba(239,68,68,.7);transform:scale(1.025)}}
   .slow-pulse{animation:slowPulse 2.6s ease-in-out infinite}
   .cta-pulse{animation:ctaPulse 2.4s ease-in-out infinite}
+  .back-btn{transition:border-color .15s,color .15s,box-shadow .15s}
+  .back-btn:hover{border-color:#f97316!important;color:#f97316!important;box-shadow:0 4px 14px rgba(249,115,22,.25)!important}
   .report-h1{font-size:48px;line-height:1.1;letter-spacing:-.025em}
   .report-h2{font-size:32px;line-height:1.2;letter-spacing:-.02em}
   @media(max-width:768px){
@@ -738,8 +740,8 @@ const ReportLandingPage = ({ onBack, onNavigate }) => {
       {/* TOP BAR (back button at top left + brand at right) */}
       <div style={{position:"sticky",top:0,zIndex:50,background:"rgba(15,23,42,.92)",backdropFilter:"blur(12px)",borderBottom:"1px solid rgba(255,255,255,.06)"}}>
         <div style={{maxWidth:1100,margin:"0 auto",padding:"14px 20px",display:"flex",alignItems:"center",justifyContent:"space-between",gap:14,flexWrap:"wrap"}}>
-          <button onClick={onBack} style={{background:"rgba(255,255,255,.08)",border:"1px solid rgba(255,255,255,.16)",color:"#fff",padding:"9px 16px",borderRadius:10,fontSize:13,fontWeight:800,letterSpacing:".08em",cursor:"pointer",fontFamily:"inherit",display:"inline-flex",alignItems:"center",gap:8}}>
-            <span style={{fontSize:16,lineHeight:1}}>&larr;</span> BACK TO RESULTS
+          <button onClick={onBack} className="back-btn" aria-label="Back to results" style={{background:"rgba(255,255,255,.08)",border:"1px solid rgba(255,255,255,.20)",color:"#fff",padding:"9px 16px",borderRadius:10,fontSize:13,fontWeight:800,letterSpacing:".06em",cursor:"pointer",fontFamily:"inherit",display:"inline-flex",alignItems:"center",gap:8}}>
+            <span style={{fontSize:16,lineHeight:1}}>&larr;</span> Back to Results
           </button>
           <div>
             <span style={{fontSize:20,fontWeight:900,letterSpacing:".08em",background:"linear-gradient(90deg,#ef4444,#f97316)",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent"}}>HumZones</span>
@@ -1050,6 +1052,8 @@ export default function App() {
   const rDropRef  = useRef(null);
   const cityDropRef = useRef(null);
   const topRef  = useRef(null);
+  // Scroll position to restore when the user leaves a facility detail view.
+  const prevScrollRef = useRef(0);
 
   useEffect(()=>{
     cachedFetch("Facilities",{"fields[]":FACILITY_LIST_FIELDS})
@@ -1207,6 +1211,8 @@ export default function App() {
   const pickRegion  = r => { setRegion(r); setRInput(r); setShowRD(false); setCityTxt(""); setSel(null); };
   const clearAll    = () => { setCountry(""); setCInput(""); setRegion(""); setRInput(""); setCityTxt(""); setSel(null); setShowCD(false); setShowRD(false); setShowCityD(false); };
   const pickFac     = id => {
+    // Remember where the user was scrolled so Back to Results can restore it.
+    prevScrollRef.current = typeof window !== "undefined" ? window.scrollY : 0;
     setSel(id); setTab("feel");
     setQStep(0); setQRes(null); setQAns({});
     setXLong(null); setXKid(null); setSent(false);
@@ -1284,6 +1290,15 @@ export default function App() {
     }
   };
   const clearNear = () => { setNearLoc(null); setNearAddr(""); setNearError(""); setNearStatus("idle"); };
+
+  // Close the facility detail view and restore the user's previous scroll
+  // position so they land back where they were in the results list.
+  const handleBackToResults = () => {
+    setSel(null);
+    setTimeout(()=>{
+      try{ window.scrollTo({ top: prevScrollRef.current || 0, behavior: "smooth" }); }catch{}
+    }, 30);
+  };
 
   // Build a comma-separated risk roll-up like "3 HIGH, 4 MODERATE, 2 LOW".
   // Known levels render in a fixed order so the column is easy to scan; any
@@ -1917,6 +1932,15 @@ export default function App() {
           )}
 
           {dc && (
+            <>
+              <button
+                onClick={handleBackToResults}
+                className="back-btn"
+                aria-label="Back to results"
+                style={{display:"inline-flex",alignItems:"center",gap:8,marginBottom:14,padding:"9px 16px",borderRadius:10,border:"1px solid #e2e8f0",background:"#fff",color:"#475569",fontSize:13,fontWeight:800,letterSpacing:".06em",cursor:"pointer",fontFamily:"inherit",boxShadow:"0 2px 8px rgba(15,23,42,.06)"}}
+              >
+                <span style={{fontSize:16,lineHeight:1}}>&larr;</span> Back to Results
+              </button>
             <div style={{background:"#fff",borderRadius:24,overflow:"hidden",boxShadow:"0 8px 48px rgba(0,0,0,.10)"}}>
 
               <FacilityMapImage dc={dc} rc={rc}/>
@@ -2348,6 +2372,7 @@ export default function App() {
 
               </div>
             </div>
+            </>
           )}
         </main>
 
