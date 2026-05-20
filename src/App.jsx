@@ -374,6 +374,17 @@ const CSS = `
   @keyframes pulse{0%,100%{opacity:.55}50%{opacity:1}}
   @keyframes fadeIn{from{opacity:0}to{opacity:1}}
   .fade-in{animation:fadeIn .5s ease-out both}
+  /* Report landing: slow pulse on the hero warning icon, urgency pulse on CTAs. */
+  @keyframes slowPulse{0%,100%{transform:scale(1);box-shadow:0 14px 40px rgba(239,68,68,.5)}50%{transform:scale(1.07);box-shadow:0 18px 56px rgba(239,68,68,.78)}}
+  @keyframes ctaPulse{0%,100%{box-shadow:0 10px 32px rgba(239,68,68,.45);transform:scale(1)}50%{box-shadow:0 16px 50px rgba(239,68,68,.7);transform:scale(1.025)}}
+  .slow-pulse{animation:slowPulse 2.6s ease-in-out infinite}
+  .cta-pulse{animation:ctaPulse 2.4s ease-in-out infinite}
+  .report-h1{font-size:48px;line-height:1.1;letter-spacing:-.025em}
+  .report-h2{font-size:32px;line-height:1.2;letter-spacing:-.02em}
+  @media(max-width:768px){
+    .report-h1{font-size:28px!important;line-height:1.15!important}
+    .report-h2{font-size:22px!important}
+  }
   .email-gate-input::placeholder{color:rgba(255,255,255,.45)}
   .email-gate-input:focus{outline:none!important;border-color:rgba(249,115,22,.6)!important;background:rgba(255,255,255,.13)!important}
 
@@ -738,39 +749,39 @@ const ReportLandingPage = ({ onBack, onNavigate }) => {
       </div>
 
       {/* 1. HERO */}
-      <section style={{background:"linear-gradient(150deg,#020c1b 0%,#0f172a 45%,#1e0535 100%)",padding:"72px 20px 80px",textAlign:"center",position:"relative",overflow:"hidden"}}>
+      <section style={{background:"linear-gradient(150deg,#020c1b 0%,#0f172a 45%,#1e0535 100%)",padding:"48px 20px 52px",textAlign:"center",position:"relative",overflow:"hidden",borderBottom:"1px solid rgba(249,115,22,.18)"}}>
         <div style={{maxWidth:820,margin:"0 auto",position:"relative",zIndex:1}}>
-          <div style={{width:72,height:72,borderRadius:"50%",background:"linear-gradient(135deg,#ef4444,#dc2626)",margin:"0 auto 22px",display:"flex",alignItems:"center",justifyContent:"center",boxShadow:"0 14px 40px rgba(239,68,68,.55)"}}>
+          <div className="slow-pulse" style={{width:72,height:72,borderRadius:"50%",background:"linear-gradient(135deg,#ef4444,#dc2626)",margin:"0 auto 18px",display:"flex",alignItems:"center",justifyContent:"center"}}>
             {warnSvg}
           </div>
-          <h1 style={{fontSize:42,fontWeight:900,color:"#fff",letterSpacing:"-.02em",lineHeight:1.15,marginBottom:18}}>
+          <h1 className="report-h1" style={{fontWeight:900,color:"#fff",marginBottom:14}}>
             Your Area Has <span style={{background:"linear-gradient(135deg,#ef4444,#f97316)",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent"}}>{facilities100km}</span> Data {facilities100km===1?"Center":"Centers"} Within 100km
           </h1>
-          <p style={{fontSize:18,color:"rgba(255,255,255,.78)",lineHeight:1.65,marginBottom:30,maxWidth:640,marginLeft:"auto",marginRight:"auto"}}>
+          <p style={{fontSize:17,color:"rgba(255,255,255,.78)",lineHeight:1.6,marginBottom:24,maxWidth:640,marginLeft:"auto",marginRight:"auto"}}>
             You only searched {selectedRadius || "a smaller radius"}{selectedRadius?"km":""} and found {facilitiesFound} {facilitiesFound===1?"facility":"facilities"}. Here is what else is near you that you do not know about yet.
           </p>
-          <button onClick={handleBuyReport} style={primaryBtn()}>Get My Full Report</button>
-          <p style={{fontSize:13,color:"rgba(255,255,255,.55)",marginTop:14,lineHeight:1.6}}>
+          <button onClick={handleBuyReport} className="cta-pulse" style={primaryBtn()}>Get My Full Report</button>
+          <p style={{fontSize:13,color:"rgba(255,255,255,.55)",marginTop:12,lineHeight:1.6}}>
             Instant PDF. Personalized to your exact location.
           </p>
         </div>
       </section>
 
       {/* 2. FEAR / URGENCY */}
-      <section style={{background:"#fff",padding:"72px 20px 64px"}}>
+      <section style={{background:"#1e293b",padding:"52px 20px 56px",borderBottom:"1px solid rgba(249,115,22,.18)"}}>
         <div style={{maxWidth:1040,margin:"0 auto"}}>
-          <h2 style={{fontSize:32,fontWeight:900,letterSpacing:"-.02em",lineHeight:1.2,textAlign:"center",marginBottom:14,color:"#0f172a"}}>
+          <h2 className="report-h2" style={{fontWeight:900,textAlign:"center",marginBottom:10,color:"#fff"}}>
             What Is Really Happening Near Your Home
           </h2>
-          <p style={{fontSize:16,color:"#64748b",textAlign:"center",maxWidth:620,margin:"0 auto 40px",lineHeight:1.7}}>
-            These are the figures within 100km of <strong style={{color:"#0f172a"}}>{searchAddress}</strong>.
+          <p style={{fontSize:15,color:"rgba(255,255,255,.65)",textAlign:"center",maxWidth:640,margin:"0 auto 30px",lineHeight:1.7}}>
+            These are the figures within 100km of <strong style={{color:"#fff"}}>{searchAddress}</strong>.
           </p>
-          <div className="nums-grid" style={{display:"grid",gridTemplateColumns:"repeat(2, 1fr)",gap:20}}>
+          <div className="nums-grid" style={{display:"grid",gridTemplateColumns:"repeat(2, 1fr)",gap:14}}>
             {stats.map((s)=>(
-              <div key={s.label} style={{background:"#fff",border:`2px solid ${s.color}22`,borderRadius:18,padding:"26px 24px",boxShadow:"0 4px 18px rgba(0,0,0,.05)"}}>
-                <div style={{fontSize:36,fontWeight:900,color:s.color,letterSpacing:"-.02em",lineHeight:1.05,marginBottom:6}}>{s.val || "0"}</div>
-                <div style={{fontSize:12,color:"#94a3b8",letterSpacing:".10em",textTransform:"uppercase",fontWeight:800,marginBottom:12}}>{s.label}</div>
-                <p style={{fontSize:14,color:"#475569",lineHeight:1.65,margin:0}}>{s.desc}</p>
+              <div key={s.label} style={{background:"rgba(15,23,42,.55)",border:"1px solid rgba(249,115,22,.45)",borderRadius:14,padding:"20px 20px 18px",boxShadow:"inset 0 1px 0 rgba(255,255,255,.04)"}}>
+                <div style={{fontSize:38,fontWeight:900,color:"#f97316",letterSpacing:"-.02em",lineHeight:1.05,marginBottom:6,textShadow:"0 0 22px rgba(249,115,22,.6),0 0 6px rgba(249,115,22,.4)"}}>{s.val || "0"}</div>
+                <div style={{fontSize:12,color:"#fff",letterSpacing:".10em",textTransform:"uppercase",fontWeight:800,marginBottom:10}}>{s.label}</div>
+                <p style={{fontSize:13,color:"rgba(255,255,255,.65)",lineHeight:1.6,margin:0}}>{s.desc}</p>
               </div>
             ))}
           </div>
@@ -778,67 +789,95 @@ const ReportLandingPage = ({ onBack, onNavigate }) => {
       </section>
 
       {/* 3. WHAT YOU GET */}
-      <section style={{background:"#f8fafc",padding:"72px 20px 72px"}}>
-        <div style={{maxWidth:1040,margin:"0 auto",display:"grid",gridTemplateColumns:"1fr 1fr",gap:48,alignItems:"center"}} className="nums-grid">
+      <section style={{background:"#fff",padding:"56px 20px 56px",position:"relative",overflow:"hidden",borderBottom:"1px solid #e2e8f0"}}>
+        {/* Faint HumZones shield watermark in the background */}
+        <div aria-hidden="true" style={{position:"absolute",right:"-40px",top:"50%",transform:"translateY(-50%)",pointerEvents:"none",opacity:.05,zIndex:0}}>
+          <svg width="420" height="420" viewBox="0 0 24 24" fill="none" stroke="#f97316" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+            <path d="M9 12l2 2 4-4"/>
+          </svg>
+        </div>
+
+        <div style={{maxWidth:1040,margin:"0 auto",display:"grid",gridTemplateColumns:"1fr 1.05fr",gap:36,alignItems:"center",position:"relative",zIndex:1}} className="nums-grid">
           <div>
-            <div style={{fontSize:12,color:"#f97316",letterSpacing:".18em",textTransform:"uppercase",fontWeight:800,marginBottom:12}}>Your Full Report</div>
-            <h2 style={{fontSize:32,fontWeight:900,letterSpacing:"-.02em",lineHeight:1.2,marginBottom:22,color:"#0f172a"}}>
+            <div style={{fontSize:12,color:"#f97316",letterSpacing:".18em",textTransform:"uppercase",fontWeight:800,marginBottom:10}}>Your Full Report</div>
+            <h2 className="report-h2" style={{fontWeight:900,marginBottom:18,color:"#0f172a"}}>
               Your Full HumZones Report Includes
             </h2>
-            <ul style={{listStyle:"none",padding:0,margin:0,display:"flex",flexDirection:"column",gap:14}}>
+            <ul style={{listStyle:"none",padding:0,margin:0,display:"flex",flexDirection:"column",gap:10}}>
               {benefits.map((b)=>(
-                <li key={b} style={{display:"flex",alignItems:"flex-start",gap:12,fontSize:16,color:"#0f172a",lineHeight:1.55}}>
-                  <span style={{display:"inline-flex",width:30,height:30,borderRadius:"50%",background:"#ecfdf5",alignItems:"center",justifyContent:"center",flexShrink:0,marginTop:2}}>{checkSvg}</span>
+                <li key={b} style={{display:"flex",alignItems:"flex-start",gap:12,fontSize:15.5,color:"#0f172a",lineHeight:1.5}}>
+                  <span style={{display:"inline-flex",width:26,height:26,borderRadius:"50%",background:"rgba(249,115,22,.13)",alignItems:"center",justifyContent:"center",flexShrink:0,marginTop:1,border:"1.5px solid rgba(249,115,22,.45)"}}>
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#f97316" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>
+                  </span>
                   <span style={{fontWeight:600,color:"#1e293b"}}>{b}</span>
                 </li>
               ))}
             </ul>
           </div>
 
-          {/* Blurred fake report preview */}
+          {/* Blurred fake report preview, taller, with SAMPLE REPORT diagonal + lock overlay */}
           <div style={{position:"relative"}}>
-            <div style={{maxWidth:440,margin:"0 auto",background:"#fff",borderRadius:18,boxShadow:"0 18px 50px rgba(15,23,42,.18),0 0 0 1px #e2e8f0",padding:"34px 30px 30px",position:"relative",overflow:"hidden"}}>
-              <div style={{filter:"blur(4px)",pointerEvents:"none",userSelect:"none"}} aria-hidden="true">
-                <div style={{display:"flex",justifyContent:"space-between",alignItems:"baseline",marginBottom:18}}>
+            <div style={{maxWidth:460,margin:"0 auto",background:"#fff",borderRadius:18,boxShadow:"0 22px 60px rgba(15,23,42,.22),0 0 0 1px #e2e8f0",padding:"28px 26px",position:"relative",overflow:"hidden",minHeight:440}}>
+              <div style={{filter:"blur(5px)",pointerEvents:"none",userSelect:"none"}} aria-hidden="true">
+                <div style={{display:"flex",justifyContent:"space-between",alignItems:"baseline",marginBottom:14}}>
                   <div style={{fontSize:20,fontWeight:900,color:"#0f172a",letterSpacing:"-.01em"}}>HumZones Area Report</div>
                   <div style={{fontSize:11,color:"#94a3b8",fontWeight:700}}>PAGE 1 / 12</div>
                 </div>
-                <div style={{fontSize:12,color:"#64748b",marginBottom:18}}>Generated for {searchAddress.length>40?searchAddress.slice(0,40)+"...":searchAddress}</div>
-                <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:10,marginBottom:18}}>
-                  <div style={{height:62,background:"linear-gradient(135deg,#fef2f2,#fee2e2)",borderRadius:10}}/>
-                  <div style={{height:62,background:"linear-gradient(135deg,#fff7ed,#ffedd5)",borderRadius:10}}/>
-                  <div style={{height:62,background:"linear-gradient(135deg,#eff6ff,#dbeafe)",borderRadius:10}}/>
+                <div style={{fontSize:12,color:"#64748b",marginBottom:14}}>Generated for {searchAddress.length>40?searchAddress.slice(0,40)+"...":searchAddress}</div>
+                <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8,marginBottom:14}}>
+                  <div style={{height:60,background:"linear-gradient(135deg,#fef2f2,#fee2e2)",borderRadius:10}}/>
+                  <div style={{height:60,background:"linear-gradient(135deg,#fff7ed,#ffedd5)",borderRadius:10}}/>
+                  <div style={{height:60,background:"linear-gradient(135deg,#eff6ff,#dbeafe)",borderRadius:10}}/>
                 </div>
-                {[92,84,78,88,72].map((w,i)=>(
-                  <div key={i} style={{height:9,background:"#e2e8f0",borderRadius:4,marginBottom:8,width:`${w}%`}}/>
+                {[92,84,78,88,72,66].map((w,i)=>(
+                  <div key={i} style={{height:9,background:"#e2e8f0",borderRadius:4,marginBottom:7,width:`${w}%`}}/>
                 ))}
-                <div style={{height:120,background:"linear-gradient(135deg,#fef2f2 0%,#fff7ed 60%,#eff6ff 100%)",borderRadius:12,marginTop:18}}/>
-                {[80,68,90].map((w,i)=>(
-                  <div key={`b-${i}`} style={{height:9,background:"#e2e8f0",borderRadius:4,marginTop:8,width:`${w}%`}}/>
+                <div style={{height:140,background:"linear-gradient(135deg,#fef2f2 0%,#fff7ed 60%,#eff6ff 100%)",borderRadius:12,marginTop:14}}/>
+                {[80,68,90,74].map((w,i)=>(
+                  <div key={`b-${i}`} style={{height:9,background:"#e2e8f0",borderRadius:4,marginTop:7,width:`${w}%`}}/>
                 ))}
+                <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginTop:14}}>
+                  <div style={{height:48,background:"#f1f5f9",borderRadius:10}}/>
+                  <div style={{height:48,background:"#f1f5f9",borderRadius:10}}/>
+                </div>
               </div>
-              <div aria-hidden="true" style={{position:"absolute",top:"50%",left:"50%",transform:"translate(-50%,-50%) rotate(-14deg)",fontSize:48,fontWeight:900,color:"rgba(239,68,68,.22)",letterSpacing:".15em",pointerEvents:"none",whiteSpace:"nowrap"}}>PREVIEW</div>
+
+              {/* Diagonal SAMPLE REPORT watermark */}
+              <div aria-hidden="true" style={{position:"absolute",top:"50%",left:"50%",transform:"translate(-50%,-50%) rotate(-22deg)",fontSize:54,fontWeight:900,color:"rgba(239,68,68,.22)",letterSpacing:".18em",pointerEvents:"none",whiteSpace:"nowrap"}}>SAMPLE REPORT</div>
+
+              {/* Centered lock overlay */}
+              <div aria-hidden="true" style={{position:"absolute",inset:0,display:"flex",alignItems:"center",justifyContent:"center",pointerEvents:"none"}}>
+                <div style={{width:78,height:78,borderRadius:"50%",background:"linear-gradient(135deg,#ef4444,#f97316)",display:"flex",alignItems:"center",justifyContent:"center",boxShadow:"0 14px 38px rgba(239,68,68,.55),0 0 0 6px rgba(255,255,255,.85)"}}>
+                  <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                    <rect x="4" y="11" width="16" height="10" rx="2"/>
+                    <path d="M8 11V7a4 4 0 0 1 8 0v4"/>
+                  </svg>
+                </div>
+              </div>
             </div>
           </div>
         </div>
       </section>
 
       {/* 4. SOCIAL PROOF */}
-      <section style={{background:"#fff",padding:"72px 20px 64px"}}>
+      <section style={{background:"#f1f5f9",padding:"52px 20px 56px",borderBottom:"1px solid #e2e8f0"}}>
         <div style={{maxWidth:1040,margin:"0 auto"}}>
-          <h2 style={{fontSize:32,fontWeight:900,letterSpacing:"-.02em",lineHeight:1.2,textAlign:"center",marginBottom:36,color:"#0f172a"}}>
+          <h2 className="report-h2" style={{fontWeight:900,textAlign:"center",marginBottom:30,color:"#0f172a"}}>
             What People Are Saying
           </h2>
-          <div className="nums-grid" style={{display:"grid",gridTemplateColumns:"repeat(3, 1fr)",gap:20}}>
+          <div className="nums-grid" style={{display:"grid",gridTemplateColumns:"repeat(3, 1fr)",gap:18}}>
             {testimonials.map((t)=>(
-              <div key={t.name} style={{background:"#f8fafc",border:"1px solid #e2e8f0",borderRadius:18,padding:"24px 22px",boxShadow:"0 2px 12px rgba(0,0,0,.04)"}}>
-                <div style={{display:"flex",gap:3,marginBottom:12}}>
+              <div key={t.name} style={{position:"relative",background:"#fff",border:"1px solid #e2e8f0",borderRadius:16,padding:"24px 22px 22px",boxShadow:"0 4px 16px rgba(15,23,42,.06)"}}>
+                {/* Large orange opening quotation mark */}
+                <span aria-hidden="true" style={{position:"absolute",top:-6,left:14,fontSize:72,lineHeight:1,fontWeight:900,color:"#f97316",fontFamily:"Georgia, 'Times New Roman', serif",pointerEvents:"none"}}>&ldquo;</span>
+                <div style={{display:"flex",gap:3,marginBottom:10,position:"relative",zIndex:1}}>
                   {[1,2,3,4,5].map(i=>(
-                    <span key={i} style={{color:"#f97316",fontSize:16}}>&#9733;</span>
+                    <span key={i} style={{color:"#f97316",fontSize:18}}>&#9733;</span>
                   ))}
                 </div>
-                <p style={{fontSize:15,color:"#1e293b",lineHeight:1.65,marginBottom:14,fontStyle:"italic"}}>&ldquo;{t.quote}&rdquo;</p>
-                <div style={{fontSize:13,color:"#475569",fontWeight:700}}>{t.name}, <span style={{color:"#94a3b8",fontWeight:600}}>{t.loc}</span></div>
+                <p style={{fontSize:15,color:"#1e293b",lineHeight:1.65,marginBottom:14,marginTop:6,fontStyle:"italic",position:"relative",zIndex:1}}>{t.quote}</p>
+                <div style={{fontSize:14,color:"#0f172a",fontWeight:900,position:"relative",zIndex:1}}>{t.name}<span style={{color:"#94a3b8",fontWeight:600}}>, {t.loc}</span></div>
               </div>
             ))}
           </div>
@@ -846,37 +885,50 @@ const ReportLandingPage = ({ onBack, onNavigate }) => {
       </section>
 
       {/* 5. FINAL CTA */}
-      <section style={{background:"linear-gradient(150deg,#020c1b 0%,#0f172a 50%,#1e0535 100%)",padding:"80px 20px 80px",textAlign:"center"}}>
-        <div style={{maxWidth:720,margin:"0 auto"}}>
-          <h2 style={{fontSize:36,fontWeight:900,letterSpacing:"-.02em",lineHeight:1.18,color:"#fff",marginBottom:14}}>
+      <section style={{background:"linear-gradient(150deg,#020c1b 0%,#0f172a 50%,#1e0535 100%)",padding:"56px 20px 60px",textAlign:"center",position:"relative",overflow:"hidden"}}>
+        <div style={{maxWidth:720,margin:"0 auto",position:"relative",zIndex:1}}>
+
+          {/* Pulsing urgency pill */}
+          <div className="slow-pulse" style={{display:"inline-flex",alignItems:"center",gap:8,padding:"7px 14px",borderRadius:999,background:"rgba(249,115,22,.15)",border:"1px solid rgba(249,115,22,.55)",marginBottom:18}}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#f97316" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <circle cx="12" cy="12" r="10"/>
+              <polyline points="12 6 12 12 16 14"/>
+            </svg>
+            <span style={{fontSize:12,fontWeight:900,color:"#f97316",letterSpacing:".14em",textTransform:"uppercase"}}>Limited Time Price</span>
+          </div>
+
+          <h2 className="report-h2" style={{fontWeight:900,color:"#fff",marginBottom:10}}>
             Get Your Personalized Report Now
           </h2>
-          <p style={{fontSize:15,color:"rgba(255,255,255,.7)",lineHeight:1.7,marginBottom:8}}>
-            For the address you searched:
+          <p style={{fontSize:14,color:"rgba(255,255,255,.6)",lineHeight:1.7,marginBottom:4,letterSpacing:".06em",textTransform:"uppercase",fontWeight:700}}>
+            For the address you searched
           </p>
-          <p style={{fontSize:17,fontWeight:800,color:"#fff",marginBottom:32,wordBreak:"break-word",maxWidth:560,marginLeft:"auto",marginRight:"auto"}}>
+          <p style={{fontSize:16,fontWeight:800,color:"#fff",marginBottom:24,wordBreak:"break-word",maxWidth:560,marginLeft:"auto",marginRight:"auto"}}>
             {searchAddress}
           </p>
 
-          <div style={{display:"inline-flex",alignItems:"baseline",gap:14,marginBottom:8,flexWrap:"wrap",justifyContent:"center"}}>
-            <span style={{fontSize:22,color:"rgba(255,255,255,.45)",textDecoration:"line-through",fontWeight:600}}>$24.99</span>
-            <span style={{fontSize:48,fontWeight:900,letterSpacing:"-.02em",background:"linear-gradient(135deg,#ef4444,#f97316)",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent"}}>$14.99</span>
-            <span style={{fontSize:12,color:"#f97316",fontWeight:800,letterSpacing:".10em",textTransform:"uppercase",padding:"5px 10px",borderRadius:999,background:"rgba(249,115,22,.14)",border:"1px solid rgba(249,115,22,.4)"}}>Limited Time Price</span>
+          {/* Price with subtle orange radial glow behind it */}
+          <div style={{position:"relative",display:"inline-block",padding:"6px 18px",marginBottom:6}}>
+            <div aria-hidden="true" style={{position:"absolute",inset:"-30px -40px",background:"radial-gradient(ellipse at center, rgba(249,115,22,.40) 0%, rgba(249,115,22,0) 65%)",filter:"blur(8px)",pointerEvents:"none",zIndex:0}}/>
+            <div style={{display:"inline-flex",alignItems:"baseline",gap:14,position:"relative",zIndex:1,flexWrap:"wrap",justifyContent:"center"}}>
+              <span style={{fontSize:22,color:"rgba(255,255,255,.5)",textDecoration:"line-through",fontWeight:600}}>$24.99</span>
+              <span style={{fontSize:58,fontWeight:900,letterSpacing:"-.025em",background:"linear-gradient(135deg,#ef4444,#f97316)",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent",lineHeight:1}}>$14.99</span>
+            </div>
           </div>
 
-          <div style={{marginTop:26,marginBottom:18}}>
-            <button onClick={handleBuyReport} style={{...primaryBtn(),padding:"18px 36px",fontSize:18}}>
+          <div style={{marginTop:22,marginBottom:18}}>
+            <button onClick={handleBuyReport} className="cta-pulse" style={{...primaryBtn(),padding:"20px 40px",fontSize:18}}>
               Yes, Get My Full Report for $14.99
             </button>
           </div>
 
-          <div style={{display:"flex",justifyContent:"center",alignItems:"center",gap:22,flexWrap:"wrap",marginBottom:24}}>
+          <div style={{display:"flex",justifyContent:"center",alignItems:"center",gap:18,flexWrap:"wrap",marginBottom:18}}>
             {[
               {label:"Instant Download"},
               {label:"Secure Payment"},
               {label:"Personalized to Your Address"},
             ].map(b => (
-              <div key={b.label} style={{display:"inline-flex",alignItems:"center",gap:8,color:"rgba(255,255,255,.72)",fontSize:13,fontWeight:700}}>
+              <div key={b.label} style={{display:"inline-flex",alignItems:"center",gap:8,color:"rgba(255,255,255,.75)",fontSize:13,fontWeight:700}}>
                 <span style={{display:"inline-flex",width:22,height:22,borderRadius:"50%",background:"rgba(16,185,129,.18)",alignItems:"center",justifyContent:"center"}}>
                   <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#10b981" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>
                 </span>
