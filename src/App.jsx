@@ -649,6 +649,71 @@ const MethodologyPage = ({ onBack }) => {
   );
 };
 
+// ─── PAYMENT METHODS ROW ──────────────────────────────────────────────────────
+// Renders the accepted-cards strip shown below the $14.99 CTA on the report
+// landing page. Each badge is a pure SVG (no external assets) so the row
+// always paints, even on a cold cache or behind a strict image CSP.
+const PaymentMethodsRow = () => {
+  const badgeStyle = { width: 40, height: 26, borderRadius: 4, background: "#fff", border: "1px solid rgba(255,255,255,.16)", display: "inline-flex", alignItems: "center", justifyContent: "center", overflow: "hidden", flexShrink: 0 };
+  return (
+    <div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:8,marginTop:4,marginBottom:18}}>
+      <div style={{display:"inline-flex",alignItems:"center",gap:6,color:"rgba(255,255,255,.55)",fontSize:11,fontWeight:700,letterSpacing:".10em",textTransform:"uppercase"}}>
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+          <rect x="4" y="11" width="16" height="10" rx="2"/>
+          <path d="M8 11V7a4 4 0 0 1 8 0v4"/>
+        </svg>
+        Secure Payment
+      </div>
+      <div style={{display:"inline-flex",alignItems:"center",gap:8,flexWrap:"wrap",justifyContent:"center"}}>
+        {/* Visa */}
+        <span aria-label="Visa" title="Visa" style={badgeStyle}>
+          <svg width="40" height="26" viewBox="0 0 40 26" aria-hidden="true">
+            <rect width="40" height="26" rx="4" fill="#1a1f71"/>
+            <text x="20" y="17.5" fill="#fff" fontFamily="Arial Black, Arial, sans-serif" fontSize="9" fontWeight="900" textAnchor="middle" letterSpacing="0.6">VISA</text>
+          </svg>
+        </span>
+        {/* Mastercard */}
+        <span aria-label="Mastercard" title="Mastercard" style={badgeStyle}>
+          <svg width="40" height="26" viewBox="0 0 40 26" aria-hidden="true">
+            <rect width="40" height="26" rx="4" fill="#fff"/>
+            <circle cx="16" cy="13" r="7" fill="#eb001b"/>
+            <circle cx="24" cy="13" r="7" fill="#f79e1b"/>
+            <path d="M20 8.2a7 7 0 0 0 0 9.6 7 7 0 0 0 0-9.6z" fill="#ff5f00"/>
+          </svg>
+        </span>
+        {/* American Express */}
+        <span aria-label="American Express" title="American Express" style={badgeStyle}>
+          <svg width="40" height="26" viewBox="0 0 40 26" aria-hidden="true">
+            <rect width="40" height="26" rx="4" fill="#2671b8"/>
+            <text x="20" y="17" fill="#fff" fontFamily="Arial Black, Arial, sans-serif" fontSize="7.5" fontWeight="900" textAnchor="middle" letterSpacing="0.6">AMEX</text>
+          </svg>
+        </span>
+        {/* Apple Pay */}
+        <span aria-label="Apple Pay" title="Apple Pay" style={badgeStyle}>
+          <svg width="40" height="26" viewBox="0 0 40 26" aria-hidden="true">
+            <rect width="40" height="26" rx="4" fill="#fff"/>
+            {/* Apple silhouette */}
+            <path d="M13.55 10.43c.36-.45.6-1.06.54-1.68-.52.02-1.16.35-1.53.79-.33.4-.62 1.03-.55 1.63.59.05 1.18-.29 1.54-.74zm.53.85c-.85-.05-1.57.48-1.97.48-.41 0-1.03-.45-1.7-.44-.87.01-1.68.51-2.12 1.3-.91 1.57-.23 3.9.65 5.18.43.62.93 1.32 1.6 1.29.64-.02.88-.42 1.66-.42.77 0 .99.42 1.66.41.69-.01 1.13-.63 1.55-1.26.49-.72.69-1.42.7-1.46-.02-.01-1.35-.52-1.36-2.05-.01-1.28 1.05-1.9 1.09-1.93-.6-.87-1.52-.97-1.84-.99z" fill="#000"/>
+            <text x="29" y="17.5" fill="#000" fontFamily="-apple-system, Helvetica, Arial, sans-serif" fontSize="9" fontWeight="700" textAnchor="middle">Pay</text>
+          </svg>
+        </span>
+        {/* Google Pay */}
+        <span aria-label="Google Pay" title="Google Pay" style={badgeStyle}>
+          <svg width="40" height="26" viewBox="0 0 40 26" aria-hidden="true">
+            <rect width="40" height="26" rx="4" fill="#fff"/>
+            {/* Multicolor Google G */}
+            <path d="M14.18 13.13c0-.36-.03-.71-.09-1.04h-3.95v1.97h2.27c-.1.51-.4.95-.85 1.24v1.03h1.38c.81-.74 1.27-1.84 1.27-3.2z" fill="#4285f4"/>
+            <path d="M10.14 17.3c1.15 0 2.12-.38 2.82-1.03l-1.38-1.07c-.38.26-.87.41-1.44.41-1.11 0-2.05-.74-2.39-1.74H6.32v1.1a4.27 4.27 0 0 0 3.82 2.33z" fill="#34a853"/>
+            <path d="M7.75 13.87a2.56 2.56 0 0 1 0-1.64v-1.1H6.32a4.27 4.27 0 0 0 0 3.84l1.43-1.1z" fill="#fbbc04"/>
+            <path d="M10.14 10.49c.63 0 1.19.22 1.63.64l1.22-1.22a4.07 4.07 0 0 0-2.85-1.1A4.27 4.27 0 0 0 6.32 11.13l1.43 1.1c.34-1 1.28-1.74 2.39-1.74z" fill="#ea4335"/>
+            <text x="27" y="17.5" fill="#5f6368" fontFamily="Helvetica, Arial, sans-serif" fontSize="8.5" fontWeight="700" textAnchor="middle">Pay</text>
+          </svg>
+        </span>
+      </div>
+    </div>
+  );
+};
+
 // ─── REPORT LANDING (sales page) ──────────────────────────────────────────────
 // Pulls the captured Near Me search context out of localStorage and renders a
 // multi-section sales page for the paid Full Area Report.
@@ -976,6 +1041,11 @@ const ReportLandingPage = ({ onBack, onNavigate }) => {
             </button>
             {buyError ? <p style={{fontSize:13,color:"#fca5a5",marginTop:10,fontWeight:700}}>{buyError}</p> : null}
           </div>
+
+          {/* Accepted payment methods. Stripe Checkout enables card +
+              wallets (Apple Pay, Google Pay) via automatic_payment_methods;
+              this row tells the buyer up front so they do not bounce. */}
+          <PaymentMethodsRow/>
 
           <div style={{display:"flex",justifyContent:"center",alignItems:"center",gap:18,flexWrap:"wrap",marginBottom:18}}>
             {[
@@ -1522,10 +1592,21 @@ const ReportSuccessPage = ({ onBack, onNavigate }) => {
         if (y + 40 > PH - 60) { doc.addPage(); drawTopBand("Understanding Your Results"); y = 80; }
         doc.setFont("helvetica", "bold");
         doc.setFontSize(11);
+        // "For full methodology visit humzones.com/methodology"
+        // The URL portion is rendered with jsPDF.textWithLink so it is a real
+        // clickable hyperlink in the exported PDF; orange visually flags it.
         setText(15, 23, 42);
-        doc.text("For full methodology visit humzones.com/methodology", M, y);
+        const methPrefix = "For full methodology visit ";
+        doc.text(methPrefix, M, y);
+        setText(249, 115, 22);
+        doc.textWithLink("humzones.com/methodology", M + doc.getTextWidth(methPrefix), y, { url: "https://humzones.com/methodology" });
+        setText(15, 23, 42);
         y += 16;
-        doc.text("For questions visit humzones.com", M, y);
+        const qPrefix = "For questions visit ";
+        doc.text(qPrefix, M, y);
+        setText(249, 115, 22);
+        doc.textWithLink("humzones.com", M + doc.getTextWidth(qPrefix), y, { url: "https://humzones.com" });
+        setText(15, 23, 42);
 
         // ═══ SHARE YOUR EXPERIENCE ══════════════════════════════════════════
         doc.addPage();
@@ -1550,16 +1631,34 @@ const ReportSuccessPage = ({ onBack, onNavigate }) => {
 
         sharePara("Do you live near one of the facilities in this report? Your experience matters. HumZones collects verified resident reports from people living near data centers. Your report helps other residents understand what life is really like near these facilities and adds to our growing community database.");
 
-        // Highlighted submit line
+        // Highlighted submit line with humzones.com as a real clickable
+        // hyperlink. We split the line so the URL portion can be drawn with
+        // doc.textWithLink while the leading copy stays in dark navy.
         if (y + 40 > PH - 80) { doc.addPage(); drawTopBand("Share Your Experience"); y = 80; }
         doc.setFont("helvetica", "bold");
         doc.setFontSize(12);
+        const submitPrefix = "Submit your resident report at: ";
+        setText(15, 23, 42);
+        doc.text(submitPrefix, M, y);
         setText(249, 115, 22);
-        doc.text("Submit your resident report at: humzones.com", M, y);
+        doc.textWithLink("humzones.com", M + doc.getTextWidth(submitPrefix), y, { url: "https://humzones.com" });
+        setText(71, 85, 105);
         y += 22;
 
         sharePara("Click on Submit Your Report in the navigation menu. Reports are reviewed and published with your permission only. Your personal information is never shared.");
         sharePara("Together we can build the most comprehensive community health database for data center proximity in the world.");
+
+        // Methodology link callout: separate clickable orange hyperlink the
+        // buyer can tap straight from the PDF.
+        if (y + 30 > PH - 80) { doc.addPage(); drawTopBand("Share Your Experience"); y = 80; }
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(11);
+        const methSharePrefix = "Read the full methodology at ";
+        setText(15, 23, 42);
+        doc.text(methSharePrefix, M, y);
+        setText(249, 115, 22);
+        doc.textWithLink("humzones.com/methodology", M + doc.getTextWidth(methSharePrefix), y, { url: "https://humzones.com/methodology" });
+        setText(71, 85, 105);
 
         // ═══ LAST PAGE: LEGAL DISCLAIMER ════════════════════════════════════
         doc.addPage();
@@ -1594,8 +1693,13 @@ const ReportSuccessPage = ({ onBack, onNavigate }) => {
         if (y + 80 > PH - 60) { doc.addPage(); drawTopBand("Important Disclaimer"); y = 80; }
         doc.setFont("helvetica", "bold");
         doc.setFontSize(11);
+        // Methodology line on the disclaimer page is also clickable.
+        const discPrefix = "For full methodology and data sources visit ";
         setText(15, 23, 42);
-        doc.text("For full methodology and data sources visit humzones.com/methodology", M, y);
+        doc.text(discPrefix, M, y);
+        setText(249, 115, 22);
+        doc.textWithLink("humzones.com/methodology", M + doc.getTextWidth(discPrefix), y, { url: "https://humzones.com/methodology" });
+        setText(15, 23, 42);
         y += 22;
         doc.setFont("helvetica", "normal");
         doc.setFontSize(10);

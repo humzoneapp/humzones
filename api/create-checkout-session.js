@@ -46,7 +46,11 @@ export default async function handler(req, res) {
 
     const session = await stripe.checkout.sessions.create({
       mode: "payment",
-      payment_method_types: ["card"],
+      // Let Stripe pick every payment method enabled on the account, including
+      // cards, Apple Pay, Google Pay and Link. payment_method_types and
+      // automatic_payment_methods are mutually exclusive on Checkout Sessions,
+      // so the explicit ["card"] list above was removed when this was added.
+      automatic_payment_methods: { enabled: true },
       customer_creation: "always",
       billing_address_collection: "auto",
       line_items: [
