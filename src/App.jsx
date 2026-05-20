@@ -622,6 +622,56 @@ const MethodologyPage = ({ onBack }) => {
   );
 };
 
+// ─── REPORT LANDING (placeholder) ─────────────────────────────────────────────
+// Minimal landing rendered at /report-landing so the upsell button has somewhere
+// to navigate to. Reads the captured search context out of localStorage.
+const ReportLandingPage = ({ onBack }) => {
+  const get = k => { try { return localStorage.getItem(k) || ""; } catch { return ""; } };
+  const items = [
+    ["Address",        get("searchAddress") || "Not set"],
+    ["Coordinates",    get("searchLat") && get("searchLng") ? `${get("searchLat")}, ${get("searchLng")}` : "Not set"],
+    ["Selected radius",get("selectedRadius") ? `${get("selectedRadius")} km` : "Not set"],
+    ["Facilities in your radius",  get("facilitiesFound") || "0"],
+    ["Facilities within 100 km",   get("facilities100km") || "0"],
+    ["HIGH risk within 100 km",    get("highRiskCount")   || "0"],
+  ];
+  return (
+    <div style={{minHeight:"100vh",background:"#f1f5f9",width:"100%",maxWidth:"100vw",overflowX:"hidden"}}>
+      <div style={{background:"linear-gradient(135deg,#020c1b 0%,#0f172a 50%,#1e0535 100%)",padding:"22px 24px",display:"flex",alignItems:"center",justifyContent:"space-between",gap:14,flexWrap:"wrap"}}>
+        <a href="/" onClick={e=>{e.preventDefault();onBack();}} className="ext-link" style={{display:"inline-flex",alignItems:"center",gap:8,color:"rgba(255,255,255,.85)",textDecoration:"none",fontSize:13,fontWeight:800,letterSpacing:".10em"}}>
+          <span style={{fontSize:18,lineHeight:1}}>&larr;</span> BACK TO HUMZONES
+        </a>
+        <div>
+          <span style={{fontSize:22,fontWeight:900,letterSpacing:".08em",background:"linear-gradient(90deg,#ef4444,#f97316)",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent"}}>HumZones</span>
+          <sup style={{fontSize:12,color:"#f97316",fontWeight:700,verticalAlign:"super",marginLeft:2}}>TM</sup>
+        </div>
+      </div>
+      <main style={{maxWidth:760,margin:"0 auto",padding:"48px 24px 72px"}}>
+        <div style={{background:"#fff",borderRadius:24,boxShadow:"0 8px 48px rgba(0,0,0,.10)",padding:"40px 32px"}}>
+          <div style={{fontSize:12,color:"#94a3b8",letterSpacing:".18em",textTransform:"uppercase",fontWeight:800,marginBottom:14}}>Full Area Report</div>
+          <h1 style={{fontSize:30,fontWeight:900,lineHeight:1.2,letterSpacing:"-.02em",marginBottom:18,background:"linear-gradient(135deg,#ef4444,#f97316)",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent",display:"inline-block"}}>
+            Preparing Your HumZones Area Report
+          </h1>
+          <p style={{fontSize:16,color:"#475569",lineHeight:1.7,marginBottom:28}}>
+            We have your search context. The personalised PDF report builder lives here once it is ready.
+          </p>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"14px 24px",marginBottom:24}}>
+            {items.map(([k,v])=>(
+              <div key={k}>
+                <div style={{fontSize:11,color:"#94a3b8",letterSpacing:".10em",textTransform:"uppercase",fontWeight:800,marginBottom:4}}>{k}</div>
+                <div style={{fontSize:15,color:"#0f172a",fontWeight:700,wordBreak:"break-word"}}>{v}</div>
+              </div>
+            ))}
+          </div>
+          <a href="/" onClick={e=>{e.preventDefault();onBack();}} className="ext-link" style={{display:"inline-flex",alignItems:"center",gap:8,color:"#ef4444",textDecoration:"none",fontSize:14,fontWeight:800,letterSpacing:".06em"}}>
+            <span>&larr;</span> BACK TO HUMZONES
+          </a>
+        </div>
+      </main>
+    </div>
+  );
+};
+
 // ─── MAIN APP ─────────────────────────────────────────────────────────────────
 export default function App() {
   // Lightweight client-side routing: track pathname, listen for back/forward,
@@ -942,14 +992,8 @@ export default function App() {
     setNearEmailUnlocked(true);
     setJustUnlocked(true);
     const isGPS = nearLoc && nearLoc.label === "My location";
-    // Silently roll up the total facilities within 100km of the user (ignoring
-    // their chosen radius and risk filter) so we know the full scope for any
-    // follow-up paid report. The on-screen results still respect their filters.
-    const facilities100km = nearLoc ? facs.reduce((n,f)=>{
-      const lat = parseFloat(f.Latitude), lng = parseFloat(f.Longitude);
-      if(!Number.isFinite(lat) || !Number.isFinite(lng)) return n;
-      return distanceKm(nearLoc.lat,nearLoc.lng,lat,lng) <= 100 ? n+1 : n;
-    },0) : 0;
+    // facilities100kmCount is the same 100km roll-up the upsell banner uses;
+    // captured silently so we know the full scope for any follow-up report.
     postEmail({
       Email: email,
       Date: new Date().toISOString().slice(0,10),
@@ -959,7 +1003,7 @@ export default function App() {
       Longitude: nearLoc ? nearLoc.lng : null,
       Radius_KM: nearRadius,
       Facilities_Count: nearResults.length,
-      Facilities_100km: facilities100km,
+      Facilities_100km: facilities100kmCount,
       Risk_Summary: buildRiskSummary(nearResults),
     }).finally(()=>setNearEmailSending(false));
   };
@@ -976,6 +1020,36 @@ export default function App() {
               || (nearRisk==="HIGH_MOD" && (f.Risk_Level==="HIGH" || f.Risk_Level==="MODERATE")))
     .sort((a,b) => a._km - b._km)
     : [];
+
+  // Wider 100km roll-ups for the paid-report upsell banner and Airtable capture.
+  // Computed in a single pass over facs, independent of nearRadius and nearRisk.
+  let _f100 = 0, _fHigh100 = 0;
+  if (nearLoc) {
+    for (const f of facs) {
+      const lat = parseFloat(f.Latitude), lng = parseFloat(f.Longitude);
+      if (!Number.isFinite(lat) || !Number.isFinite(lng)) continue;
+      if (distanceKm(nearLoc.lat, nearLoc.lng, lat, lng) <= 100) {
+        _f100++;
+        if (f.Risk_Level === "HIGH") _fHigh100++;
+      }
+    }
+  }
+  const facilities100kmCount = _f100;
+  const high100kmCount        = _fHigh100;
+
+  const handleGetFullReport = () => {
+    try {
+      const isGPS = nearLoc && nearLoc.label === "My location";
+      localStorage.setItem("searchAddress",   nearLoc ? (isGPS ? "GPS Location" : nearLoc.label) : "");
+      localStorage.setItem("searchLat",       nearLoc ? String(nearLoc.lat) : "");
+      localStorage.setItem("searchLng",       nearLoc ? String(nearLoc.lng) : "");
+      localStorage.setItem("selectedRadius",  String(nearRadius));
+      localStorage.setItem("facilitiesFound", String(nearResults.length));
+      localStorage.setItem("facilities100km", String(facilities100kmCount));
+      localStorage.setItem("highRiskCount",   String(high100kmCount));
+    } catch {}
+    navigate("/report-landing");
+  };
 
   const calcQuiz = a => {
     let score=0; const flags=[];
@@ -1113,6 +1187,8 @@ export default function App() {
       <style>{CSS}</style>
       {path === "/methodology" ? (
         <MethodologyPage onBack={()=>navigate("/")}/>
+      ) : path === "/report-landing" ? (
+        <ReportLandingPage onBack={()=>navigate("/")}/>
       ) : (
       <div style={{minHeight:"100vh",background:"#f1f5f9",width:"100%",maxWidth:"100vw",overflowX:"hidden"}}>
 
@@ -1453,6 +1529,32 @@ export default function App() {
               </div>
             </div>
           ))}
+
+          {/* PAID REPORT UPSELL — only when the user has unlocked and has results */}
+          {nearLoc && !dc && !loading && nearEmailUnlocked && nearResults.length > 0 && (
+            <div className="fade-in" style={{background:"linear-gradient(150deg,#0a1628 0%,#0f172a 50%,#1e0535 100%)",borderRadius:18,padding:"36px 28px 30px",textAlign:"center",border:"1px solid rgba(249,115,22,.32)",boxShadow:"0 18px 50px rgba(0,0,0,.35),inset 0 1px 0 rgba(255,255,255,.05)",marginBottom:28}}>
+              <div style={{fontSize:42,marginBottom:12,lineHeight:1}} role="img" aria-label="Fire">🔥</div>
+              <h3 style={{fontSize:24,fontWeight:900,color:"#fff",marginBottom:12,letterSpacing:"-.01em",lineHeight:1.25}}>
+                Unlock Your Full HumZones Area Report
+              </h3>
+              <p style={{fontSize:15,color:"rgba(255,255,255,.78)",marginBottom:24,lineHeight:1.7,maxWidth:560,marginLeft:"auto",marginRight:"auto"}}>
+                {nearRadius === 100 ? (
+                  <>You found {nearResults.length} {nearResults.length === 1 ? "facility" : "facilities"} within 100km. Your Full Report includes detailed health analysis, EMF readings, noise levels and risk assessments for every facility near you.</>
+                ) : (
+                  <>You found {nearResults.length} {nearResults.length === 1 ? "facility" : "facilities"} within {nearRadius}km. Your Full Report reveals all {facilities100kmCount} facilities within 100km, including {high100kmCount} HIGH risk {high100kmCount === 1 ? "site" : "sites"} you may not know about.</>
+                )}
+              </p>
+              <button
+                onClick={handleGetFullReport}
+                style={{padding:"16px 32px",borderRadius:14,border:"none",background:"linear-gradient(135deg,#ef4444,#f97316)",color:"#fff",fontSize:17,fontWeight:900,letterSpacing:".02em",cursor:"pointer",fontFamily:"inherit",boxShadow:"0 10px 32px rgba(239,68,68,.45)"}}
+              >
+                Get My Full Report
+              </button>
+              <p style={{fontSize:12,color:"rgba(255,255,255,.55)",marginTop:14,lineHeight:1.6}}>
+                Instant PDF download. Personalized to your location.
+              </p>
+            </div>
+          )}
 
           {!dc && !nearLoc && !loading && (
             <div style={{textAlign:"center",padding:"80px 24px"}}>
