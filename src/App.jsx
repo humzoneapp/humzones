@@ -778,10 +778,10 @@ const ReportLandingPage = ({ onBack, onNavigate }) => {
           </p>
           <div className="nums-grid" style={{display:"grid",gridTemplateColumns:"repeat(2, 1fr)",gap:14}}>
             {stats.map((s)=>(
-              <div key={s.label} style={{background:"rgba(15,23,42,.55)",border:"1px solid rgba(249,115,22,.4)",borderRadius:14,padding:"20px 20px 18px",boxShadow:"inset 0 1px 0 rgba(255,255,255,.04)"}}>
-                <div style={{fontSize:38,fontWeight:900,color:"#f97316",letterSpacing:"-.02em",lineHeight:1.05,marginBottom:6,textShadow:"0 0 20px rgba(249,115,22,.5)"}}>{s.val || "0"}</div>
-                <div style={{fontSize:12,color:"#fff",letterSpacing:".10em",textTransform:"uppercase",fontWeight:800,marginBottom:10}}>{s.label}</div>
-                <p style={{fontSize:13,color:"rgba(255,255,255,.65)",lineHeight:1.6,margin:0}}>{s.desc}</p>
+              <div key={s.label} style={{background:"rgba(15,23,42,.55)",border:"1px solid rgba(249,115,22,.4)",borderRadius:14,padding:"24px 22px 22px",boxShadow:"inset 0 1px 0 rgba(255,255,255,.04)"}}>
+                <div style={{fontSize:48,fontWeight:900,color:"#f97316",letterSpacing:"-.025em",lineHeight:1.05,marginBottom:8,textShadow:"0 0 20px rgba(249,115,22,.5)"}}>{s.val || "0"}</div>
+                <div style={{fontSize:14,color:"#fff",letterSpacing:".10em",textTransform:"uppercase",fontWeight:800,marginBottom:12}}>{s.label}</div>
+                <p style={{fontSize:15,color:"rgba(255,255,255,.72)",lineHeight:1.6,margin:0}}>{s.desc}</p>
               </div>
             ))}
           </div>
@@ -800,15 +800,15 @@ const ReportLandingPage = ({ onBack, onNavigate }) => {
 
         <div style={{maxWidth:1040,margin:"0 auto",display:"grid",gridTemplateColumns:"1fr 1.05fr",gap:36,alignItems:"center",position:"relative",zIndex:1}} className="nums-grid">
           <div>
-            <div style={{fontSize:12,color:"#f97316",letterSpacing:".18em",textTransform:"uppercase",fontWeight:800,marginBottom:10}}>Your Full Report</div>
-            <h2 className="report-h2" style={{fontWeight:900,marginBottom:18,color:"#fff"}}>
+            <div style={{fontSize:14,color:"#f97316",letterSpacing:".18em",textTransform:"uppercase",fontWeight:800,marginBottom:12}}>Your Full Report</div>
+            <h2 className="report-h2" style={{fontWeight:900,marginBottom:22,color:"#fff"}}>
               Your Full HumZones Report Includes
             </h2>
-            <ul style={{listStyle:"none",padding:0,margin:0,display:"flex",flexDirection:"column",gap:10}}>
+            <ul style={{listStyle:"none",padding:0,margin:0,display:"flex",flexDirection:"column",gap:14}}>
               {benefits.map((b)=>(
-                <li key={b} style={{display:"flex",alignItems:"flex-start",gap:12,fontSize:15.5,color:"rgba(255,255,255,.88)",lineHeight:1.5}}>
-                  <span style={{display:"inline-flex",width:26,height:26,borderRadius:"50%",background:"rgba(249,115,22,.18)",alignItems:"center",justifyContent:"center",flexShrink:0,marginTop:1,border:"1.5px solid rgba(249,115,22,.55)"}}>
-                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#f97316" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>
+                <li key={b} style={{display:"flex",alignItems:"flex-start",gap:14,fontSize:17,color:"rgba(255,255,255,.92)",lineHeight:1.55}}>
+                  <span style={{display:"inline-flex",width:30,height:30,borderRadius:"50%",background:"rgba(249,115,22,.18)",alignItems:"center",justifyContent:"center",flexShrink:0,marginTop:2,border:"1.5px solid rgba(249,115,22,.55)"}}>
+                    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#f97316" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>
                   </span>
                   <span style={{fontWeight:600,color:"#fff"}}>{b}</span>
                 </li>
