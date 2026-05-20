@@ -381,6 +381,21 @@ const CSS = `
   .slow-pulse{animation:slowPulse 2.6s ease-in-out infinite}
   .cta-pulse{animation:ctaPulse 2.4s ease-in-out infinite}
   .hz-spinner{display:inline-block;width:16px;height:16px;border:2.5px solid rgba(255,255,255,.45);border-top-color:#fff;border-radius:50%;animation:spin .8s linear infinite;margin-right:10px;vertical-align:-3px}
+  /* Social share strip: each bubble has a slow vertical bob; staggered
+     animation-delay (set inline per icon) makes them breathe out of phase
+     rather than as a single block. Hover pauses the bob so the scale-up
+     and brand-color glow read cleanly. */
+  .share-row{display:flex;justify-content:center;align-items:flex-start;gap:16px;flex-wrap:wrap}
+  .share-link{display:inline-flex;flex-direction:column;align-items:center;gap:8px;text-decoration:none;color:#64748b}
+  .share-bubble{width:44px;height:44px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;transition:transform .2s ease, box-shadow .2s ease;animation:shareBob 3.4s ease-in-out infinite;will-change:transform}
+  .share-link:hover .share-bubble{transform:scale(1.1);box-shadow:0 10px 26px var(--share-glow, rgba(15,23,42,.18));animation-play-state:paused}
+  .share-label{font-size:11px;font-weight:700;letter-spacing:.04em;color:#94a3b8;text-transform:uppercase}
+  @keyframes shareBob{0%,100%{transform:translateY(0)}50%{transform:translateY(-5px)}}
+  @media(max-width:640px){
+    .share-row{gap:12px}
+    .share-bubble{width:40px;height:40px}
+    .share-label{font-size:10px}
+  }
   .hz-progress-track{position:relative;width:100%;height:10px;background:rgba(255,255,255,.08);border:1px solid rgba(249,115,22,.35);border-radius:999px;overflow:hidden}
   .hz-progress-fill{position:absolute;inset:0;background:linear-gradient(90deg,#ef4444,#f97316);transform-origin:left;transition:transform .4s ease}
   .hz-progress-indet{position:absolute;top:0;height:100%;width:35%;background:linear-gradient(90deg,#ef4444,#f97316);border-radius:999px;animation:hzIndet 1.4s ease-in-out infinite}
@@ -648,6 +663,119 @@ const MethodologyPage = ({ onBack }) => {
     </div>
   );
 };
+
+// ─── SOCIAL SHARE STRIP ───────────────────────────────────────────────────────
+// Rendered between the count-up stats and the search panel on the main page.
+// Inline SVGs only (no remote brand assets) so the strip always paints, even
+// on a cold cache or behind a strict img CSP. Each icon's bob animation gets
+// a staggered delay via inline style so the row reads as breathing, not as a
+// single block lifting up and down.
+const SHARE_TARGETS = [
+  {
+    name: "Facebook",
+    color: "#1877F2",
+    glow: "rgba(24,119,242,.45)",
+    url: "https://www.facebook.com/sharer/sharer.php?u=https://humzones.com",
+    newTab: true,
+    icon: (
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="#fff" aria-hidden="true">
+        <path d="M22 12c0-5.523-4.477-10-10-10S2 6.477 2 12c0 4.991 3.657 9.128 8.438 9.879V14.89h-2.54V12h2.54V9.797c0-2.506 1.492-3.89 3.777-3.89 1.094 0 2.238.195 2.238.195v2.46h-1.261c-1.243 0-1.63.771-1.63 1.563V12h2.773l-.443 2.89h-2.33v6.989C18.343 21.128 22 16.991 22 12z"/>
+      </svg>
+    ),
+  },
+  {
+    name: "X",
+    color: "#000000",
+    glow: "rgba(15,23,42,.45)",
+    url: "https://twitter.com/intent/tweet?text=" + encodeURIComponent("Did you know there are data centers near your home affecting air quality, noise and EMF levels? Check humzones.com to find out what is near you.") + "&url=" + encodeURIComponent("https://humzones.com"),
+    newTab: true,
+    icon: (
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="#fff" aria-hidden="true">
+        <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231 5.45-6.231zm-1.161 17.52h1.833L7.084 4.126H5.117l11.966 15.644z"/>
+      </svg>
+    ),
+  },
+  {
+    name: "WhatsApp",
+    color: "#25D366",
+    glow: "rgba(37,211,102,.45)",
+    url: "https://wa.me/?text=" + encodeURIComponent("Did you know there are data centers near your home? Check humzones.com to find out what is near you and get a full health report."),
+    newTab: true,
+    icon: (
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="#fff" aria-hidden="true">
+        <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372s-1.04 1.016-1.04 2.479 1.065 2.876 1.213 3.074c.149.198 2.096 3.2 5.077 4.487.71.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 0 1-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 0 1-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 0 1 2.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884M20.52 3.449C18.24 1.245 15.24 0 12.045 0 5.463 0 .104 5.334.101 11.892c0 2.096.549 4.142 1.595 5.945L0 24l6.335-1.652a12.062 12.062 0 0 0 5.71 1.447h.006c6.585 0 11.946-5.336 11.949-11.896 0-3.176-1.24-6.165-3.495-8.411"/>
+      </svg>
+    ),
+  },
+  {
+    name: "LinkedIn",
+    color: "#0A66C2",
+    glow: "rgba(10,102,194,.45)",
+    url: "https://www.linkedin.com/sharing/share-offsite/?url=https://humzones.com",
+    newTab: true,
+    icon: (
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="#fff" aria-hidden="true">
+        <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 0 1-2.063-2.065 2.063 2.063 0 1 1 2.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/>
+      </svg>
+    ),
+  },
+  {
+    name: "Reddit",
+    color: "#FF4500",
+    glow: "rgba(255,69,0,.45)",
+    url: "https://www.reddit.com/submit?url=" + encodeURIComponent("https://humzones.com") + "&title=" + encodeURIComponent("Did you know data centers near your home could be affecting your health? Check this out."),
+    newTab: true,
+    icon: (
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="#fff" aria-hidden="true">
+        <path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.01 4.744c.688 0 1.25.561 1.25 1.249a1.25 1.25 0 0 1-2.498.056l-2.597-.547-.8 3.747c1.824.07 3.48.632 4.674 1.488.308-.309.73-.491 1.207-.491.968 0 1.754.786 1.754 1.754 0 .716-.435 1.333-1.01 1.614.045.27.066.5.066.781 0 2.665-3.106 4.827-6.93 4.827-3.823 0-6.929-2.162-6.929-4.827 0-.281.025-.51.07-.78-.575-.282-1.012-.9-1.012-1.615 0-.968.787-1.754 1.755-1.754.478 0 .9.182 1.208.49 1.193-.855 2.85-1.418 4.674-1.488l.911-4.305c.018-.087.043-.157.131-.205.099-.045.213-.066.323-.038l2.991.628a1.25 1.25 0 0 1 1.097-.628zM12.05 13c-.55 0-1 .45-1 1s.45 1 1 1 1-.45 1-1-.45-1-1-1zm-3.6 0c-.55 0-1 .45-1 1s.45 1 1 1 1-.45 1-1-.45-1-1-1zm5.466 4.078a.187.187 0 0 0-.266.001c-.671.659-1.974.79-2.671.79-.697 0-2-.131-2.67-.79a.183.183 0 0 0-.267 0 .188.188 0 0 0 0 .265c.452.452 1.434.612 2.937.612 1.503 0 2.485-.16 2.937-.612a.185.185 0 0 0 0-.266z"/>
+      </svg>
+    ),
+  },
+  {
+    name: "Email",
+    color: "#64748b",
+    glow: "rgba(100,116,139,.45)",
+    url: "mailto:?subject=" + encodeURIComponent("You need to check what data centers are near your home") + "&body=" + encodeURIComponent("I found this site that shows data centers near your address and their health impact. Check it out at https://humzones.com"),
+    newTab: false,
+    icon: (
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+        <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
+        <polyline points="22,6 12,13 2,6"/>
+      </svg>
+    ),
+  },
+];
+
+const ShareSection = () => (
+  <section aria-label="Share HumZones" style={{background:"#fff",padding:"24px 16px",textAlign:"center",borderBottom:"1px solid #f1f5f9"}}>
+    <p style={{fontSize:13,color:"#94a3b8",margin:0,marginBottom:14,fontWeight:600,letterSpacing:".02em"}}>
+      Help your neighbors know what is near them
+    </p>
+    <div className="share-row">
+      {SHARE_TARGETS.map((s, i) => (
+        <a
+          key={s.name}
+          className="share-link"
+          href={s.url}
+          aria-label={`Share on ${s.name}`}
+          {...(s.newTab ? { target: "_blank", rel: "noopener noreferrer" } : {})}
+        >
+          <span
+            className="share-bubble"
+            style={{
+              background: s.color,
+              animationDelay: `${i * 0.25}s`,
+              ["--share-glow"]: s.glow,
+            }}
+          >
+            {s.icon}
+          </span>
+          <span className="share-label">{s.name}</span>
+        </a>
+      ))}
+    </div>
+  </section>
+);
 
 // ─── PAYMENT METHODS ROW ──────────────────────────────────────────────────────
 // Renders the accepted-cards strip shown below the $14.99 CTA on the report
@@ -2548,6 +2676,9 @@ export default function App() {
           </div>
         </div>
 
+        {/* SOCIAL SHARE */}
+        <ShareSection/>
+
         {/* MAIN */}
         <main className="main" ref={topRef} style={{maxWidth:1040,margin:"0 auto",padding:"36px 24px 72px",width:"100%",boxSizing:"border-box",overflowX:"hidden"}}>
 
@@ -3306,11 +3437,25 @@ export default function App() {
         </div>
 
         <footer style={{background:"#0a0f1e",padding:"48px 24px 36px",textAlign:"center"}}>
-          <div style={{marginBottom:8}}>
+          <div style={{marginBottom:6}}>
             <span style={{fontSize:26,fontWeight:900,letterSpacing:".08em",background:"linear-gradient(90deg,#ef4444,#f97316)",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent"}}>HumZones</span>
             <sup style={{fontSize:14,color:"#f97316",fontWeight:700,verticalAlign:"super",marginLeft:2}}>TM</sup>
           </div>
-          <div style={{fontSize:16,color:"#64748b",marginBottom:22}}>Global Data Center Health Registry</div>
+          <div style={{fontSize:14,color:"#cbd5e1",fontWeight:700,marginBottom:6,letterSpacing:".02em"}}>HumZones Technologies Inc.</div>
+          <div style={{fontSize:16,color:"#64748b",marginBottom:20}}>Global Data Center Health Registry</div>
+
+          {/* Site links */}
+          <div style={{display:"flex",justifyContent:"center",gap:18,flexWrap:"wrap",marginBottom:22}}>
+            <a href="/methodology" onClick={e=>{e.preventDefault();navigate("/methodology");}} className="ext-link" style={{color:"#f97316",fontSize:14,fontWeight:700,textDecoration:"none",letterSpacing:".02em"}}>
+              Methodology
+            </a>
+            <a href="https://humzones.com" className="ext-link" style={{color:"#94a3b8",fontSize:14,fontWeight:600,textDecoration:"none",letterSpacing:".02em"}}>
+              humzones.com
+            </a>
+          </div>
+
+          {/* External research sources */}
+          <div style={{fontSize:11,color:"#475569",letterSpacing:".10em",textTransform:"uppercase",fontWeight:800,marginBottom:10}}>Research Sources</div>
           <div style={{display:"flex",justifyContent:"center",gap:20,flexWrap:"wrap",marginBottom:28}}>
             {[
               {t:"Epoch AI (CC-BY)",url:"https://epoch.ai/data/data-centers"},
@@ -3326,10 +3471,10 @@ export default function App() {
             ))}
           </div>
           <div style={{fontSize:15,color:"#94a3b8",borderTop:"1px solid #1e293b",paddingTop:20,lineHeight:1.8}}>
-            &copy; 2026 HumZones&trade; &middot; humzones.com &middot; Built for residents, not the industry
+            &copy; 2025 HumZones Technologies Inc. All rights reserved.
           </div>
           <div style={{fontSize:13,color:"#475569",marginTop:6}}>
-            HumZones is a trademark of HumZones Global Health Registry. All rights reserved.
+            humzones.com &middot; Built for residents, not the industry
           </div>
         </footer>
 
