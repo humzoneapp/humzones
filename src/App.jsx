@@ -3471,7 +3471,7 @@ export default function App() {
             ))}
           </div>
           <div style={{fontSize:15,color:"#94a3b8",borderTop:"1px solid #1e293b",paddingTop:20,lineHeight:1.8}}>
-            &copy; 2025 HumZones Technologies Inc. All rights reserved.
+            &copy; 2026 HumZones Technologies Inc. All rights reserved.
           </div>
           <div style={{fontSize:13,color:"#475569",marginTop:6}}>
             humzones.com &middot; Built for residents, not the industry
