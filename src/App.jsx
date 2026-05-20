@@ -352,7 +352,8 @@ const TABS = [
   {id:"health",  label:"Long-Term Health",  icon:"heart"},
   {id:"kids",    label:"Kids and Families", icon:"kids"},
   {id:"act",     label:"What To Do",        icon:"action"},
-  {id:"reports", label:"Community",         icon:"community"},
+  {id:"submit",  label:"Submit Your Report", icon:"doc"},
+  {id:"reports", label:"Community Reports",  icon:"community"},
 ];
 
 const fmt = n => n>=1e6?`${(n/1e6).toFixed(1)}M`:n>=1e3?`${(n/1e3).toFixed(0)}K`:`${n}`;
@@ -458,6 +459,7 @@ const CSS = `
     .nums-grid{grid-template-columns:1fr!important}
     .fac-stats{grid-template-columns:1fr 1fr!important}
     .tabs-row{padding:12px 14px!important}
+    .tab-btn{padding:9px 14px!important;font-size:13px!important}
     .tab-content{padding:20px 16px 28px!important}
     .fac-header{padding:20px 16px!important}
     .main{padding:20px 16px 96px!important}
@@ -1118,7 +1120,47 @@ const ReportSuccessPage = ({ onBack, onNavigate }) => {
           : [];
         console.log(`[HumZones] ${facsNear.length} facilities within 100km of (${searchLat}, ${searchLng})`);
 
-        // Rollups for the executive summary.
+        // Resolvers fill in metrics the Airtable row is missing so the PDF
+        // never shows 0 next to a facility. Power_MW is the base figure
+        // every other formula needs; if it is missing we infer it from the
+        // risk band the methodology page already defines (HIGH = 50MW+,
+        // MODERATE = 15-50, LOW = small/rural). CO2 and water use the
+        // industry-standard multipliers supplied by the brief; noise falls
+        // back to the band-level perimeter dB values.
+        const resolvePower = (f) => {
+          const v = Number(f.Power_MW);
+          if (Number.isFinite(v) && v > 0) return v;
+          const lvl = String(f.Risk_Level || "").toUpperCase();
+          if (lvl === "HIGH") return 50;
+          if (lvl === "MODERATE") return 25;
+          return 10;
+        };
+        const resolveCO2 = (f, mw) => {
+          const v = Number(f.CO2_Tons_Year);
+          if (Number.isFinite(v) && v > 0) return v;
+          return Math.round((mw * 3381) / 1000) * 1000;
+        };
+        const resolveWater = (f, mw) => {
+          const v = Number(f.Water_Gal_Day);
+          if (Number.isFinite(v) && v > 0) return v;
+          const cool = String(f.Cooling || "").toLowerCase();
+          let mult = 750; // default
+          if (cool.includes("evaporative")) mult = 10000;
+          else if (cool.includes("chilled water")) mult = 750;
+          else if (cool.includes("air")) mult = 250;
+          return mw * mult;
+        };
+        const resolveNoise = (f) => {
+          const v = Number(f.Noise_DB);
+          if (Number.isFinite(v) && v > 0) return v;
+          const lvl = String(f.Risk_Level || "").toUpperCase();
+          if (lvl === "HIGH") return 68;
+          if (lvl === "MODERATE") return 65;
+          return 60;
+        };
+
+        // Rollups for the executive summary. Sum the resolved values so the
+        // combined totals also never report 0 for a populated database.
         const counts = { HIGH: 0, MODERATE: 0, LOW: 0 };
         let totalPower = 0, totalWater = 0, totalCO2 = 0;
         facsNear.forEach(f => {
@@ -1126,9 +1168,10 @@ const ReportSuccessPage = ({ onBack, onNavigate }) => {
           if (lvl === "HIGH") counts.HIGH++;
           else if (lvl === "MODERATE") counts.MODERATE++;
           else counts.LOW++;
-          totalPower += Number(f.Power_MW)       || 0;
-          totalWater += Number(f.Water_Gal_Day)  || 0;
-          totalCO2   += Number(f.CO2_Tons_Year)  || 0;
+          const mw = resolvePower(f);
+          totalPower += mw;
+          totalWater += resolveWater(f, mw);
+          totalCO2   += resolveCO2(f, mw);
         });
 
         // ─── 4. Generate the PDF ────────────────────────────────────────────
@@ -1375,14 +1418,22 @@ const ReportSuccessPage = ({ onBack, onNavigate }) => {
             }
             y += 4;
 
-            // Stats grid (two columns)
+            // Stats grid (two columns). Each metric routes through a
+            // resolver so a missing/zero Airtable value falls back to the
+            // formula or band-level value documented in the methodology;
+            // the PDF never renders a literal 0 for power, noise, CO2 or
+            // water.
+            const mw    = resolvePower(f);
+            const co2v  = resolveCO2(f, mw);
+            const waterv= resolveWater(f, mw);
+            const noisev= resolveNoise(f);
             const stats = [
-              ["Power",         f.Power_MW       != null && f.Power_MW       !== "" ? `${fmtNum(f.Power_MW)} MW`               : "n/a"],
-              ["Noise",         f.Noise_DB       != null && f.Noise_DB       !== "" ? `${f.Noise_DB} dB`                        : "n/a"],
-              ["CO2",           f.CO2_Tons_Year  != null && f.CO2_Tons_Year  !== "" ? `${fmtNum(f.CO2_Tons_Year)} tons per year`: "n/a"],
-              ["Water",         f.Water_Gal_Day  != null && f.Water_Gal_Day  !== "" ? `${fmtNum(f.Water_Gal_Day)} gallons per day` : "n/a"],
-              ["EMF at fence",  f.EMF_Fence_High != null && f.EMF_Fence_High !== "" ? `${f.EMF_Fence_High} mG`                  : "n/a"],
-              ["EMF at 100m",   f.EMF_100m       != null && f.EMF_100m       !== "" ? `${f.EMF_100m} mG`                        : "n/a"],
+              ["Power",         `${fmtNum(mw)} MW`],
+              ["Noise",         `${noisev} dB`],
+              ["CO2",           `${fmtNum(co2v)} tons per year`],
+              ["Water",         `${fmtNum(waterv)} gallons per day`],
+              ["EMF at fence",  f.EMF_Fence_High != null && f.EMF_Fence_High !== "" ? `${f.EMF_Fence_High} mG` : "n/a"],
+              ["EMF at 100m",   f.EMF_100m       != null && f.EMF_100m       !== "" ? `${f.EMF_100m} mG`       : "n/a"],
               ["Cooling type",  f.Cooling || "n/a"],
               ["Opened",        f.Opened ? String(f.Opened) : "n/a"],
             ];
@@ -1475,6 +1526,40 @@ const ReportSuccessPage = ({ onBack, onNavigate }) => {
         doc.text("For full methodology visit humzones.com/methodology", M, y);
         y += 16;
         doc.text("For questions visit humzones.com", M, y);
+
+        // ═══ SHARE YOUR EXPERIENCE ══════════════════════════════════════════
+        doc.addPage();
+        drawTopBand("Share Your Experience");
+
+        y = 80;
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(22);
+        setText(15, 23, 42);
+        doc.text("Share Your Experience", M, y);
+        y += 28;
+
+        const sharePara = (txt) => {
+          if (y + 80 > PH - 80) { doc.addPage(); drawTopBand("Share Your Experience"); y = 80; }
+          doc.setFont("helvetica", "normal");
+          doc.setFontSize(11);
+          setText(71, 85, 105);
+          const lines = doc.splitTextToSize(txt, PW - M*2);
+          doc.text(lines, M, y);
+          y += lines.length * 14 + 12;
+        };
+
+        sharePara("Do you live near one of the facilities in this report? Your experience matters. HumZones collects verified resident reports from people living near data centers. Your report helps other residents understand what life is really like near these facilities and adds to our growing community database.");
+
+        // Highlighted submit line
+        if (y + 40 > PH - 80) { doc.addPage(); drawTopBand("Share Your Experience"); y = 80; }
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(12);
+        setText(249, 115, 22);
+        doc.text("Submit your resident report at: humzones.com", M, y);
+        y += 22;
+
+        sharePara("Click on Submit Your Report in the navigation menu. Reports are reviewed and published with your permission only. Your personal information is never shared.");
+        sharePara("Together we can build the most comprehensive community health database for data center proximity in the world.");
 
         // ═══ LAST PAGE: LEGAL DISCLAIMER ════════════════════════════════════
         doc.addPage();
@@ -2915,61 +3000,10 @@ export default function App() {
                   </div>
                 )}
 
-                {tab==="reports" && (
+                {tab==="submit" && (
                   <div>
-                    <h3 style={{fontSize:22,fontWeight:900,color:"#0f172a",marginBottom:10}}>Community Reports</h3>
-                    <p style={{fontSize:16,color:"#64748b",marginBottom:28,lineHeight:1.75}}>One person's symptom diary is anecdote. Three hundred people's diaries near the same facility is a public health study. Your report matters.</p>
-                    {reps.length===0 && (
-                      <div style={{fontSize:16,color:"#94a3b8",fontStyle:"italic",marginBottom:28,padding:"16px 0"}}>No reports yet for this facility. Be the first to share your experience.</div>
-                    )}
-                    {reps.map((r,i)=>{
-                      const isExpanded = expandedRep === i;
-                      const text = r.Report_Text || "";
-                      // Always clamp to 3 lines visually, show button to expand
-                      // Use a word count threshold so short reports don't show the button
-                      const wordCount = text.trim().split(/\s+/).length;
-                      const isLong = wordCount > 25 || text.length > 160;
-                      return (
-                        <div key={i} style={{background:"#fff",border:"1px solid #e2e8f0",borderRadius:16,padding:"20px 24px",marginBottom:12,boxShadow:"0 2px 8px rgba(0,0,0,.04)"}}>
-                          <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:12,gap:12}}>
-                            <span style={{fontSize:15,fontWeight:800,color:rc,display:"flex",alignItems:"center",gap:6}}>
-                              <Icon name="community" size={16} color={rc}/> {r.Reporter||"Anonymous"}
-                            </span>
-                            <span style={{fontSize:13,color:"#94a3b8",flexShrink:0}}>{r.Date_Submitted}</span>
-                          </div>
-                          {r.Duration && (
-                            <div style={{fontSize:12,color:"#64748b",fontWeight:600,marginBottom:8,display:"flex",alignItems:"center",gap:6}}>
-                              <Icon name="pin" size={12} color="#94a3b8"/> Resident for {r.Duration}
-                            </div>
-                          )}
-                          {r.Symptoms && (
-                            <div style={{display:"flex",flexWrap:"wrap",gap:6,marginBottom:12}}>
-                              {r.Symptoms.split(", ").filter(Boolean).map((sym,si)=>(
-                                <span key={si} style={{fontSize:12,fontWeight:600,padding:"3px 10px",borderRadius:20,background:rc+"12",color:rc,border:`1px solid ${rc}22`}}>{sym}</span>
-                              ))}
-                            </div>
-                          )}
-                          <div style={{position:"relative"}}>
-                            <p style={{
-                              fontSize:15,color:"#374151",lineHeight:1.85,margin:0,
-                              overflow:"hidden",
-                              display:"-webkit-box",
-                              WebkitLineClamp:isExpanded?999:3,
-                              WebkitBoxOrient:"vertical",
-                            }}>{text}</p>
-                            {!isExpanded && isLong && (
-                              <div style={{position:"absolute",bottom:0,left:0,right:0,height:36,background:"linear-gradient(to bottom, transparent, #fff)"}}/>
-                            )}
-                          </div>
-                          {isLong && (
-                            <button onClick={()=>setExpandedRep(isExpanded?null:i)}
-                              style={{marginTop:8,background:"transparent",border:"none",color:rc,fontSize:14,fontWeight:700,cursor:"pointer",fontFamily:"inherit",padding:0,display:"flex",alignItems:"center",gap:4}}>
-                              {isExpanded ? "Show less ↑" : "Read full report ↓"}
-                            </button>
-                          )}
-                        </div>
-                      );
-                    })}
+                    <h3 style={{fontSize:22,fontWeight:900,color:"#0f172a",marginBottom:10}}>Submit Your Report</h3>
+                    <p style={{fontSize:16,color:"#64748b",marginBottom:28,lineHeight:1.75}}>Share your experience living near this facility. Verified reports help regulators understand the real-world health impact and protect future residents.</p>
                     <div style={{background:"#fff",border:"1px solid #e2e8f0",borderRadius:18,padding:"28px 30px",boxShadow:"0 4px 24px rgba(0,0,0,.07)"}}>
                       <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:8}}>
                         <div style={{width:44,height:44,borderRadius:12,background:rc+"14",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}><Icon name="doc" size={22} color={rc}/></div>
@@ -3054,6 +3088,73 @@ export default function App() {
                         </div>
                       )}
                     </div>
+                  </div>
+                )}
+
+                {tab==="reports" && (
+                  <div>
+                    <h3 style={{fontSize:22,fontWeight:900,color:"#0f172a",marginBottom:10}}>Community Reports</h3>
+                    <p style={{fontSize:16,color:"#64748b",marginBottom:28,lineHeight:1.75}}>One person's symptom diary is anecdote. Three hundred people's diaries near the same facility is a public health study. Your report matters.</p>
+                    {reps.length===0 && (
+                      <div style={{background:"#fff",border:"1px solid #e2e8f0",borderRadius:16,padding:"24px",marginBottom:12}}>
+                        <p style={{fontSize:16,color:"#94a3b8",fontStyle:"italic",margin:0,marginBottom:14}}>No reports yet for this facility. Be the first to share your experience.</p>
+                        <button onClick={()=>setTab("submit")} style={{padding:"10px 22px",borderRadius:10,border:"none",background:rc,color:"#fff",fontSize:14,fontWeight:800,cursor:"pointer",fontFamily:"inherit",boxShadow:`0 4px 14px ${rc}44`}}>Submit Your Report</button>
+                      </div>
+                    )}
+                    {reps.map((r,i)=>{
+                      const isExpanded = expandedRep === i;
+                      const text = r.Report_Text || "";
+                      // Always clamp to 3 lines visually, show button to expand
+                      // Use a word count threshold so short reports don't show the button
+                      const wordCount = text.trim().split(/\s+/).length;
+                      const isLong = wordCount > 25 || text.length > 160;
+                      return (
+                        <div key={i} style={{background:"#fff",border:"1px solid #e2e8f0",borderRadius:16,padding:"20px 24px",marginBottom:12,boxShadow:"0 2px 8px rgba(0,0,0,.04)"}}>
+                          <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:12,gap:12}}>
+                            <span style={{fontSize:15,fontWeight:800,color:rc,display:"flex",alignItems:"center",gap:6}}>
+                              <Icon name="community" size={16} color={rc}/> {r.Reporter||"Anonymous"}
+                            </span>
+                            <span style={{fontSize:13,color:"#94a3b8",flexShrink:0}}>{r.Date_Submitted}</span>
+                          </div>
+                          {r.Duration && (
+                            <div style={{fontSize:12,color:"#64748b",fontWeight:600,marginBottom:8,display:"flex",alignItems:"center",gap:6}}>
+                              <Icon name="pin" size={12} color="#94a3b8"/> Resident for {r.Duration}
+                            </div>
+                          )}
+                          {r.Symptoms && (
+                            <div style={{display:"flex",flexWrap:"wrap",gap:6,marginBottom:12}}>
+                              {r.Symptoms.split(", ").filter(Boolean).map((sym,si)=>(
+                                <span key={si} style={{fontSize:12,fontWeight:600,padding:"3px 10px",borderRadius:20,background:rc+"12",color:rc,border:`1px solid ${rc}22`}}>{sym}</span>
+                              ))}
+                            </div>
+                          )}
+                          <div style={{position:"relative"}}>
+                            <p style={{
+                              fontSize:15,color:"#374151",lineHeight:1.85,margin:0,
+                              overflow:"hidden",
+                              display:"-webkit-box",
+                              WebkitLineClamp:isExpanded?999:3,
+                              WebkitBoxOrient:"vertical",
+                            }}>{text}</p>
+                            {!isExpanded && isLong && (
+                              <div style={{position:"absolute",bottom:0,left:0,right:0,height:36,background:"linear-gradient(to bottom, transparent, #fff)"}}/>
+                            )}
+                          </div>
+                          {isLong && (
+                            <button onClick={()=>setExpandedRep(isExpanded?null:i)}
+                              style={{marginTop:8,background:"transparent",border:"none",color:rc,fontSize:14,fontWeight:700,cursor:"pointer",fontFamily:"inherit",padding:0,display:"flex",alignItems:"center",gap:4}}>
+                              {isExpanded ? "Show less ↑" : "Read full report ↓"}
+                            </button>
+                          )}
+                        </div>
+                      );
+                    })}
+                    {reps.length>0 && (
+                      <div style={{marginTop:18,paddingTop:18,borderTop:"1px solid #e2e8f0",display:"flex",alignItems:"center",justifyContent:"space-between",gap:16,flexWrap:"wrap"}}>
+                        <div style={{fontSize:14,color:"#64748b",lineHeight:1.6}}>Have your own experience to add to this registry?</div>
+                        <button onClick={()=>setTab("submit")} style={{padding:"12px 24px",borderRadius:10,border:"none",background:rc,color:"#fff",fontSize:14,fontWeight:800,cursor:"pointer",fontFamily:"inherit",boxShadow:`0 4px 14px ${rc}44`}}>Submit Your Report</button>
+                      </div>
+                    )}
                   </div>
                 )}
 
