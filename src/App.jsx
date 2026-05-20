@@ -379,6 +379,11 @@ const CSS = `
   @keyframes ctaPulse{0%,100%{box-shadow:0 10px 32px rgba(239,68,68,.45);transform:scale(1)}50%{box-shadow:0 16px 50px rgba(239,68,68,.7);transform:scale(1.025)}}
   .slow-pulse{animation:slowPulse 2.6s ease-in-out infinite}
   .cta-pulse{animation:ctaPulse 2.4s ease-in-out infinite}
+  /* Near Me results: hard contain every child so nothing pushes the page
+     sideways on iPhone when results render. */
+  .near-me-results{width:100%!important;max-width:100%!important;box-sizing:border-box!important;overflow-x:hidden!important;margin-left:0!important;margin-right:0!important}
+  .near-me-results *{max-width:100%;box-sizing:border-box}
+  .near-me-results .near-card{width:100%!important}
   .back-btn{transition:border-color .15s,color .15s,box-shadow .15s}
   .back-btn:hover{border-color:#f97316!important;color:#f97316!important;box-shadow:0 4px 14px rgba(249,115,22,.25)!important}
   .report-h1{font-size:48px;line-height:1.1;letter-spacing:-.025em}
@@ -1746,9 +1751,11 @@ export default function App() {
             )}
           </section>
 
-          {/* NEARBY RESULTS */}
-          {nearLoc && !dc && loading && (
-            <div style={{background:"#fff",borderRadius:18,padding:"44px 24px",textAlign:"center",boxShadow:"0 4px 18px rgba(0,0,0,.06)",marginBottom:28,color:"#64748b",fontWeight:600,fontSize:15}}>
+          {/* NEARBY RESULTS — wrapped so nothing inside can shift the page sideways */}
+          {nearLoc && !dc && (
+          <div className="near-me-results" style={{width:"100%",maxWidth:"100%",boxSizing:"border-box",overflowX:"hidden",marginLeft:0,marginRight:0}}>
+          {loading && (
+            <div style={{background:"#fff",borderRadius:18,padding:"44px 24px",textAlign:"center",boxShadow:"0 4px 18px rgba(0,0,0,.06)",marginBottom:28,color:"#64748b",fontWeight:600,fontSize:15,width:"100%",maxWidth:"100%",boxSizing:"border-box"}}>
               <div className="spinning" style={{width:32,height:32,border:"3px solid #e2e8f0",borderTop:"3px solid #ef4444",borderRadius:"50%",margin:"0 auto 14px"}}/>
               Loading facility data...
             </div>
@@ -1757,7 +1764,7 @@ export default function App() {
             <div
               key={`near-count-${nearLoc.lat}-${nearLoc.lng}-${nearRadius}-${nearRisk}-${justUnlocked?"u":"l"}`}
               className="fade-in"
-              style={{textAlign:"center",fontSize:28,fontWeight:900,letterSpacing:"-.02em",lineHeight:1.25,margin:"4px 0 20px"}}
+              style={{textAlign:"center",fontSize:28,fontWeight:900,letterSpacing:"-.02em",lineHeight:1.25,margin:"4px 0 20px",width:"100%",maxWidth:"100%",boxSizing:"border-box",overflowWrap:"break-word",padding:"0 4px"}}
             >
               {nearResults.length > 0 ? (
                 justUnlocked && nearResults.length > 2 ? (
@@ -1778,7 +1785,7 @@ export default function App() {
           )}
           {/* PAID REPORT UPSELL: shown immediately after the count headline */}
           {nearLoc && !dc && !loading && nearEmailUnlocked && nearResults.length > 0 && (
-            <div className="fade-in" style={{background:"linear-gradient(150deg,#0a1628 0%,#0f172a 50%,#1e0535 100%)",borderRadius:18,padding:"36px 28px 30px",textAlign:"center",border:"1px solid rgba(249,115,22,.32)",boxShadow:"0 18px 50px rgba(0,0,0,.35),inset 0 1px 0 rgba(255,255,255,.05)",marginBottom:28}}>
+            <div className="fade-in" style={{background:"linear-gradient(150deg,#0a1628 0%,#0f172a 50%,#1e0535 100%)",borderRadius:18,padding:"36px 28px 30px",textAlign:"center",border:"1px solid rgba(249,115,22,.32)",boxShadow:"0 18px 50px rgba(0,0,0,.35),inset 0 1px 0 rgba(255,255,255,.05)",marginBottom:28,width:"100%",maxWidth:"100%",boxSizing:"border-box",marginLeft:0,marginRight:0}}>
               <div style={{fontSize:42,marginBottom:12,lineHeight:1}} role="img" aria-label="Fire">🔥</div>
               <h3 style={{fontSize:24,fontWeight:900,color:"#fff",marginBottom:12,letterSpacing:"-.01em",lineHeight:1.25}}>
                 Unlock Your Full HumZones Area Report
@@ -1808,7 +1815,7 @@ export default function App() {
               const rclr = RISK_C[f.Risk_Level] || "#64748b";
               const dclr = distColor(f._km);
               return (
-                <div key={f.id} className="sym-card near-card" onClick={locked?undefined:()=>pickFac(f.id)} style={{background:"#fff",borderRadius:18,boxShadow:"0 4px 18px rgba(0,0,0,.06)",padding:"18px 22px",cursor:locked?"default":"pointer",display:"flex",alignItems:"center",gap:16,flexWrap:"wrap"}}>
+                <div key={f.id} className="sym-card near-card" onClick={locked?undefined:()=>pickFac(f.id)} style={{background:"#fff",borderRadius:18,boxShadow:"0 4px 18px rgba(0,0,0,.06)",padding:"18px 22px",cursor:locked?"default":"pointer",display:"flex",alignItems:"center",gap:16,flexWrap:"wrap",width:"100%",maxWidth:"100%",boxSizing:"border-box"}}>
                   <div style={{flex:1,minWidth:0}}>
                     <div style={{fontSize:17,fontWeight:800,color:"#0f172a",marginBottom:4,lineHeight:1.3}}>{f.Name}</div>
                     <div style={{fontSize:13,color:"#64748b",fontWeight:600}}>{f.Company} &middot; {[f.City,f.State_Region,f.Country].filter(Boolean).join(", ")}</div>
@@ -1835,17 +1842,17 @@ export default function App() {
             const blurredPreview = lockedCards.slice(0, Math.min(5, lockedCards.length));
 
             return (
-              <div className={justUnlocked?"fade-in":undefined} style={{display:"flex",flexDirection:"column",gap:14,marginBottom:28}}>
+              <div className={justUnlocked?"fade-in":undefined} style={{display:"flex",flexDirection:"column",gap:14,marginBottom:28,width:"100%",maxWidth:"100%",boxSizing:"border-box",overflowX:"hidden"}}>
                 {previewCards.map(f=>renderNearCard(f,false))}
 
                 {lockedCards.length > 0 && (
-                  <div style={{position:"relative"}}>
+                  <div style={{position:"relative",width:"100%",maxWidth:"100%",boxSizing:"border-box",overflow:"hidden",borderRadius:18}}>
                     {/* Blurred decoy cards behind the gate */}
-                    <div aria-hidden="true" style={{filter:"blur(6px)",pointerEvents:"none",userSelect:"none",display:"flex",flexDirection:"column",gap:14}}>
+                    <div aria-hidden="true" style={{filter:"blur(6px)",pointerEvents:"none",userSelect:"none",display:"flex",flexDirection:"column",gap:14,width:"100%",maxWidth:"100%",boxSizing:"border-box"}}>
                       {blurredPreview.map(f=>renderNearCard(f,true))}
                     </div>
                     {/* Email gate overlay */}
-                    <div style={{position:"absolute",inset:0,display:"flex",alignItems:"flex-start",justifyContent:"center",padding:"22px 14px",borderRadius:18,background:"linear-gradient(180deg,rgba(15,23,42,.25) 0%,rgba(15,23,42,.78) 30%,rgba(2,12,27,.92) 100%)"}}>
+                    <div style={{position:"absolute",inset:0,display:"flex",alignItems:"flex-start",justifyContent:"center",padding:"22px 14px",borderRadius:18,background:"linear-gradient(180deg,rgba(15,23,42,.25) 0%,rgba(15,23,42,.78) 30%,rgba(2,12,27,.92) 100%)",boxSizing:"border-box",maxWidth:"100%"}}>
                       <div className="fade-in" style={{maxWidth:520,width:"100%",background:"linear-gradient(150deg,#0a1628 0%,#0f172a 50%,#1e0535 100%)",borderRadius:18,padding:"34px 28px 28px",textAlign:"center",border:"1px solid rgba(249,115,22,.32)",boxShadow:"0 24px 60px rgba(0,0,0,.55),inset 0 1px 0 rgba(255,255,255,.05)"}}>
                         <div style={{width:60,height:60,borderRadius:"50%",background:"linear-gradient(135deg,#ef4444,#f97316)",margin:"0 auto 18px",display:"flex",alignItems:"center",justifyContent:"center",boxShadow:"0 8px 26px rgba(239,68,68,.45)"}}>
                           <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -1896,6 +1903,8 @@ export default function App() {
               </div>
             </div>
           ))}
+          </div>
+          )}
 
           {!dc && !nearLoc && !loading && (
             <div style={{textAlign:"center",padding:"80px 24px"}}>
