@@ -1006,16 +1006,16 @@ const ReportLandingPage = ({ onBack, onNavigate }) => {
 
 // ─── REPORT SUCCESS (post-payment PDF generation) ─────────────────────────────
 // Reached after Stripe checkout success. Reads the captured search context out
-// of localStorage, refetches the buyer email and metadata from the Stripe
-// session, pulls the facilities within 100km from Airtable, generates a
-// branded multi-page PDF with jsPDF, triggers download, and silently records
-// the purchase in the Emails capture table.
+// of localStorage, refetches the buyer email from the Stripe session, pulls
+// every facility from Airtable, keeps those within 100km of the searched
+// coordinates, generates a multi-page PDF with jsPDF, triggers download, and
+// silently records the purchase in the Emails capture table.
 const ReportSuccessPage = ({ onBack, onNavigate }) => {
-  // Status drives the on-screen messaging: generating → ready → error.
-  const [status, setStatus] = useState("generating");
-  const [progress, setProgress] = useState(8);
-  const [stepMsg, setStepMsg] = useState("Confirming payment...");
-  const [errMsg, setErrMsg]   = useState("");
+  // status: loading -> generating -> ready / error
+  const [status, setStatus] = useState("loading");
+  const [stepMsg, setStepMsg] = useState("Fetching your facility data...");
+  const [progress, setProgress] = useState(10);
+  const [errMsg, setErrMsg] = useState("");
 
   // Guard against React 18 StrictMode double-invocation in dev: the PDF
   // generator must run exactly once so the buyer is not served two downloads.
@@ -1029,18 +1029,20 @@ const ReportSuccessPage = ({ onBack, onNavigate }) => {
 
     const run = async () => {
       try {
-        const searchAddress  = get("searchAddress") || "your area";
-        const searchLat      = parseFloat(get("searchLat"));
-        const searchLng      = parseFloat(get("searchLng"));
-        const facilities100  = parseInt(get("facilities100km"), 10) || 0;
-        const highRisk       = parseInt(get("highRiskCount"), 10) || 0;
+        // ─── 1. Pull search context from localStorage ───────────────────────
+        const searchAddress   = get("searchAddress") || "Your area";
+        const searchLat       = parseFloat(get("searchLat"));
+        const searchLng       = parseFloat(get("searchLng"));
+        const facilities100   = parseInt(get("facilities100km"), 10);
+        const highRisk        = parseInt(get("highRiskCount"), 10);
+        const facilitiesFound = parseInt(get("facilitiesFound"), 10);
+        const selectedRadius  = parseInt(get("selectedRadius"), 10);
+        console.log("[HumZones] /report-success inputs:", { searchAddress, searchLat, searchLng, facilities100, highRisk, facilitiesFound, selectedRadius });
+
+        // Best-effort buyer email lookup from the Stripe session.
         const sessionId = (() => {
           try { return new URLSearchParams(window.location.search).get("session_id") || ""; } catch { return ""; }
         })();
-
-        // 1. Confirm the Stripe payment and pick up the buyer email.
-        setStepMsg("Confirming payment...");
-        setProgress(15);
         let buyerEmail = "";
         if (sessionId) {
           try {
@@ -1052,23 +1054,33 @@ const ReportSuccessPage = ({ onBack, onNavigate }) => {
           } catch (e) { console.warn("[HumZones] session fetch failed:", e); }
         }
 
-        // 2. Fetch full facility set with the fields the PDF report needs.
-        setStepMsg("Loading facility data...");
-        setProgress(30);
+        // ─── 2. Fetch every facility from Airtable ──────────────────────────
+        setStepMsg("Fetching your facility data...");
+        setProgress(25);
         const reportFields = [
-          "Name","Company","Country","State_Region","City","Facility_Status",
+          "Name","Company","City","State_Region","Country","Address","Facility_Status",
           "Risk_Level","Power_MW","Noise_DB","CO2_Tons_Year","Water_Gal_Day",
-          "EMF_Fence_High","EMF_100m","Latitude","Longitude","Opened",
-          "Address","Cooling_Type",
+          "EMF_Fence_High","EMF_100m","Cooling","Opened","Latitude","Longitude",
         ];
         let allFacs = [];
-        try { allFacs = await apiFetch("Facilities", {"fields[]": reportFields}); }
-        catch (e) { console.error("[HumZones] facility fetch failed:", e); }
+        try {
+          allFacs = await apiFetch("Facilities", {"fields[]": reportFields});
+          console.log(`[HumZones] Airtable returned ${allFacs.length} facilities`);
+        } catch (e) {
+          console.error("[HumZones] Airtable fetch failed:", e);
+          throw new Error("Could not load facility data. Please refresh to try again.");
+        }
+        if (!allFacs.length) {
+          throw new Error("Facility database returned no records. Please contact support.");
+        }
 
-        // 3. Filter by Haversine distance to <= 100km, sorted nearest first.
-        setStepMsg("Calculating proximity...");
+        // ─── 3. Haversine filter to <=100km, sorted nearest first ───────────
+        setStepMsg("Calculating distances...");
         setProgress(50);
         const hasCoords = Number.isFinite(searchLat) && Number.isFinite(searchLng);
+        if (!hasCoords) {
+          console.warn("[HumZones] Missing searchLat/searchLng in localStorage. Report will show 0 facilities.");
+        }
         const facsNear = hasCoords
           ? allFacs
               .map(f => {
@@ -1077,405 +1089,433 @@ const ReportSuccessPage = ({ onBack, onNavigate }) => {
                 return { ...f, _km: distanceKm(searchLat, searchLng, lat, lng) };
               })
               .filter(f => f && f._km <= 100)
-              .sort((a,b) => a._km - b._km)
+              .sort((a, b) => a._km - b._km)
           : [];
+        console.log(`[HumZones] ${facsNear.length} facilities within 100km of (${searchLat}, ${searchLng})`);
 
-        // 4. Build counts and roll-up estimates for the executive summary.
-        const counts = { HIGH:0, MODERATE:0, LOW:0 };
-        let totalPower = 0, totalWater = 0;
+        // Rollups for the executive summary.
+        const counts = { HIGH: 0, MODERATE: 0, LOW: 0 };
+        let totalPower = 0, totalWater = 0, totalCO2 = 0;
         facsNear.forEach(f => {
-          if (f.Risk_Level === "HIGH") counts.HIGH++;
-          else if (f.Risk_Level === "MODERATE") counts.MODERATE++;
+          const lvl = String(f.Risk_Level || "").toUpperCase();
+          if (lvl === "HIGH") counts.HIGH++;
+          else if (lvl === "MODERATE") counts.MODERATE++;
           else counts.LOW++;
-          totalPower += Number(f.Power_MW) || 0;
-          totalWater += Number(f.Water_Gal_Day) || 0;
+          totalPower += Number(f.Power_MW)       || 0;
+          totalWater += Number(f.Water_Gal_Day)  || 0;
+          totalCO2   += Number(f.CO2_Tons_Year)  || 0;
         });
 
-        // 5. Dynamic-import jsPDF so the heavy library only ships to buyers.
-        setStepMsg("Generating your PDF...");
-        setProgress(70);
+        // ─── 4. Generate the PDF ────────────────────────────────────────────
+        setStepMsg("Generating your personalized report...");
+        setStatus("generating");
+        setProgress(72);
+
         const jsPDFModule = await import("jspdf");
         const { jsPDF } = jsPDFModule;
-
         const doc = new jsPDF({ unit: "pt", format: "letter" });
         const PW = doc.internal.pageSize.getWidth();   // 612
         const PH = doc.internal.pageSize.getHeight();  // 792
-        const M  = 48;
+        const M  = 56;
 
-        const NAVY   = [15, 23, 42];
-        const NAVY2  = [2, 12, 27];
-        const ORANGE = [249, 115, 22];
-        const RED    = [239, 68, 68];
-        const BLUE   = [59, 130, 246];
-        const MUTED  = [100, 116, 139];
-        const FAINT  = [148, 163, 184];
-        const LIGHT  = [241, 245, 249];
-
-        const setFill   = (c) => doc.setFillColor(c[0], c[1], c[2]);
-        const setStroke = (c) => doc.setDrawColor(c[0], c[1], c[2]);
-        const setText   = (c) => doc.setTextColor(c[0], c[1], c[2]);
+        const today    = new Date();
+        const datePart = today.toISOString().slice(0, 10);
+        const dateLong = today.toLocaleDateString("en-US", { year:"numeric", month:"long", day:"numeric" });
 
         const fmtNum = (n) => Number(n).toLocaleString();
-        const fmtPower = (mw) => mw >= 1000 ? `${(mw/1000).toFixed(2).replace(/\.?0+$/,"")} GW` : `${fmtNum(mw)} MW`;
-        const riskColor = (lvl) => lvl === "HIGH" ? RED : lvl === "MODERATE" ? ORANGE : BLUE;
+        const fmtMW  = (mw) => mw >= 1000 ? `${(mw/1000).toFixed(2).replace(/\.?0+$/,"")} GW` : `${fmtNum(mw)} MW`;
+        const setText = (r,g,b) => doc.setTextColor(r,g,b);
 
-        // Soft brand band at top of every page for visual consistency.
-        const drawHeaderBand = (pageLabel) => {
-          setFill(NAVY);
-          doc.rect(0, 0, PW, 26, "F");
-          setFill(ORANGE);
-          doc.rect(0, 26, PW, 2, "F");
+        const totalFound = facsNear.length;
+        const safeHigh   = Number.isFinite(highRisk) ? highRisk : counts.HIGH;
+
+        // Repeating top band so every internal page is branded the same way.
+        const drawTopBand = (rightLabel) => {
+          doc.setFillColor(15, 23, 42);
+          doc.rect(0, 0, PW, 32, "F");
+          doc.setFillColor(249, 115, 22);
+          doc.rect(0, 32, PW, 2, "F");
           doc.setFont("helvetica", "bold");
-          doc.setFontSize(10);
-          setText([255,255,255]);
-          doc.text("HumZones", M, 17);
-          if (pageLabel) {
+          doc.setFontSize(11);
+          setText(255, 255, 255);
+          doc.text("HumZones Full Area Report", M, 22);
+          if (rightLabel) {
             doc.setFont("helvetica", "normal");
-            doc.setFontSize(9);
-            setText(FAINT);
-            doc.text(pageLabel, PW - M, 17, { align: "right" });
+            setText(148, 163, 184);
+            doc.text(rightLabel, PW - M, 22, { align: "right" });
           }
         };
 
-        const drawFooter = () => {
-          doc.setFont("helvetica", "normal");
-          doc.setFontSize(8);
-          setText(FAINT);
-          doc.text("humzones.com  |  Personalized Area Report", M, PH - 22);
-          doc.text(`Page ${doc.internal.getCurrentPageInfo().pageNumber}`, PW - M, PH - 22, { align: "right" });
-        };
+        // ═══ PAGE 1: COVER ═══════════════════════════════════════════════════
+        // Top brand accent bars
+        doc.setFillColor(15, 23, 42);
+        doc.rect(0, 0, PW, 6, "F");
+        doc.setFillColor(249, 115, 22);
+        doc.rect(0, 6, PW, 3, "F");
 
-        // ─── PAGE 1: COVER ───────────────────────────────────────────────────
-        setFill(NAVY2);
-        doc.rect(0, 0, PW, PH, "F");
-        // Orange accent bar
-        setFill(ORANGE);
-        doc.rect(0, 140, PW, 4, "F");
-
+        // Wordmark
         doc.setFont("helvetica", "bold");
-        doc.setFontSize(42);
-        setText(ORANGE);
-        doc.text("HumZones", M, 100);
-        doc.setFontSize(14);
-        setText([255,255,255]);
-        doc.text("TM", M + 215, 76);
+        doc.setFontSize(16);
+        setText(15, 23, 42);
+        doc.text("HumZones", M, 48);
 
+        // Title
+        let y = 180;
         doc.setFont("helvetica", "bold");
-        doc.setFontSize(32);
-        setText([255,255,255]);
-        doc.text("Full Area Report", M, 220);
-
+        doc.setFontSize(30);
+        setText(15, 23, 42);
+        doc.text("HumZones Full Area Report", M, y);
+        y += 30;
         doc.setFont("helvetica", "normal");
         doc.setFontSize(15);
-        setText([203,213,225]);
-        doc.text("Personalized Data Center Health Analysis", M, 248);
+        setText(100, 116, 139);
+        doc.text("Personalized Data Center Health Analysis", M, y);
 
-        // Address card
-        setFill([30, 41, 59]);
-        doc.rect(M, 320, PW - M*2, 110, "F");
-        setFill(ORANGE);
-        doc.rect(M, 320, 4, 110, "F");
+        // Address + date card
+        y += 50;
+        doc.setFillColor(241, 245, 249);
+        doc.rect(M, y - 20, PW - M*2, 130, "F");
+        doc.setFillColor(249, 115, 22);
+        doc.rect(M, y - 20, 4, 130, "F");
 
         doc.setFont("helvetica", "bold");
-        doc.setFontSize(10);
-        setText(ORANGE);
-        doc.text("ADDRESS SEARCHED", M + 20, 348);
-        doc.setFont("helvetica", "bold");
-        doc.setFontSize(15);
-        setText([255,255,255]);
-        const wrapAddr = doc.splitTextToSize(searchAddress, PW - M*2 - 40);
-        doc.text(wrapAddr.slice(0, 2), M + 20, 372);
-
-        doc.setFont("helvetica", "normal");
-        doc.setFontSize(10);
-        setText([148,163,184]);
-        doc.text("DATE GENERATED", M + 20, 408);
+        doc.setFontSize(11);
+        setText(100, 116, 139);
+        doc.text("ADDRESS", M + 20, y);
         doc.setFont("helvetica", "bold");
         doc.setFontSize(13);
-        setText([255,255,255]);
-        const today = new Date();
-        const dateLong = today.toLocaleDateString("en-US", { year:"numeric", month:"long", day:"numeric" });
-        doc.text(dateLong, M + 160, 408);
+        setText(15, 23, 42);
+        const addrLines = doc.splitTextToSize(searchAddress, PW - M*2 - 40);
+        doc.text(addrLines.slice(0, 2), M + 20, y + 20);
 
-        // Confidential footer
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(11);
+        setText(100, 116, 139);
+        doc.text("GENERATED", M + 20, y + 60);
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(13);
+        setText(15, 23, 42);
+        doc.text(dateLong, M + 20, y + 80);
+
+        // Counts panel
+        y += 150;
+        doc.setFillColor(15, 23, 42);
+        doc.rect(M, y, PW - M*2, 110, "F");
+        doc.setFillColor(249, 115, 22);
+        doc.rect(M, y, 4, 110, "F");
+
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(10);
+        setText(249, 115, 22);
+        doc.text("TOTAL FACILITIES WITHIN 100KM", M + 20, y + 28);
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(32);
+        setText(255, 255, 255);
+        doc.text(String(totalFound), M + 20, y + 70);
+
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(10);
+        setText(249, 115, 22);
+        doc.text("HIGH RISK FACILITIES", M + 260, y + 28);
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(32);
+        setText(255, 255, 255);
+        doc.text(String(safeHigh), M + 260, y + 70);
+
+        // Footer
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(11);
+        setText(15, 23, 42);
+        doc.text("Prepared by HumZones Technologies Inc.", M, PH - 56);
         doc.setFont("helvetica", "normal");
-        doc.setFontSize(9);
-        setText([148,163,184]);
-        const confidentialLine = `CONFIDENTIAL  -  Generated for ${buyerEmail || "the purchaser"}`;
-        doc.text(confidentialLine, M, PH - 40);
-        setText([100,116,139]);
-        doc.setFontSize(8);
-        doc.text("This report is informational only. See humzones.com/methodology for data sources and estimation methods.", M, PH - 24);
+        doc.setFontSize(10);
+        setText(100, 116, 139);
+        doc.text("Global Data Center Health Registry  |  humzones.com", M, PH - 38);
 
-        // ─── PAGE 2: EXECUTIVE SUMMARY ───────────────────────────────────────
+        // ═══ PAGE 2: EXECUTIVE SUMMARY ═══════════════════════════════════════
         doc.addPage();
-        drawHeaderBand("Executive Summary");
+        drawTopBand("Executive Summary");
 
+        y = 80;
         doc.setFont("helvetica", "bold");
         doc.setFontSize(22);
-        setText(NAVY);
-        doc.text("Executive Summary", M, 80);
+        setText(15, 23, 42);
+        doc.text("Executive Summary", M, y);
 
-        doc.setFont("helvetica", "normal");
-        doc.setFontSize(11);
-        setText(MUTED);
-        const summaryIntro = `This report summarizes data center activity within 100 kilometers of ${searchAddress}. The figures below are estimates compiled from public sources and modeled using documented industry methods.`;
-        const summaryWrap = doc.splitTextToSize(summaryIntro, PW - M*2);
-        doc.text(summaryWrap, M, 108);
-
-        // Big stat tiles (2 x 2 grid)
-        const tileY = 170;
-        const tileH = 96;
-        const gap   = 14;
-        const tileW = (PW - M*2 - gap) / 2;
-        const tiles = [
-          { label: "Total facilities within 100km", value: String(facilities100 || facsNear.length || 0), color: RED },
-          { label: "HIGH risk facilities",          value: String(highRisk || counts.HIGH || 0),          color: RED },
-          { label: "MODERATE risk facilities",      value: String(counts.MODERATE || 0),                  color: ORANGE },
-          { label: "LOW risk facilities",           value: String(counts.LOW || 0),                       color: BLUE },
+        y += 36;
+        const rows = [
+          ["Total facilities within 100km",       String(totalFound)],
+          ["HIGH risk facilities",                 String(counts.HIGH)],
+          ["MODERATE risk facilities",             String(counts.MODERATE)],
+          ["LOW risk facilities",                  String(counts.LOW)],
+          ["Combined estimated power draw",        fmtMW(totalPower)],
+          ["Combined daily water consumption",     `${fmtNum(totalWater)} gallons`],
+          ["Combined CO2 per year",                `${fmtNum(totalCO2)} tons`],
         ];
-        tiles.forEach((t, i) => {
-          const col = i % 2, row = Math.floor(i / 2);
-          const x = M + col * (tileW + gap);
-          const y = tileY + row * (tileH + gap);
-          setFill(LIGHT);
-          doc.rect(x, y, tileW, tileH, "F");
-          setFill(t.color);
-          doc.rect(x, y, 4, tileH, "F");
+        rows.forEach((r, idx) => {
+          if (idx % 2 === 0) {
+            doc.setFillColor(248, 250, 252);
+            doc.rect(M, y - 14, PW - M*2, 28, "F");
+          }
+          doc.setFont("helvetica", "normal");
+          doc.setFontSize(12);
+          setText(71, 85, 105);
+          doc.text(r[0], M + 14, y + 4);
           doc.setFont("helvetica", "bold");
-          doc.setFontSize(28);
-          setText(t.color);
-          doc.text(t.value, x + 20, y + 46);
-          doc.setFont("helvetica", "bold");
-          doc.setFontSize(10);
-          setText(NAVY);
-          const lblLines = doc.splitTextToSize(t.label.toUpperCase(), tileW - 30);
-          doc.text(lblLines, x + 20, y + 68);
+          setText(15, 23, 42);
+          doc.text(r[1], PW - M - 14, y + 4, { align: "right" });
+          y += 28;
         });
 
-        // Rollup row: power draw + water
-        const rollY = tileY + 2 * (tileH + gap) + 4;
-        const rollH = 80;
-        const rollW = (PW - M*2 - gap) / 2;
-        const rollups = [
-          { label: "Estimated combined power draw", value: fmtPower(totalPower) },
-          { label: "Estimated daily water use",     value: `${fmtNum(totalWater)} gal` },
-        ];
-        rollups.forEach((r, i) => {
-          const x = M + i * (rollW + gap);
-          setFill(NAVY2);
-          doc.rect(x, rollY, rollW, rollH, "F");
-          setFill(ORANGE);
-          doc.rect(x, rollY, 4, rollH, "F");
-          doc.setFont("helvetica", "bold");
-          doc.setFontSize(22);
-          setText([255,255,255]);
-          doc.text(r.value, x + 20, rollY + 42);
-          doc.setFont("helvetica", "bold");
-          doc.setFontSize(9);
-          setText(ORANGE);
-          doc.text(r.label.toUpperCase(), x + 20, rollY + 62);
-        });
-
-        // Risk summary paragraph
-        const sumY = rollY + rollH + 28;
-        doc.setFont("helvetica", "bold");
-        doc.setFontSize(14);
-        setText(NAVY);
-        doc.text("What These Numbers Mean", M, sumY);
-
-        const totalFound = facsNear.length || facilities100 || 0;
-        const summaryParagraph = totalFound === 0
-          ? "We could not match any facilities in our database to the coordinates you searched within a 100km radius. This does not mean the area is unaffected. Coverage of our database is expanding monthly. If you suspect a facility near you is missing, please contact us at humzones.com so we can verify and add it."
-          : `Within 100 kilometers of your address we identified ${totalFound} ${totalFound===1?"facility":"facilities"}, of which ${counts.HIGH} ${counts.HIGH===1?"is":"are"} classified HIGH risk, ${counts.MODERATE} ${counts.MODERATE===1?"is":"are"} MODERATE, and ${counts.LOW} ${counts.LOW===1?"is":"are"} LOW risk. The combined modeled power draw across these sites is ${fmtPower(totalPower)}, with an estimated ${fmtNum(totalWater)} gallons of water consumed every day for cooling. HIGH risk sites are typically those running 50 megawatts or more, or sited within roughly 500 meters of residential structures, and have shown the strongest documented patterns of noise penetration, diesel exhaust during generator tests, and elevated power-frequency EMF in the surrounding community. The detail pages that follow give you each facility's location, distance from your address, and the specific environmental figures we have on file.`;
+        y += 18;
+        const paragraph = `This report identifies ${totalFound} data center ${totalFound === 1 ? "facility" : "facilities"} operating within 100km of your address. Of these, ${counts.HIGH} ${counts.HIGH === 1 ? "is" : "are"} classified as HIGH risk based on power scale, proximity to residential areas and cooling type.`;
         doc.setFont("helvetica", "normal");
         doc.setFontSize(11);
-        setText(MUTED);
-        const sumWrap = doc.splitTextToSize(summaryParagraph, PW - M*2);
-        doc.text(sumWrap, M, sumY + 22);
+        setText(71, 85, 105);
+        const pWrap = doc.splitTextToSize(paragraph, PW - M*2);
+        doc.text(pWrap, M, y);
 
-        drawFooter();
-
-        // ─── PAGE 3+: FACILITY DETAILS ───────────────────────────────────────
+        // ═══ PAGE 3+: PER-FACILITY DETAIL ═══════════════════════════════════
         if (facsNear.length > 0) {
           doc.addPage();
-          drawHeaderBand("Facilities within 100km");
+          drawTopBand("Facilities within 100km");
 
+          y = 80;
           doc.setFont("helvetica", "bold");
           doc.setFontSize(22);
-          setText(NAVY);
-          doc.text("Facility Details", M, 80);
-          doc.setFont("helvetica", "normal");
-          doc.setFontSize(10);
-          setText(MUTED);
-          doc.text(`${facsNear.length} ${facsNear.length===1?"facility":"facilities"} sorted by distance, nearest first.`, M, 100);
-
-          let y = 130;
-          const cardH = 220;
-          const bottomLimit = PH - 60;
-
-          for (let i = 0; i < facsNear.length; i++) {
-            if (y + cardH > bottomLimit) {
-              drawFooter();
-              doc.addPage();
-              drawHeaderBand("Facilities within 100km");
-              y = 60;
-            }
-            const f = facsNear[i];
-            const rc = riskColor(f.Risk_Level);
-
-            // Card background + left accent bar
-            setFill(LIGHT);
-            doc.rect(M, y, PW - M*2, cardH, "F");
-            setFill(rc);
-            doc.rect(M, y, 5, cardH, "F");
-
-            const innerX = M + 20;
-            // Name
-            doc.setFont("helvetica", "bold");
-            doc.setFontSize(15);
-            setText(NAVY);
-            const nameLines = doc.splitTextToSize(f.Name || "Unnamed facility", PW - M*2 - 180);
-            doc.text(nameLines[0], innerX, y + 26);
-
-            // Company / facility status line
-            doc.setFont("helvetica", "normal");
-            doc.setFontSize(10);
-            setText(MUTED);
-            const sub = [f.Company, f.Facility_Status].filter(Boolean).join("  -  ");
-            if (sub) doc.text(sub, innerX, y + 42);
-
-            // Distance pill (top right)
-            const km = Number(f._km).toFixed(1);
-            const distLabel = `${km} km away`;
-            doc.setFont("helvetica", "bold");
-            doc.setFontSize(10);
-            const distW = doc.getTextWidth(distLabel) + 18;
-            setFill(NAVY);
-            doc.rect(PW - M - distW - 110, y + 14, distW, 20, "F");
-            setText([255,255,255]);
-            doc.text(distLabel, PW - M - distW - 110 + 9, y + 27);
-
-            // Risk pill
-            const riskLabel = (f.Risk_Level || "UNKNOWN").toUpperCase();
-            doc.setFont("helvetica", "bold");
-            doc.setFontSize(10);
-            const riskW = doc.getTextWidth(riskLabel) + 18;
-            setFill(rc);
-            doc.rect(PW - M - riskW - 4, y + 14, riskW, 20, "F");
-            setText([255,255,255]);
-            doc.text(riskLabel, PW - M - riskW - 4 + 9, y + 27);
-
-            // Address line
-            const addrStr = f.Address || buildLocationString(f) || "Address on file pending";
-            doc.setFont("helvetica", "normal");
-            doc.setFontSize(10);
-            setText(NAVY);
-            const addrWrap = doc.splitTextToSize(addrStr, PW - M*2 - 40);
-            doc.text(addrWrap.slice(0,1), innerX, y + 64);
-
-            // Stats grid: 3 columns
-            const sx = innerX;
-            const sw = (PW - M*2 - 40) / 3;
-            const rowH = 28;
-            const stats = [
-              { lbl: "Power",       val: f.Power_MW ? (Number(f.Power_MW) >= 1000 ? `${(f.Power_MW/1000).toFixed(2).replace(/\.?0+$/,"")} GW` : `${fmtNum(f.Power_MW)} MW`) : "n/a" },
-              { lbl: "Noise",       val: f.Noise_DB ? `${f.Noise_DB} dB` : "n/a" },
-              { lbl: "CO2/yr",      val: f.CO2_Tons_Year ? `${fmtNum(f.CO2_Tons_Year)} t` : "near zero" },
-              { lbl: "Water/day",   val: f.Water_Gal_Day ? `${fmtNum(f.Water_Gal_Day)} gal` : "near zero" },
-              { lbl: "EMF (fence)", val: f.EMF_Fence_High != null ? `${f.EMF_Fence_High} mG` : "n/a" },
-              { lbl: "EMF (100m)",  val: f.EMF_100m != null ? `${f.EMF_100m} mG` : "n/a" },
-              { lbl: "Opened",      val: f.Opened ? String(f.Opened) : "n/a" },
-              { lbl: "Cooling",     val: f.Cooling_Type ? String(f.Cooling_Type) : "n/a" },
-              { lbl: "City",        val: [f.City, f.State_Region].filter(Boolean).join(", ") || "n/a" },
-            ];
-            stats.forEach((s, idx) => {
-              const col = idx % 3, row = Math.floor(idx / 3);
-              const cx = sx + col * sw;
-              const cy = y + 90 + row * rowH;
-              doc.setFont("helvetica", "bold");
-              doc.setFontSize(8);
-              setText(MUTED);
-              doc.text(s.lbl.toUpperCase(), cx, cy);
-              doc.setFont("helvetica", "bold");
-              doc.setFontSize(11);
-              setText(NAVY);
-              const valLines = doc.splitTextToSize(s.val, sw - 8);
-              doc.text(valLines[0], cx, cy + 14);
-            });
-
-            y += cardH + 12;
-          }
-          drawFooter();
-        }
-
-        // ─── LAST PAGE: RECOMMENDATIONS ──────────────────────────────────────
-        doc.addPage();
-        drawHeaderBand("Recommendations");
-
-        doc.setFont("helvetica", "bold");
-        doc.setFontSize(22);
-        setText(NAVY);
-        doc.text("What You Can Do Now", M, 80);
-
-        let ry = 112;
-        const writeSection = (heading, body) => {
-          doc.setFont("helvetica", "bold");
-          doc.setFontSize(12);
-          setText(ORANGE);
-          doc.text(heading.toUpperCase(), M, ry);
-          ry += 6;
-          setStroke(ORANGE);
-          doc.setLineWidth(1.2);
-          doc.line(M, ry, M + 50, ry);
-          ry += 14;
+          setText(15, 23, 42);
+          doc.text("Facilities Near You", M, y);
+          y += 22;
           doc.setFont("helvetica", "normal");
           doc.setFontSize(11);
-          setText(NAVY);
-          const lines = doc.splitTextToSize(body, PW - M*2);
-          doc.text(lines, M, ry);
-          ry += lines.length * 14 + 14;
+          setText(100, 116, 139);
+          doc.text(`${facsNear.length} ${facsNear.length === 1 ? "facility" : "facilities"} sorted by distance, closest first.`, M, y);
+          y += 24;
+
+          const bottomLimit = PH - 64;
+          const facBlockHeight = 190;
+
+          facsNear.forEach((f) => {
+            if (y + facBlockHeight > bottomLimit) {
+              doc.addPage();
+              drawTopBand("Facilities within 100km");
+              y = 80;
+            }
+
+            // Facility name
+            doc.setFont("helvetica", "bold");
+            doc.setFontSize(15);
+            setText(15, 23, 42);
+            const nameLines = doc.splitTextToSize(f.Name || "Unnamed facility", PW - M*2);
+            doc.text(nameLines[0], M, y);
+            y += 18;
+
+            // Company
+            if (f.Company) {
+              doc.setFont("helvetica", "normal");
+              doc.setFontSize(11);
+              setText(100, 116, 139);
+              doc.text(String(f.Company), M, y);
+              y += 16;
+            }
+
+            // Distance + risk on one row
+            doc.setFont("helvetica", "bold");
+            doc.setFontSize(10);
+            setText(15, 23, 42);
+            doc.text(`Distance: ${Number(f._km).toFixed(1)} km from your address`, M, y);
+            const rc = String(f.Risk_Level).toUpperCase() === "HIGH"
+              ? [239, 68, 68]
+              : String(f.Risk_Level).toUpperCase() === "MODERATE"
+                ? [249, 115, 22]
+                : [59, 130, 246];
+            setText(rc[0], rc[1], rc[2]);
+            doc.text(`Risk Level: ${String(f.Risk_Level || "UNKNOWN").toUpperCase()}`, M + 270, y);
+            y += 16;
+
+            // City / state
+            doc.setFont("helvetica", "normal");
+            doc.setFontSize(10);
+            setText(71, 85, 105);
+            const cityLine = [f.City, f.State_Region].filter(Boolean).join(", ");
+            if (cityLine) {
+              doc.text(cityLine, M, y);
+              y += 14;
+            }
+            if (f.Address) {
+              const aw = doc.splitTextToSize(String(f.Address), PW - M*2);
+              const slice = aw.slice(0, 2);
+              doc.text(slice, M, y);
+              y += slice.length * 14;
+            }
+            y += 4;
+
+            // Stats grid (two columns)
+            const stats = [
+              ["Power",         f.Power_MW       != null && f.Power_MW       !== "" ? `${fmtNum(f.Power_MW)} MW`               : "n/a"],
+              ["Noise",         f.Noise_DB       != null && f.Noise_DB       !== "" ? `${f.Noise_DB} dB`                        : "n/a"],
+              ["CO2",           f.CO2_Tons_Year  != null && f.CO2_Tons_Year  !== "" ? `${fmtNum(f.CO2_Tons_Year)} tons per year`: "n/a"],
+              ["Water",         f.Water_Gal_Day  != null && f.Water_Gal_Day  !== "" ? `${fmtNum(f.Water_Gal_Day)} gallons per day` : "n/a"],
+              ["EMF at fence",  f.EMF_Fence_High != null && f.EMF_Fence_High !== "" ? `${f.EMF_Fence_High} mG`                  : "n/a"],
+              ["EMF at 100m",   f.EMF_100m       != null && f.EMF_100m       !== "" ? `${f.EMF_100m} mG`                        : "n/a"],
+              ["Cooling type",  f.Cooling || "n/a"],
+              ["Opened",        f.Opened ? String(f.Opened) : "n/a"],
+            ];
+            const colW = (PW - M*2) / 2;
+            stats.forEach((s, idx) => {
+              const col = idx % 2;
+              if (col === 0 && idx > 0) y += 16;
+              const x = M + col * colW;
+              doc.setFont("helvetica", "bold");
+              doc.setFontSize(10);
+              setText(100, 116, 139);
+              doc.text(`${s[0]}:`, x, y);
+              doc.setFont("helvetica", "normal");
+              setText(15, 23, 42);
+              const valLines = doc.splitTextToSize(String(s[1]), colW - 90);
+              doc.text(valLines[0], x + 84, y);
+            });
+            y += 22;
+
+            // Horizontal divider
+            doc.setDrawColor(226, 232, 240);
+            doc.setLineWidth(0.6);
+            doc.line(M, y, PW - M, y);
+            y += 18;
+          });
+        }
+
+        // ═══ SECOND-TO-LAST: UNDERSTANDING YOUR RESULTS ═════════════════════
+        doc.addPage();
+        drawTopBand("Understanding Your Results");
+
+        y = 80;
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(22);
+        setText(15, 23, 42);
+        doc.text("Understanding Your Results", M, y);
+        y += 28;
+
+        const writePara = (txt) => {
+          if (y + 80 > PH - 80) {
+            doc.addPage();
+            drawTopBand("Understanding Your Results");
+            y = 80;
+          }
+          doc.setFont("helvetica", "normal");
+          doc.setFontSize(11);
+          setText(71, 85, 105);
+          const lines = doc.splitTextToSize(txt, PW - M*2);
+          doc.text(lines, M, y);
+          y += lines.length * 14 + 12;
         };
 
-        writeSection(
-          "What These Findings Mean",
-          "The figures in this report are modeled estimates, not field measurements, but they reflect the documented operational profile of the facilities near you. Even a single large data center within a few kilometers of a home has been associated in published research with chronic low-frequency noise penetration, monthly diesel exhaust exposure during generator tests, and elevated power-frequency EMF where homes are close to substations and feeder lines. The cumulative impact of multiple facilities operating in the same airshed and grid region is the primary concern."
-        );
+        writePara("EMF exposure. Power-frequency electromagnetic fields from data center substations and feeder lines have been studied in relation to childhood leukemia by the WHO and IARC. Published research has identified elevated risk where homes are exposed to power-frequency fields above roughly 3 to 4 milligauss on a sustained basis. The EMF figures in this report show modeled values both at the facility fence and at 100 meters so you can see how exposure changes with distance.");
+        writePara("Noise impact. Data centers operate around the clock and emit a continuous low-frequency hum from cooling systems and transformers. Low-frequency sound below 200 Hz penetrates walls and windows with far less attenuation than higher frequencies, which is why residents living within a few kilometers of large facilities consistently report sleep disruption, headaches and chronic background stress. Monthly backup generator tests add diesel exhaust on top of the steady noise.");
+        writePara("Water and CO2. Evaporative cooling at hyperscale facilities removes large volumes of fresh water from the local cycle every single day. Combined with the grid emissions associated with around-the-clock electricity demand, the regional environmental footprint of multiple nearby facilities compounds rapidly. The figures in this report sum the modeled draw across every facility within 100km of your address.");
 
-        writeSection(
-          "Practical Steps to Reduce Exposure",
-          "Track your sleep quality and headache frequency for two to four weeks; sleep disruption is often the earliest measurable sign. Keep windows closed on known monthly generator test days and run a HEPA-rated air purifier if you have asthma or young children. If you live within roughly 500 meters of a substation or fence line, ask a qualified electrician or environmental consultant to measure power-frequency EMF at your property boundary. Document everything in writing: dates, times, symptoms, weather, and any visible exhaust events."
-        );
+        y += 4;
+        if (y + 30 > PH - 80) { doc.addPage(); drawTopBand("Understanding Your Results"); y = 80; }
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(16);
+        setText(15, 23, 42);
+        doc.text("What You Can Do", M, y);
+        y += 22;
 
-        writeSection(
-          "How to Contact Local Authorities",
-          "File a formal noise complaint with your county or municipal zoning authority and request a copy of the facility's noise monitoring data and any conditions attached to its industrial use permit. For air quality, contact your state environmental agency and request the facility's generator test schedule and emissions records. If you suspect groundwater impact, your county health department and the state water board are the appropriate channels. Keep every complaint number and follow up in writing."
-        );
+        const steps = [
+          "Track your sleep quality, headache frequency and any tinnitus over a two to four week window. Patterns that improve when you leave the area are the strongest signal that environmental factors are involved.",
+          "Request the generator test schedule of your nearest facility in writing and keep windows closed on test days. Run a HEPA rated air purifier indoors during and after each test, particularly if children or anyone with asthma lives in the household.",
+          "Ask a qualified electrician or environmental consultant to measure power-frequency EMF at your property boundary if you live within roughly 500 meters of a substation or fence line. Compare the reading against the 3 to 4 milligauss threshold cited in the published research.",
+          "File a formal noise complaint with your county or municipal zoning authority and request the facility's noise monitoring data and the conditions attached to its industrial use permit. Keep every complaint number and follow up in writing.",
+          "Contact your state environmental agency for the facility's emissions records and your county health department if you suspect groundwater impact. Document every conversation by date and reference number.",
+        ];
+        steps.forEach((s, idx) => {
+          if (y + 60 > PH - 80) { doc.addPage(); drawTopBand("Understanding Your Results"); y = 80; }
+          doc.setFont("helvetica", "bold");
+          doc.setFontSize(11);
+          setText(249, 115, 22);
+          doc.text(`${idx + 1}.`, M, y);
+          doc.setFont("helvetica", "normal");
+          setText(71, 85, 105);
+          const lines = doc.splitTextToSize(s, PW - M*2 - 20);
+          doc.text(lines, M + 20, y);
+          y += lines.length * 14 + 10;
+        });
 
-        writeSection(
-          "Methodology and Sources",
-          "Full data sources, estimation formulas, and the limits of this analysis are documented at humzones.com/methodology. Risk levels, EMF figures, noise estimates, water usage, and CO2 figures are explained there in detail. If you believe any specific figure in this report is materially incorrect, please contact us at humzones.com and we will review and update our records."
-        );
+        y += 14;
+        if (y + 40 > PH - 60) { doc.addPage(); drawTopBand("Understanding Your Results"); y = 80; }
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(11);
+        setText(15, 23, 42);
+        doc.text("For full methodology visit humzones.com/methodology", M, y);
+        y += 16;
+        doc.text("For questions visit humzones.com", M, y);
 
-        drawFooter();
+        // ═══ LAST PAGE: LEGAL DISCLAIMER ════════════════════════════════════
+        doc.addPage();
+        drawTopBand("Important Disclaimer");
 
-        // 6. Trigger the download.
+        y = 80;
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(22);
+        setText(15, 23, 42);
+        doc.text("Important Disclaimer", M, y);
+        y += 28;
+
+        const disclaimer = [
+          "This HumZones Area Report is provided for informational and public awareness purposes only. All data, figures, estimates and risk assessments contained in this report are based on research compiled from public sources including utility filings, operator announcements, permit records and industry databases.",
+          "All figures including but not limited to power consumption, noise levels, EMF readings, CO2 emissions and water usage are modeled estimates derived using industry standard formulas. They are not certified field measurements and have not been independently verified. Actual values may vary significantly depending on facility design, operating conditions, season and local terrain.",
+          "Risk levels assigned as LOW, MODERATE or HIGH are relative indicators for general public awareness only. They do not constitute a scientific assessment, environmental evaluation or health determination of any kind.",
+          "This report does not constitute medical, legal, scientific or environmental advice. HumZones Technologies Inc. makes no warranties express or implied regarding the accuracy, completeness or fitness for any particular purpose of the information contained herein.",
+          "Residents with health concerns related to nearby infrastructure should consult qualified medical professionals, environmental scientists or legal advisors.",
+          "HumZones Technologies Inc. shall not be liable for any damages, losses or consequences arising from the use of or reliance on information contained in this report.",
+        ];
+        disclaimer.forEach((p) => {
+          if (y + 80 > PH - 80) { doc.addPage(); drawTopBand("Important Disclaimer"); y = 80; }
+          doc.setFont("helvetica", "normal");
+          doc.setFontSize(10);
+          setText(71, 85, 105);
+          const lines = doc.splitTextToSize(p, PW - M*2);
+          doc.text(lines, M, y);
+          y += lines.length * 13 + 10;
+        });
+
+        y += 6;
+        if (y + 80 > PH - 60) { doc.addPage(); drawTopBand("Important Disclaimer"); y = 80; }
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(11);
+        setText(15, 23, 42);
+        doc.text("For full methodology and data sources visit humzones.com/methodology", M, y);
+        y += 22;
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(10);
+        setText(100, 116, 139);
+        doc.text("Report generated by HumZones Technologies Inc.", M, y); y += 14;
+        doc.text("Global Data Center Health Registry",              M, y); y += 14;
+        doc.text("humzones.com",                                     M, y); y += 14;
+        doc.text(dateLong,                                           M, y);
+
+        // ─── 5. Trigger the download ────────────────────────────────────────
         setStepMsg("Downloading your report...");
-        setProgress(92);
-        const datePart = today.toISOString().slice(0,10);
-        const filename = `HumZones-Report-${datePart}.pdf`;
+        setProgress(95);
+        const safeAddr = (searchAddress || "report")
+          .replace(/[\s,]+/g, "-")
+          .replace(/[^A-Za-z0-9._-]/g, "")
+          .replace(/-+/g, "-")
+          .replace(/^-+|-+$/g, "")
+          .slice(0, 60) || "report";
+        const filename = `HumZones-Report-${safeAddr}-${datePart}.pdf`;
         doc.save(filename);
 
-        // 7. Record the purchase silently in Airtable. Field names follow the
-        // existing snake_case Emails table convention; failures are swallowed.
+        // ─── 6. Silently record the purchase in Airtable Emails ─────────────
         try {
           await postEmail({
             Email: buyerEmail || "",
             Date: datePart,
             Source: "PaidReport",
             Address: searchAddress,
-            Facilities_100km: facilities100 || facsNear.length || 0,
-            High_Risk_Count: highRisk || counts.HIGH || 0,
+            Facilities_100km: Number.isFinite(facilities100) ? facilities100 : totalFound,
+            High_Risk_Count: Number.isFinite(highRisk) ? highRisk : counts.HIGH,
           });
         } catch (e) { console.warn("[HumZones] Emails capture failed:", e); }
 
@@ -1484,7 +1524,7 @@ const ReportSuccessPage = ({ onBack, onNavigate }) => {
         setStatus("ready");
       } catch (e) {
         console.error("[HumZones] Report generation failed:", e);
-        setErrMsg("We hit a snag generating your PDF. Please refresh this page or contact support and we will deliver it manually.");
+        setErrMsg(e.message || "We hit a snag generating your PDF. Please refresh this page or contact support and we will deliver it manually.");
         setStatus("error");
       }
     };
@@ -1508,7 +1548,7 @@ const ReportSuccessPage = ({ onBack, onNavigate }) => {
       </div>
 
       <main style={{maxWidth:640,margin:"0 auto",padding:"24px 24px 80px",textAlign:"center"}}>
-        {status === "generating" && (
+        {(status === "loading" || status === "generating") && (
           <>
             <div className="slow-pulse" style={{width:84,height:84,borderRadius:"50%",background:"linear-gradient(135deg,#10b981,#059669)",margin:"24px auto 22px",display:"flex",alignItems:"center",justifyContent:"center",boxShadow:"0 18px 50px rgba(16,185,129,.4)"}}>
               <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -1516,11 +1556,11 @@ const ReportSuccessPage = ({ onBack, onNavigate }) => {
               </svg>
             </div>
             <h1 style={{fontSize:30,fontWeight:900,letterSpacing:"-.01em",marginBottom:10,color:"#fff"}}>Payment Confirmed!</h1>
-            <p style={{fontSize:17,color:"rgba(255,255,255,.78)",lineHeight:1.6,marginBottom:30}}>Generating Your Report...</p>
+            <p style={{fontSize:17,color:"rgba(255,255,255,.78)",lineHeight:1.6,marginBottom:30}}>{stepMsg}</p>
             <div className="hz-progress-track" style={{maxWidth:420,margin:"0 auto 14px"}}>
               <div className="hz-progress-fill" style={{transform:`scaleX(${progress/100})`}}/>
             </div>
-            <p style={{fontSize:13,color:"rgba(255,255,255,.55)",letterSpacing:".10em",textTransform:"uppercase",fontWeight:700}}>{stepMsg}</p>
+            <p style={{fontSize:12,color:"rgba(255,255,255,.5)",letterSpacing:".10em",textTransform:"uppercase",fontWeight:700}}>Please keep this tab open</p>
           </>
         )}
 
@@ -1533,13 +1573,13 @@ const ReportSuccessPage = ({ onBack, onNavigate }) => {
             </div>
             <h1 style={{fontSize:30,fontWeight:900,letterSpacing:"-.01em",marginBottom:10,color:"#fff"}}>Your report has been downloaded!</h1>
             <p style={{fontSize:16,color:"rgba(255,255,255,.75)",lineHeight:1.65,marginBottom:28,maxWidth:520,marginLeft:"auto",marginRight:"auto"}}>
-              Check your downloads folder for the PDF. If you did not receive it, click below to retry.
+              Check your downloads folder for the PDF. If it did not start, click below to retry.
             </p>
             <div style={{display:"flex",gap:12,justifyContent:"center",flexWrap:"wrap"}}>
               <button onClick={goHome} className="cta-pulse" style={{padding:"16px 30px",borderRadius:14,border:"none",background:"linear-gradient(135deg,#ef4444,#f97316)",color:"#fff",fontSize:16,fontWeight:900,letterSpacing:".02em",cursor:"pointer",fontFamily:"inherit",boxShadow:"0 10px 32px rgba(239,68,68,.45)"}}>
                 Back to HumZones
               </button>
-              <button onClick={() => { startedRef.current = false; setStatus("generating"); setProgress(8); setStepMsg("Restarting..."); setTimeout(() => window.location.reload(), 100); }} style={{padding:"16px 24px",borderRadius:14,border:"1px solid rgba(255,255,255,.22)",background:"rgba(255,255,255,.06)",color:"#fff",fontSize:14,fontWeight:800,letterSpacing:".04em",cursor:"pointer",fontFamily:"inherit"}}>
+              <button onClick={() => window.location.reload()} style={{padding:"16px 24px",borderRadius:14,border:"1px solid rgba(255,255,255,.22)",background:"rgba(255,255,255,.06)",color:"#fff",fontSize:14,fontWeight:800,letterSpacing:".04em",cursor:"pointer",fontFamily:"inherit"}}>
                 Download Again
               </button>
             </div>
