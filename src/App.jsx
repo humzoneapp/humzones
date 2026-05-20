@@ -353,6 +353,14 @@ const CSS = `
   @keyframes spin{to{transform:rotate(360deg)}}
   @keyframes pulse{0%,100%{opacity:.55}50%{opacity:1}}
 
+  /* Hard guard against horizontal overflow shifting content sideways on iPhone. */
+  html,body{width:100%;max-width:100%;overflow-x:hidden;margin:0;padding:0}
+
+  /* Stats strip: outer container has zero padding/margin so the inner grid
+     is the single source of truth for horizontal spacing. */
+  .stats-container{width:100%;margin:0;padding:0;box-sizing:border-box}
+  .stats-row *{margin-left:0!important;margin-right:0!important}
+
   .a1{animation:fadeUp .55s ease both}
   .a2{animation:fadeUp .55s .1s ease both}
   .a3{animation:fadeUp .55s .2s ease both}
@@ -395,8 +403,8 @@ const CSS = `
     .hero h1{font-size:48px!important}
     .scroll-hint{display:none!important}
     .search-row{flex-direction:column!important}
-    .stats-row{display:grid!important;grid-template-columns:1fr 1fr!important;gap:24px 12px!important;padding:20px 16px!important;width:100%!important;max-width:520px!important;margin-left:auto!important;margin-right:auto!important;box-sizing:border-box!important;justify-content:center!important;justify-items:center!important}
-    .stat-item{width:100%!important;min-width:0!important;justify-self:center!important;margin:0!important;padding:0!important;box-sizing:border-box!important}
+    .stats-row{display:grid!important;grid-template-columns:1fr 1fr!important;gap:24px 12px!important;padding:24px 16px!important;width:100%!important;max-width:520px!important;margin:0 auto!important;margin-left:auto!important;margin-right:auto!important;box-sizing:border-box!important;justify-content:center!important;justify-items:center!important}
+    .stat-item{width:100%!important;min-width:0!important;justify-self:center!important;margin:0!important;margin-left:0!important;margin-right:0!important;padding:0!important;box-sizing:border-box!important}
     .sym-grid{grid-template-columns:1fr!important}
     .nums-grid{grid-template-columns:1fr!important}
     .fac-stats{grid-template-columns:1fr 1fr!important}
@@ -541,7 +549,7 @@ const MethodologyPage = ({ onBack }) => {
   );
 
   return (
-    <div style={{minHeight:"100vh",background:"#f1f5f9"}}>
+    <div style={{minHeight:"100vh",background:"#f1f5f9",width:"100%",maxWidth:"100vw",overflowX:"hidden"}}>
       {/* TOP BAR */}
       <div style={{background:"linear-gradient(135deg,#020c1b 0%,#0f172a 50%,#1e0535 100%)",padding:"22px 24px",display:"flex",alignItems:"center",justifyContent:"space-between",gap:14,flexWrap:"wrap"}}>
         <a href="/" onClick={e=>{e.preventDefault();onBack();}} className="ext-link" style={{display:"inline-flex",alignItems:"center",gap:8,color:"rgba(255,255,255,.85)",textDecoration:"none",fontSize:13,fontWeight:800,letterSpacing:".10em"}}>
@@ -1016,7 +1024,7 @@ export default function App() {
       {path === "/methodology" ? (
         <MethodologyPage onBack={()=>navigate("/")}/>
       ) : (
-      <div style={{minHeight:"100vh",background:"#f1f5f9"}}>
+      <div style={{minHeight:"100vh",background:"#f1f5f9",width:"100%",maxWidth:"100vw",overflowX:"hidden"}}>
 
         {/* HERO */}
         <section className="hero" style={{position:"relative",overflow:"visible",minHeight:"100vh",background:"linear-gradient(150deg,#020c1b 0%,#0f172a 35%,#1e0535 65%,#0a1628 100%)",backgroundSize:"400% 400%",animation:"gradShift 14s ease infinite",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:"80px 24px",textAlign:"center"}}>
@@ -1154,13 +1162,15 @@ export default function App() {
         )}
 
         {/* STATS */}
-        <div ref={statsRef} className="stats-row" style={{background:"#fff",borderBottom:"1px solid #e2e8f0",padding:"24px 16px",display:"flex",justifyContent:"center",alignItems:"flex-start",gap:16,flexWrap:"nowrap",boxSizing:"border-box",width:"100%"}}>
-          {STATS.map((s,i)=>(
-            <div key={i} className="stat-item" style={{textAlign:"center",flex:"1 1 25%",width:"25%",minWidth:0,boxSizing:"border-box"}}>
-              <div className="stat-val" style={{fontSize:32,fontWeight:900,letterSpacing:"-.02em",display:"block",lineHeight:1.1,background:"linear-gradient(135deg,#ef4444,#f97316)",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent"}}>{s.val}</div>
-              <div style={{fontSize:11,color:"#94a3b8",letterSpacing:".05em",textTransform:"uppercase",fontWeight:700,marginTop:5,lineHeight:1.35,overflowWrap:"break-word"}}>{s.label}</div>
-            </div>
-          ))}
+        <div className="stats-container" style={{background:"#fff",borderBottom:"1px solid #e2e8f0",width:"100%",margin:0,padding:0,boxSizing:"border-box"}}>
+          <div ref={statsRef} className="stats-row" style={{display:"grid",gridTemplateColumns:"repeat(4, 1fr)",width:"100%",maxWidth:1040,margin:"0 auto",padding:"24px 16px",gap:"24px 16px",boxSizing:"border-box",alignItems:"flex-start",justifyItems:"center"}}>
+            {STATS.map((s,i)=>(
+              <div key={i} className="stat-item" style={{textAlign:"center",width:"100%",minWidth:0,margin:0,padding:0,boxSizing:"border-box"}}>
+                <div className="stat-val" style={{fontSize:32,fontWeight:900,letterSpacing:"-.02em",display:"block",lineHeight:1.1,background:"linear-gradient(135deg,#ef4444,#f97316)",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent"}}>{s.val}</div>
+                <div style={{fontSize:11,color:"#94a3b8",letterSpacing:".05em",textTransform:"uppercase",fontWeight:700,marginTop:5,lineHeight:1.35,overflowWrap:"break-word"}}>{s.label}</div>
+              </div>
+            ))}
+          </div>
         </div>
 
         {/* MAIN */}
