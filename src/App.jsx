@@ -1799,9 +1799,12 @@ export default function App() {
           {nearLoc && !dc && !loading && nearEmailUnlocked && nearResults.length > 0 && (
             <div className="fade-in" style={{background:"linear-gradient(150deg,#0a1628 0%,#0f172a 50%,#1e0535 100%)",borderRadius:18,padding:"36px 28px 30px",textAlign:"center",border:"1px solid rgba(249,115,22,.32)",boxShadow:"0 18px 50px rgba(0,0,0,.35),inset 0 1px 0 rgba(255,255,255,.05)",marginBottom:28,width:"100%",maxWidth:"100%",boxSizing:"border-box",marginLeft:0,marginRight:0}}>
               <div style={{fontSize:42,marginBottom:12,lineHeight:1}} role="img" aria-label="Fire">🔥</div>
-              <h3 style={{fontSize:24,fontWeight:900,color:"#fff",marginBottom:12,letterSpacing:"-.01em",lineHeight:1.25}}>
-                Unlock Your Full HumZones Area Report
+              <h3 style={{fontSize:24,fontWeight:900,color:"#fff",marginBottom:8,letterSpacing:"-.01em",lineHeight:1.25}}>
+                There&apos;s More You Should Know
               </h3>
+              <div style={{fontSize:16,color:"#f97316",fontWeight:700,marginBottom:14,letterSpacing:".01em"}}>
+                Unlock Your Full HumZones Area Report
+              </div>
               <p style={{fontSize:15,color:"rgba(255,255,255,.78)",marginBottom:24,lineHeight:1.7,maxWidth:560,marginLeft:"auto",marginRight:"auto"}}>
                 {nearRadius === 100 ? (
                   <>You found {nearResults.length} {nearResults.length === 1 ? "facility" : "facilities"} within 100km. Your Full Report includes detailed health analysis, EMF readings, noise levels and risk assessments for every facility near you.</>
@@ -1813,7 +1816,7 @@ export default function App() {
                 onClick={handleGetFullReport}
                 style={{padding:"16px 32px",borderRadius:14,border:"none",background:"linear-gradient(135deg,#ef4444,#f97316)",color:"#fff",fontSize:17,fontWeight:900,letterSpacing:".02em",cursor:"pointer",fontFamily:"inherit",boxShadow:"0 10px 32px rgba(239,68,68,.45)"}}
               >
-                Get My Full Report
+                Show Me Everything
               </button>
               <p style={{fontSize:12,color:"rgba(255,255,255,.55)",marginTop:14,lineHeight:1.6}}>
                 Instant PDF download. Personalized to your location.
