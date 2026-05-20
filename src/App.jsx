@@ -351,6 +351,7 @@ const CSS = `
   @keyframes shimmer{0%{background-position:-200% center}100%{background-position:200% center}}
   @keyframes floatAnim{0%,100%{transform:translateY(0)}50%{transform:translateY(-10px)}}
   @keyframes spin{to{transform:rotate(360deg)}}
+  @keyframes pulse{0%,100%{opacity:.55}50%{opacity:1}}
 
   .a1{animation:fadeUp .55s ease both}
   .a2{animation:fadeUp .55s .1s ease both}
@@ -359,6 +360,7 @@ const CSS = `
   .floating{animation:floatAnim 5s ease-in-out infinite}
   .spinning{animation:spin 1s linear infinite}
   .skeleton{background:linear-gradient(90deg,#e2e8f0 25%,#f1f5f9 50%,#e2e8f0 75%);background-size:200% 100%;animation:shimmer 1.4s linear infinite;border-radius:8px}
+  .pulse{background:#e2e8f0;border-radius:8px;animation:pulse 1.4s ease-in-out infinite;display:block}
 
   .srch:focus{outline:none!important;background:rgba(255,255,255,.2)!important;border-color:rgba(255,255,255,.5)!important}
   .srch::placeholder{color:rgba(255,255,255,.5)}
@@ -639,7 +641,9 @@ export default function App() {
   const [qEmail,setQEmail]       = useState("");
   const [qEmailStep,setQEmailStep] = useState(false); // show email capture after quiz
   const [qEmailSent,setQEmailSent] = useState(false);
-  const [statVals,setStatVals]   = useState([0,0,0,0]);
+  // Stats 1-3 are hardcoded so they show their final values from first paint;
+  // stat 4 (facility count) starts at 0 and animates up when Airtable data arrives.
+  const [statVals,setStatVals]   = useState([1000000000,4500000,1000000000000,0]);
   const [showScrollTop,setShowScrollTop] = useState(false);
   // "Find Data Centers Near Me" panel state
   const [nearLoc,setNearLoc]     = useState(null);       // {lat,lng,label}
@@ -671,13 +675,14 @@ export default function App() {
 
   useEffect(()=>{
     if(loading) return;
-    const targets=[1000000000,4500000,1000000000000,facs.length];
-    let frame=0;
-    const iv=setInterval(()=>{
+    // Animate only the dynamic facility count; stats 1-3 stay at their final values.
+    const target = facs.length;
+    let frame = 0;
+    const iv = setInterval(()=>{
       frame++;
-      const e=1-Math.pow(1-frame/80,3);
-      setStatVals(targets.map(t=>Math.round(t*e)));
-      if(frame>=80){ clearInterval(iv); setStatVals(targets); }
+      const e = 1 - Math.pow(1 - frame/80, 3);
+      setStatVals(prev=>[prev[0],prev[1],prev[2],Math.round(target*e)]);
+      if(frame>=80){ clearInterval(iv); setStatVals(prev=>[prev[0],prev[1],prev[2],target]); }
     },2400/80);
     return ()=>clearInterval(iv);
   },[loading,facs.length]);
@@ -967,7 +972,7 @@ export default function App() {
     {val:`~${(statVals[0]/1e9).toFixed(2).replace(/\.?0+$/,"")} Billion`,    label:"Gallons of water consumed by data centers daily"},
     {val:`~${(statVals[1]/1e6).toFixed(1)} Million`,                         label:"Americans living within 1 mile of a major data center"},
     {val:`~${(statVals[2]/1e12).toFixed(2).replace(/\.?0+$/,"")} Trillion`,  label:"Watts of power consumed by data centers globally"},
-    {val:loading?"...":statVals[3],                                          label:"Facilities in our database"},
+    {val:loading?"---":statVals[3],                                          label:"Facilities in our database"},
   ];
 
   return (
@@ -1005,14 +1010,20 @@ export default function App() {
 
           {/* SEARCH */}
           <div className="a4 search-row" style={{display:"flex",gap:14,width:"100%",maxWidth:740,position:"relative",zIndex:100}}>
-            <div ref={cRef} style={{flex:1,position:"relative"}}>
+            <div ref={cRef} style={{flex:1,position:"relative",opacity:loading?.7:1,transition:"opacity .2s"}}>
               <div style={{position:"relative",display:"flex",alignItems:"center"}}>
                 <span style={{position:"absolute",left:18,zIndex:2,pointerEvents:"none",display:"flex"}}><Icon name="globe" size={20} color="rgba(255,255,255,.7)"/></span>
                 <input className="srch" value={cInput}
                   onChange={e=>{setCInput(e.target.value);openCDrop();}}
-                  onFocus={openCDrop}
-                  placeholder="Select a country..."
-                  style={{width:"100%",padding:"20px 18px 20px 52px",fontSize:17,fontWeight:500,fontFamily:"inherit",borderRadius:16,border:"1.5px solid rgba(255,255,255,.18)",background:"rgba(255,255,255,.11)",color:"#fff",backdropFilter:"blur(16px)",boxSizing:"border-box",boxShadow:"0 8px 32px rgba(0,0,0,.25),inset 0 1px 0 rgba(255,255,255,.12)"}}/>
+                  onFocus={loading?undefined:openCDrop}
+                  disabled={loading}
+                  placeholder={loading?"Loading data...":"Select a country..."}
+                  style={{width:"100%",padding:"20px 18px 20px 52px",fontSize:17,fontWeight:500,fontFamily:"inherit",borderRadius:16,border:"1.5px solid rgba(255,255,255,.18)",background:"rgba(255,255,255,.11)",color:"#fff",backdropFilter:"blur(16px)",boxSizing:"border-box",boxShadow:"0 8px 32px rgba(0,0,0,.25),inset 0 1px 0 rgba(255,255,255,.12)",cursor:loading?"wait":"text"}}/>
+                {loading && (
+                  <span style={{position:"absolute",right:16,display:"flex",pointerEvents:"none"}}>
+                    <span className="spinning" style={{width:18,height:18,border:"2px solid rgba(255,255,255,.25)",borderTop:"2px solid rgba(255,255,255,.85)",borderRadius:"50%",display:"block"}}/>
+                  </span>
+                )}
               </div>
             </div>
             <div ref={rRef} style={{flex:1,position:"relative",opacity:(country&&hasRegions)?1:.45,pointerEvents:(country&&hasRegions)?"all":"none",transition:"opacity .2s"}}>
@@ -1242,32 +1253,20 @@ export default function App() {
           )}
 
           {loading && !nearLoc && (
-            <div style={{background:"#fff",borderRadius:24,overflow:"hidden",boxShadow:"0 8px 48px rgba(0,0,0,.10)"}} aria-busy="true" aria-label="Loading facility data">
-              {/* image area placeholder */}
-              <div className="skeleton" style={{height:300,borderRadius:0}}/>
-              {/* address bar placeholder */}
-              <div style={{padding:"18px 24px",borderBottom:"1px solid #e2e8f0",display:"flex",flexDirection:"column",gap:9}}>
-                <div className="skeleton" style={{height:15,width:"55%"}}/>
-                <div className="skeleton" style={{height:11,width:"30%"}}/>
-              </div>
-              {/* body placeholder */}
-              <div style={{padding:"28px 24px"}}>
-                <div className="skeleton" style={{height:26,width:"58%",marginBottom:12}}/>
-                <div className="skeleton" style={{height:14,width:"34%",marginBottom:28}}/>
-                <div className="nums-grid" style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16}}>
-                  {[0,1,2,3,4,5].map(i=>(
-                    <div key={i} style={{border:"2px solid #f1f5f9",borderRadius:16,padding:22}}>
-                      <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:14}}>
-                        <div className="skeleton" style={{width:34,height:34,borderRadius:10}}/>
-                        <div className="skeleton" style={{height:13,width:"50%"}}/>
-                      </div>
-                      <div className="skeleton" style={{height:24,width:"42%",marginBottom:12}}/>
-                      <div className="skeleton" style={{height:11,width:"100%",marginBottom:7}}/>
-                      <div className="skeleton" style={{height:11,width:"78%"}}/>
-                    </div>
-                  ))}
+            <div className="near-card-skel-list" style={{display:"flex",flexDirection:"column",gap:14}} aria-busy="true" aria-label="Loading facility data">
+              {[0,1,2,3,4,5].map(i=>(
+                <div key={i} className="near-card" style={{background:"#fff",borderRadius:18,boxShadow:"0 4px 18px rgba(0,0,0,.06)",padding:"18px 22px",display:"flex",alignItems:"center",gap:16}}>
+                  <div style={{flex:1,minWidth:0}}>
+                    <div className="pulse" style={{height:17,width:"58%",marginBottom:8}}/>
+                    <div className="pulse" style={{height:12,width:"78%",marginBottom:6}}/>
+                    <div className="pulse" style={{height:12,width:"34%"}}/>
+                  </div>
+                  <div className="near-right" style={{display:"flex",flexDirection:"column",gap:8,alignItems:"flex-end",flexShrink:0,marginLeft:"auto"}}>
+                    <div className="pulse" style={{height:26,width:96,borderRadius:999}}/>
+                    <div className="pulse" style={{height:18,width:130,borderRadius:999}}/>
+                  </div>
                 </div>
-              </div>
+              ))}
             </div>
           )}
 
