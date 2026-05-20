@@ -385,16 +385,18 @@ const CSS = `
      animation-delay (set inline per icon) makes them breathe out of phase
      rather than as a single block. Hover pauses the bob so the scale-up
      and brand-color glow read cleanly. */
-  .share-row{display:flex;justify-content:center;align-items:flex-start;gap:16px;flex-wrap:wrap}
-  .share-link{display:inline-flex;flex-direction:column;align-items:center;gap:8px;text-decoration:none;color:#64748b}
-  .share-bubble{width:44px;height:44px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;transition:transform .2s ease, box-shadow .2s ease;animation:shareBob 3.4s ease-in-out infinite;will-change:transform}
+  .share-row{display:flex;justify-content:center;align-items:flex-start;gap:16px;flex-wrap:nowrap}
+  .share-link{display:inline-flex;flex-direction:column;align-items:center;gap:8px;text-decoration:none;color:#64748b;flex-shrink:0}
+  .share-bubble{width:44px;height:44px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;transition:transform .2s ease, box-shadow .2s ease;animation:shareBob 3.4s ease-in-out infinite;will-change:transform;flex-shrink:0}
   .share-link:hover .share-bubble{transform:scale(1.1);box-shadow:0 10px 26px var(--share-glow, rgba(15,23,42,.18));animation-play-state:paused}
-  .share-label{font-size:11px;font-weight:700;letter-spacing:.04em;color:#94a3b8;text-transform:uppercase}
+  .share-label{font-size:11px;font-weight:700;letter-spacing:.04em;color:#94a3b8;text-transform:uppercase;white-space:nowrap}
+  .share-section{padding:24px 16px}
   @keyframes shareBob{0%,100%{transform:translateY(0)}50%{transform:translateY(-5px)}}
   @media(max-width:640px){
-    .share-row{gap:12px}
-    .share-bubble{width:40px;height:40px}
-    .share-label{font-size:10px}
+    .share-section{padding:20px 8px}
+    .share-row{gap:8px}
+    .share-bubble{width:32px;height:32px}
+    .share-label{font-size:9px;letter-spacing:.02em}
   }
   .hz-progress-track{position:relative;width:100%;height:10px;background:rgba(255,255,255,.08);border:1px solid rgba(249,115,22,.35);border-radius:999px;overflow:hidden}
   .hz-progress-fill{position:absolute;inset:0;background:linear-gradient(90deg,#ef4444,#f97316);transform-origin:left;transition:transform .4s ease}
@@ -747,7 +749,7 @@ const SHARE_TARGETS = [
 ];
 
 const ShareSection = () => (
-  <section aria-label="Share HumZones" style={{background:"#fff",padding:"24px 16px",textAlign:"center",borderBottom:"1px solid #f1f5f9"}}>
+  <section aria-label="Share HumZones" className="share-section" style={{background:"#fff",textAlign:"center",borderBottom:"1px solid #f1f5f9"}}>
     <p style={{fontSize:13,color:"#94a3b8",margin:0,marginBottom:14,fontWeight:600,letterSpacing:".02em"}}>
       Help your neighbors know what is near them
     </p>
