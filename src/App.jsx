@@ -1751,7 +1751,7 @@ export default function App() {
             )}
           </section>
 
-          {/* NEARBY RESULTS — wrapped so nothing inside can shift the page sideways */}
+          {/* NEARBY RESULTS: wrapped so nothing inside can shift the page sideways */}
           {nearLoc && !dc && (
           <div className="near-me-results" style={{width:"100%",maxWidth:"100%",boxSizing:"border-box",overflowX:"hidden",marginLeft:0,marginRight:0}}>
           {loading && (
