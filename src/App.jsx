@@ -455,11 +455,12 @@ const CSS = `
     .tabs-row{padding:12px 14px!important}
     .tab-content{padding:20px 16px 28px!important}
     .fac-header{padding:20px 16px!important}
-    .main{padding:20px 16px 48px!important}
+    .main{padding:20px 16px 96px!important}
     .rings{display:none!important}
     .stat-val{font-size:20px!important}
     .addr-bar{flex-direction:column!important;align-items:flex-start!important;gap:10px!important;padding:14px 16px!important}
     .near-panel{padding:22px 16px 18px!important}
+    .near-status-row{flex-direction:column!important;align-items:flex-start!important;gap:10px!important}
     .near-card{padding:16px!important}
     .near-card .near-right{margin-left:auto!important}
   }
@@ -1748,12 +1749,12 @@ export default function App() {
             )}
 
             {nearLoc && (
-              <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:14,paddingTop:14,borderTop:"1px solid #f1f5f9",marginTop:16,flexWrap:"wrap"}}>
+              <div className="near-status-row" style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:14,paddingTop:14,borderTop:"1px solid #f1f5f9",marginTop:16,flexWrap:"wrap"}}>
                 <div style={{fontSize:13,color:"#475569",flex:1,minWidth:0}}>
                   Searching near: <strong style={{color:"#0f172a"}}>{nearLoc.label.length>80 ? nearLoc.label.slice(0,80)+"..." : nearLoc.label}</strong>
                   {" "}<span style={{color:"#94a3b8"}}>({nearResults.length} within {nearRadius}km)</span>
                 </div>
-                <button onClick={clearNear} style={{padding:"6px 14px",borderRadius:8,border:"1px solid #e2e8f0",background:"#fff",color:"#475569",fontWeight:700,fontSize:13,cursor:"pointer",fontFamily:"inherit"}}>Clear</button>
+                <button onClick={clearNear} style={{padding:"6px 14px",borderRadius:8,border:"1px solid #e2e8f0",background:"#fff",color:"#475569",fontWeight:700,fontSize:13,cursor:"pointer",fontFamily:"inherit",alignSelf:"flex-start"}}>Clear</button>
               </div>
             )}
           </section>
