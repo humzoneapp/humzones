@@ -916,7 +916,19 @@ const ReportLandingPage = ({ onBack, onNavigate }) => {
             </div>
           </div>
 
-          <div style={{marginTop:22,marginBottom:18}}>
+          {/* Strong disclaimer box, above the buy button */}
+          <div style={{maxWidth:620,margin:"22px auto 22px",padding:"16px 18px",background:"rgba(0,0,0,.38)",borderLeft:"4px solid #f97316",borderRadius:10,display:"flex",alignItems:"flex-start",gap:12,textAlign:"left",boxShadow:"inset 0 1px 0 rgba(255,255,255,.04)"}}>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#f97316" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={{flexShrink:0,marginTop:2}}>
+              <path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+              <line x1="12" y1="9"  x2="12" y2="13"/>
+              <line x1="12" y1="17" x2="12.01" y2="17"/>
+            </svg>
+            <p style={{fontSize:13,color:"rgba(255,255,255,.82)",lineHeight:1.6,margin:0}}>
+              <strong style={{color:"#f97316",fontWeight:900,letterSpacing:".02em"}}>Important:</strong> The HumZones Area Report is based on research-compiled data and modeling estimates. All figures including EMF readings, noise levels, power consumption, CO2 estimates and water usage are approximations derived from public sources and industry standard formulas. They are not certified field measurements and should not be used as legal, medical or environmental evidence. Risk levels are relative indicators for public awareness only. Residents with health concerns should consult qualified medical and environmental professionals.
+            </p>
+          </div>
+
+          <div style={{marginTop:8,marginBottom:18}}>
             <button onClick={handleBuyReport} className="cta-pulse" style={{...primaryBtn(),padding:"20px 40px",fontSize:18}}>
               Yes, Get My Full Report for $14.99
             </button>
@@ -942,6 +954,13 @@ const ReportLandingPage = ({ onBack, onNavigate }) => {
           </p>
         </div>
       </section>
+
+      {/* FOOTER DISCLAIMER */}
+      <footer style={{background:"#020c1b",borderTop:"1px solid rgba(249,115,22,.18)",padding:"26px 20px 30px"}}>
+        <p style={{fontSize:12,color:"rgba(255,255,255,.48)",lineHeight:1.7,maxWidth:780,margin:"0 auto",textAlign:"center"}}>
+          HumZones reports are informational resources only. Data is compiled from public sources including utility filings, operator announcements and industry databases. Figures are modeled estimates and actual values may vary significantly by facility, season and operating conditions. Purchase of this report does not constitute medical, legal or scientific advice. All sales are final. Report delivery is instant via PDF download.
+        </p>
+      </footer>
     </div>
   );
 };
