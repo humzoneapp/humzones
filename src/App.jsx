@@ -1061,6 +1061,9 @@ export default function App() {
   const topRef  = useRef(null);
   // Scroll position to restore when the user leaves a facility detail view.
   const prevScrollRef = useRef(0);
+  // Anchor for smoothly scrolling to the "X facilities found within Xkm"
+  // sentence once Near Me search results render.
+  const resultsHeadingRef = useRef(null);
 
   useEffect(()=>{
     cachedFetch("Facilities",{"fields[]":FACILITY_LIST_FIELDS})
@@ -1244,7 +1247,7 @@ export default function App() {
         setNearStatus("idle"); setSel(null);
         // Reset scroll after the DOM updates so a stray horizontal offset
         // (which can appear on iPhone when long content first renders) is gone.
-        setTimeout(()=>{ try{ window.scrollTo(0,0); }catch{} }, 50);
+        setTimeout(()=>{ try{ resultsHeadingRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }); }catch{} }, 100);
       },
       err => {
         setNearError(err.code===1?"Location permission denied. Try entering an address instead.":"Could not determine your location.");
@@ -1295,7 +1298,7 @@ export default function App() {
       setNearStatus("idle"); setSel(null);
       // Reset scroll after the DOM updates so a stray horizontal offset
       // (which can appear on iPhone when long content first renders) is gone.
-      setTimeout(()=>{ try{ window.scrollTo(0,0); }catch{} }, 50);
+      setTimeout(()=>{ try{ resultsHeadingRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }); }catch{} }, 100);
     }catch(err){
       console.error("Address geocoding failed:", err);
       setNearError("Address lookup failed. Check your connection and try again.");
@@ -1770,9 +1773,10 @@ export default function App() {
           )}
           {nearLoc && !dc && !loading && (
             <div
+              ref={resultsHeadingRef}
               key={`near-count-${nearLoc.lat}-${nearLoc.lng}-${nearRadius}-${nearRisk}-${justUnlocked?"u":"l"}`}
               className="fade-in"
-              style={{textAlign:"center",fontSize:28,fontWeight:900,letterSpacing:"-.02em",lineHeight:1.25,margin:"4px 0 20px",width:"100%",maxWidth:"100%",boxSizing:"border-box",overflowWrap:"break-word",padding:"0 4px"}}
+              style={{textAlign:"center",fontSize:28,fontWeight:900,letterSpacing:"-.02em",lineHeight:1.25,margin:"4px 0 20px",width:"100%",maxWidth:"100%",boxSizing:"border-box",overflowWrap:"break-word",padding:"0 4px",scrollMarginTop:16}}
             >
               {nearResults.length > 0 ? (
                 justUnlocked && nearResults.length > 2 ? (
