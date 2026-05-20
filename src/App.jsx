@@ -354,6 +354,7 @@ const CSS = `
   @keyframes pulse{0%,100%{opacity:.55}50%{opacity:1}}
 
   /* Hard guard against horizontal overflow shifting content sideways on iPhone. */
+  *{box-sizing:border-box}
   html,body{width:100%;max-width:100%;overflow-x:hidden;margin:0;padding:0}
 
   /* Stats strip: outer container has zero padding/margin so the inner grid
@@ -403,7 +404,7 @@ const CSS = `
     .hero h1{font-size:48px!important}
     .scroll-hint{display:none!important}
     .search-row{flex-direction:column!important}
-    .stats-row{display:grid!important;grid-template-columns:1fr 1fr!important;gap:24px 12px!important;padding:24px 16px!important;width:100%!important;max-width:520px!important;margin:0 auto!important;margin-left:auto!important;margin-right:auto!important;box-sizing:border-box!important;justify-content:center!important;justify-items:center!important}
+    .stats-row{display:grid!important;grid-template-columns:1fr 1fr!important;gap:24px 12px!important;padding:24px 20px!important;width:100%!important;max-width:100%!important;margin:0!important;box-sizing:border-box!important;justify-items:center!important}
     .stat-item{width:100%!important;min-width:0!important;justify-self:center!important;margin:0!important;margin-left:0!important;margin-right:0!important;padding:0!important;box-sizing:border-box!important}
     .sym-grid{grid-template-columns:1fr!important}
     .nums-grid{grid-template-columns:1fr!important}
@@ -1162,7 +1163,7 @@ export default function App() {
         )}
 
         {/* STATS */}
-        <div className="stats-container" style={{background:"#fff",borderBottom:"1px solid #e2e8f0",width:"100%",margin:0,padding:0,boxSizing:"border-box"}}>
+        <div className="stats-container" style={{background:"#fff",borderBottom:"1px solid #e2e8f0",width:"100%",margin:0,padding:0,paddingLeft:0,paddingRight:0,overflowX:"hidden",boxSizing:"border-box"}}>
           <div ref={statsRef} className="stats-row" style={{display:"grid",gridTemplateColumns:"repeat(4, 1fr)",width:"100%",maxWidth:1040,margin:"0 auto",padding:"24px 16px",gap:"24px 16px",boxSizing:"border-box",alignItems:"flex-start",justifyItems:"center"}}>
             {STATS.map((s,i)=>(
               <div key={i} className="stat-item" style={{textAlign:"center",width:"100%",minWidth:0,margin:0,padding:0,boxSizing:"border-box"}}>
