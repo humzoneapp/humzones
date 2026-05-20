@@ -395,8 +395,8 @@ const CSS = `
     .hero h1{font-size:48px!important}
     .scroll-hint{display:none!important}
     .search-row{flex-direction:column!important}
-    .stats-row{display:grid!important;grid-template-columns:1fr 1fr!important;gap:24px 16px!important;padding:20px 16px!important}
-    .stat-item{width:auto!important}
+    .stats-row{display:grid!important;grid-template-columns:1fr 1fr!important;gap:24px 12px!important;padding:20px 16px!important;width:100%!important;max-width:520px!important;margin-left:auto!important;margin-right:auto!important;box-sizing:border-box!important;justify-content:center!important;justify-items:center!important}
+    .stat-item{width:100%!important;min-width:0!important;justify-self:center!important;margin:0!important;padding:0!important;box-sizing:border-box!important}
     .sym-grid{grid-template-columns:1fr!important}
     .nums-grid{grid-template-columns:1fr!important}
     .fac-stats{grid-template-columns:1fr 1fr!important}
@@ -641,9 +641,12 @@ export default function App() {
   const [qEmail,setQEmail]       = useState("");
   const [qEmailStep,setQEmailStep] = useState(false); // show email capture after quiz
   const [qEmailSent,setQEmailSent] = useState(false);
-  // Stats 1-3 are hardcoded so they show their final values from first paint;
-  // stat 4 (facility count) starts at 0 and animates up when Airtable data arrives.
-  const [statVals,setStatVals]   = useState([1000000000,4500000,1000000000000,0]);
+  // All four stats animate from 0 once the strip scrolls into view. Stats 1-3
+  // have hardcoded targets and run independently of Airtable; stat 4 waits for
+  // facs to load. Both kick off via the same statsVisible flag.
+  const [statVals,setStatVals]   = useState([0,0,0,0]);
+  const [statsVisible,setStatsVisible] = useState(false);
+  const statsRef                 = useRef(null);
   const [showScrollTop,setShowScrollTop] = useState(false);
   // "Find Data Centers Near Me" panel state
   const [nearLoc,setNearLoc]     = useState(null);       // {lat,lng,label}
@@ -673,19 +676,51 @@ export default function App() {
     return () => window.removeEventListener("scroll", handleScroll);
   },[]);
 
+  // Trigger stats animations once the strip becomes visible. IntersectionObserver
+  // covers older browsers via a fallback that just flips the flag immediately.
   useEffect(()=>{
-    if(loading) return;
-    // Animate only the dynamic facility count; stats 1-3 stay at their final values.
-    const target = facs.length;
-    let frame = 0;
-    const iv = setInterval(()=>{
+    if(statsVisible || !statsRef.current) return;
+    if(typeof IntersectionObserver === "undefined"){ setStatsVisible(true); return; }
+    const obs = new IntersectionObserver(entries=>{
+      if(entries[0]?.isIntersecting){ setStatsVisible(true); obs.disconnect(); }
+    },{threshold:0.15});
+    obs.observe(statsRef.current);
+    return ()=>obs.disconnect();
+  },[statsVisible]);
+
+  // Hardcoded stats 1-3: animate as soon as the strip is in view; do NOT wait
+  // for Airtable data.
+  useEffect(()=>{
+    if(!statsVisible) return;
+    const targets=[1000000000,4500000,1000000000000];
+    let frame=0;
+    const iv=setInterval(()=>{
       frame++;
-      const e = 1 - Math.pow(1 - frame/80, 3);
+      const e=1-Math.pow(1-frame/80,3);
+      setStatVals(prev=>[
+        Math.round(targets[0]*e),
+        Math.round(targets[1]*e),
+        Math.round(targets[2]*e),
+        prev[3],
+      ]);
+      if(frame>=80){ clearInterval(iv); setStatVals(prev=>[targets[0],targets[1],targets[2],prev[3]]); }
+    },2400/80);
+    return ()=>clearInterval(iv);
+  },[statsVisible]);
+
+  // Dynamic stat 4 (facility count): animate when in view AND data has arrived.
+  useEffect(()=>{
+    if(!statsVisible || loading) return;
+    const target=facs.length;
+    let frame=0;
+    const iv=setInterval(()=>{
+      frame++;
+      const e=1-Math.pow(1-frame/80,3);
       setStatVals(prev=>[prev[0],prev[1],prev[2],Math.round(target*e)]);
       if(frame>=80){ clearInterval(iv); setStatVals(prev=>[prev[0],prev[1],prev[2],target]); }
     },2400/80);
     return ()=>clearInterval(iv);
-  },[loading,facs.length]);
+  },[statsVisible,loading,facs.length]);
 
   // Calculate dropdown position: called right when dropdown opens
   const openCDrop = useCallback(()=>{
@@ -1119,9 +1154,9 @@ export default function App() {
         )}
 
         {/* STATS */}
-        <div className="stats-row" style={{background:"#fff",borderBottom:"1px solid #e2e8f0",padding:"24px 16px",display:"flex",justifyContent:"center",alignItems:"flex-start",gap:16,flexWrap:"nowrap"}}>
+        <div ref={statsRef} className="stats-row" style={{background:"#fff",borderBottom:"1px solid #e2e8f0",padding:"24px 16px",display:"flex",justifyContent:"center",alignItems:"flex-start",gap:16,flexWrap:"nowrap",boxSizing:"border-box",width:"100%"}}>
           {STATS.map((s,i)=>(
-            <div key={i} className="stat-item" style={{textAlign:"center",flex:"1 1 25%",width:"25%",minWidth:0}}>
+            <div key={i} className="stat-item" style={{textAlign:"center",flex:"1 1 25%",width:"25%",minWidth:0,boxSizing:"border-box"}}>
               <div className="stat-val" style={{fontSize:32,fontWeight:900,letterSpacing:"-.02em",display:"block",lineHeight:1.1,background:"linear-gradient(135deg,#ef4444,#f97316)",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent"}}>{s.val}</div>
               <div style={{fontSize:11,color:"#94a3b8",letterSpacing:".05em",textTransform:"uppercase",fontWeight:700,marginTop:5,lineHeight:1.35,overflowWrap:"break-word"}}>{s.label}</div>
             </div>
