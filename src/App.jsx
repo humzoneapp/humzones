@@ -397,7 +397,8 @@ const CSS = `
 
   /* Hard guard against horizontal overflow shifting content sideways on iPhone. */
   *{box-sizing:border-box}
-  html,body{width:100%;max-width:100%;overflow-x:hidden;margin:0;padding:0}
+  html{overflow-x:hidden!important;max-width:100vw!important;width:100%!important;margin:0!important;padding:0!important}
+  body{overflow-x:hidden!important;max-width:100vw!important;width:100%!important;position:relative!important;margin:0!important;padding:0!important}
 
   /* Stats strip: outer container has zero padding/margin so the inner grid
      is the single source of truth for horizontal spacing. */
@@ -1240,6 +1241,9 @@ export default function App() {
       pos => {
         setNearLoc({lat:pos.coords.latitude,lng:pos.coords.longitude,label:"My location"});
         setNearStatus("idle"); setSel(null);
+        // Reset scroll after the DOM updates so a stray horizontal offset
+        // (which can appear on iPhone when long content first renders) is gone.
+        setTimeout(()=>{ try{ window.scrollTo(0,0); }catch{} }, 50);
       },
       err => {
         setNearError(err.code===1?"Location permission denied. Try entering an address instead.":"Could not determine your location.");
@@ -1288,6 +1292,9 @@ export default function App() {
       }
       setNearLoc({ lat, lng, label: j[0].display_name || q });
       setNearStatus("idle"); setSel(null);
+      // Reset scroll after the DOM updates so a stray horizontal offset
+      // (which can appear on iPhone when long content first renders) is gone.
+      setTimeout(()=>{ try{ window.scrollTo(0,0); }catch{} }, 50);
     }catch(err){
       console.error("Address geocoding failed:", err);
       setNearError("Address lookup failed. Check your connection and try again.");
@@ -1686,7 +1693,7 @@ export default function App() {
         </div>
 
         {/* MAIN */}
-        <main className="main" ref={topRef} style={{maxWidth:1040,margin:"0 auto",padding:"36px 24px 72px"}}>
+        <main className="main" ref={topRef} style={{maxWidth:1040,margin:"0 auto",padding:"36px 24px 72px",width:"100%",boxSizing:"border-box",overflowX:"hidden"}}>
 
           {/* FIND DATA CENTERS NEAR ME */}
           <section className="near-panel" style={{background:"#fff",borderRadius:24,boxShadow:"0 8px 48px rgba(0,0,0,.10)",padding:"26px 26px 22px",marginBottom:28}}>
