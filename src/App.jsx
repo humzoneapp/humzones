@@ -352,6 +352,8 @@ const CSS = `
   @keyframes floatAnim{0%,100%{transform:translateY(0)}50%{transform:translateY(-10px)}}
   @keyframes spin{to{transform:rotate(360deg)}}
   @keyframes pulse{0%,100%{opacity:.55}50%{opacity:1}}
+  @keyframes fadeIn{from{opacity:0}to{opacity:1}}
+  .fade-in{animation:fadeIn .5s ease-out both}
 
   /* Hard guard against horizontal overflow shifting content sideways on iPhone. */
   *{box-sizing:border-box}
@@ -1245,6 +1247,23 @@ export default function App() {
             <div style={{background:"#fff",borderRadius:18,padding:"44px 24px",textAlign:"center",boxShadow:"0 4px 18px rgba(0,0,0,.06)",marginBottom:28,color:"#64748b",fontWeight:600,fontSize:15}}>
               <div className="spinning" style={{width:32,height:32,border:"3px solid #e2e8f0",borderTop:"3px solid #ef4444",borderRadius:"50%",margin:"0 auto 14px"}}/>
               Loading facility data...
+            </div>
+          )}
+          {nearLoc && !dc && !loading && (
+            <div
+              key={`near-count-${nearLoc.lat}-${nearLoc.lng}-${nearRadius}-${nearRisk}`}
+              className="fade-in"
+              style={{textAlign:"center",fontSize:28,fontWeight:900,letterSpacing:"-.02em",lineHeight:1.25,margin:"4px 0 20px"}}
+            >
+              {nearResults.length > 0 ? (
+                <span style={{background:"linear-gradient(135deg,#ef4444,#f97316)",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent",backgroundClip:"text"}}>
+                  {nearResults.length} {nearResults.length === 1 ? "facility" : "facilities"} found within {nearRadius}km of your location
+                </span>
+              ) : (
+                <span style={{color:"#94a3b8"}}>
+                  0 facilities found within {nearRadius}km of your location
+                </span>
+              )}
             </div>
           )}
           {nearLoc && !dc && !loading && (nearResults.length > 0 ? (
