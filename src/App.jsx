@@ -778,8 +778,8 @@ const ReportLandingPage = ({ onBack, onNavigate }) => {
           </p>
           <div className="nums-grid" style={{display:"grid",gridTemplateColumns:"repeat(2, 1fr)",gap:14}}>
             {stats.map((s)=>(
-              <div key={s.label} style={{background:"rgba(15,23,42,.55)",border:"1px solid rgba(249,115,22,.45)",borderRadius:14,padding:"20px 20px 18px",boxShadow:"inset 0 1px 0 rgba(255,255,255,.04)"}}>
-                <div style={{fontSize:38,fontWeight:900,color:"#f97316",letterSpacing:"-.02em",lineHeight:1.05,marginBottom:6,textShadow:"0 0 22px rgba(249,115,22,.6),0 0 6px rgba(249,115,22,.4)"}}>{s.val || "0"}</div>
+              <div key={s.label} style={{background:"rgba(15,23,42,.55)",border:"1px solid rgba(249,115,22,.4)",borderRadius:14,padding:"20px 20px 18px",boxShadow:"inset 0 1px 0 rgba(255,255,255,.04)"}}>
+                <div style={{fontSize:38,fontWeight:900,color:"#f97316",letterSpacing:"-.02em",lineHeight:1.05,marginBottom:6,textShadow:"0 0 20px rgba(249,115,22,.5)"}}>{s.val || "0"}</div>
                 <div style={{fontSize:12,color:"#fff",letterSpacing:".10em",textTransform:"uppercase",fontWeight:800,marginBottom:10}}>{s.label}</div>
                 <p style={{fontSize:13,color:"rgba(255,255,255,.65)",lineHeight:1.6,margin:0}}>{s.desc}</p>
               </div>
@@ -789,10 +789,10 @@ const ReportLandingPage = ({ onBack, onNavigate }) => {
       </section>
 
       {/* 3. WHAT YOU GET */}
-      <section style={{background:"#fff",padding:"56px 20px 56px",position:"relative",overflow:"hidden",borderBottom:"1px solid #e2e8f0"}}>
-        {/* Faint HumZones shield watermark in the background */}
-        <div aria-hidden="true" style={{position:"absolute",right:"-40px",top:"50%",transform:"translateY(-50%)",pointerEvents:"none",opacity:.05,zIndex:0}}>
-          <svg width="420" height="420" viewBox="0 0 24 24" fill="none" stroke="#f97316" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <section style={{background:"#1e293b",padding:"56px 20px 56px",position:"relative",overflow:"hidden",borderBottom:"1px solid rgba(249,115,22,.22)"}}>
+        {/* Semi-transparent HumZones shield watermark in the background */}
+        <div aria-hidden="true" style={{position:"absolute",right:"-40px",top:"50%",transform:"translateY(-50%)",pointerEvents:"none",opacity:.08,zIndex:0}}>
+          <svg width="460" height="460" viewBox="0 0 24 24" fill="none" stroke="#f97316" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
             <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
             <path d="M9 12l2 2 4-4"/>
           </svg>
@@ -801,16 +801,16 @@ const ReportLandingPage = ({ onBack, onNavigate }) => {
         <div style={{maxWidth:1040,margin:"0 auto",display:"grid",gridTemplateColumns:"1fr 1.05fr",gap:36,alignItems:"center",position:"relative",zIndex:1}} className="nums-grid">
           <div>
             <div style={{fontSize:12,color:"#f97316",letterSpacing:".18em",textTransform:"uppercase",fontWeight:800,marginBottom:10}}>Your Full Report</div>
-            <h2 className="report-h2" style={{fontWeight:900,marginBottom:18,color:"#0f172a"}}>
+            <h2 className="report-h2" style={{fontWeight:900,marginBottom:18,color:"#fff"}}>
               Your Full HumZones Report Includes
             </h2>
             <ul style={{listStyle:"none",padding:0,margin:0,display:"flex",flexDirection:"column",gap:10}}>
               {benefits.map((b)=>(
-                <li key={b} style={{display:"flex",alignItems:"flex-start",gap:12,fontSize:15.5,color:"#0f172a",lineHeight:1.5}}>
-                  <span style={{display:"inline-flex",width:26,height:26,borderRadius:"50%",background:"rgba(249,115,22,.13)",alignItems:"center",justifyContent:"center",flexShrink:0,marginTop:1,border:"1.5px solid rgba(249,115,22,.45)"}}>
+                <li key={b} style={{display:"flex",alignItems:"flex-start",gap:12,fontSize:15.5,color:"rgba(255,255,255,.88)",lineHeight:1.5}}>
+                  <span style={{display:"inline-flex",width:26,height:26,borderRadius:"50%",background:"rgba(249,115,22,.18)",alignItems:"center",justifyContent:"center",flexShrink:0,marginTop:1,border:"1.5px solid rgba(249,115,22,.55)"}}>
                     <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#f97316" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>
                   </span>
-                  <span style={{fontWeight:600,color:"#1e293b"}}>{b}</span>
+                  <span style={{fontWeight:600,color:"#fff"}}>{b}</span>
                 </li>
               ))}
             </ul>
@@ -861,23 +861,23 @@ const ReportLandingPage = ({ onBack, onNavigate }) => {
       </section>
 
       {/* 4. SOCIAL PROOF */}
-      <section style={{background:"#f1f5f9",padding:"52px 20px 56px",borderBottom:"1px solid #e2e8f0"}}>
+      <section style={{background:"#1e293b",padding:"52px 20px 56px",borderBottom:"1px solid rgba(249,115,22,.22)"}}>
         <div style={{maxWidth:1040,margin:"0 auto"}}>
-          <h2 className="report-h2" style={{fontWeight:900,textAlign:"center",marginBottom:30,color:"#0f172a"}}>
+          <h2 className="report-h2" style={{fontWeight:900,textAlign:"center",marginBottom:30,color:"#fff"}}>
             What People Are Saying
           </h2>
           <div className="nums-grid" style={{display:"grid",gridTemplateColumns:"repeat(3, 1fr)",gap:18}}>
             {testimonials.map((t)=>(
-              <div key={t.name} style={{position:"relative",background:"#fff",border:"1px solid #e2e8f0",borderRadius:16,padding:"24px 22px 22px",boxShadow:"0 4px 16px rgba(15,23,42,.06)"}}>
+              <div key={t.name} style={{position:"relative",background:"rgba(15,23,42,.6)",border:"1px solid rgba(249,115,22,.18)",borderLeft:"4px solid #f97316",borderRadius:14,padding:"24px 22px 22px",boxShadow:"0 6px 22px rgba(0,0,0,.32)"}}>
                 {/* Large orange opening quotation mark */}
-                <span aria-hidden="true" style={{position:"absolute",top:-6,left:14,fontSize:72,lineHeight:1,fontWeight:900,color:"#f97316",fontFamily:"Georgia, 'Times New Roman', serif",pointerEvents:"none"}}>&ldquo;</span>
+                <span aria-hidden="true" style={{position:"absolute",top:-6,left:14,fontSize:72,lineHeight:1,fontWeight:900,color:"#f97316",fontFamily:"Georgia, 'Times New Roman', serif",pointerEvents:"none",opacity:.9}}>&ldquo;</span>
                 <div style={{display:"flex",gap:3,marginBottom:10,position:"relative",zIndex:1}}>
                   {[1,2,3,4,5].map(i=>(
                     <span key={i} style={{color:"#f97316",fontSize:18}}>&#9733;</span>
                   ))}
                 </div>
-                <p style={{fontSize:15,color:"#1e293b",lineHeight:1.65,marginBottom:14,marginTop:6,fontStyle:"italic",position:"relative",zIndex:1}}>{t.quote}</p>
-                <div style={{fontSize:14,color:"#0f172a",fontWeight:900,position:"relative",zIndex:1}}>{t.name}<span style={{color:"#94a3b8",fontWeight:600}}>, {t.loc}</span></div>
+                <p style={{fontSize:15,color:"rgba(255,255,255,.85)",lineHeight:1.65,marginBottom:14,marginTop:6,fontStyle:"italic",position:"relative",zIndex:1}}>{t.quote}</p>
+                <div style={{fontSize:14,color:"#fff",fontWeight:900,position:"relative",zIndex:1}}>{t.name}<span style={{color:"rgba(255,255,255,.55)",fontWeight:600}}>, {t.loc}</span></div>
               </div>
             ))}
           </div>
@@ -1221,12 +1221,43 @@ export default function App() {
     if(!q) return;
     setNearStatus("geocoding"); setNearError("");
     try{
-      const r = await fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(q)}&format=json&limit=1`);
+      const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(q)}&format=json&limit=1`;
+      const r = await fetch(url, {
+        headers: {
+          "Accept": "application/json",
+          // Nominatim's usage policy asks for a custom User-Agent. Browsers
+          // strip this header from fetch silently, but we set it so the call
+          // is well-formed when running outside a browser as well.
+          "User-Agent": "HumZones/1.0 (humzones.com)",
+        },
+      });
+      if(!r.ok){
+        console.error("Nominatim HTTP error:", r.status, r.statusText);
+        setNearError(r.status === 429
+          ? "Address service is busy right now. Please try again in a moment."
+          : "Address lookup failed. Please try again.");
+        setNearStatus("idle");
+        return;
+      }
       const j = await r.json();
-      if(!Array.isArray(j) || !j[0]){ setNearError("Address not found. Try a more specific search."); setNearStatus("idle"); return; }
-      setNearLoc({lat:parseFloat(j[0].lat),lng:parseFloat(j[0].lon),label:j[0].display_name||q});
+      if(!Array.isArray(j) || j.length === 0){
+        console.warn("Nominatim returned no results for:", q, j);
+        setNearError("Address not found. Try a more specific search.");
+        setNearStatus("idle");
+        return;
+      }
+      const lat = parseFloat(j[0].lat);
+      const lng = parseFloat(j[0].lon);
+      if(!Number.isFinite(lat) || !Number.isFinite(lng)){
+        console.error("Nominatim returned invalid coordinates:", j[0]);
+        setNearError("Address found but coordinates were invalid. Try a more specific search.");
+        setNearStatus("idle");
+        return;
+      }
+      setNearLoc({ lat, lng, label: j[0].display_name || q });
       setNearStatus("idle"); setSel(null);
-    }catch{
+    }catch(err){
+      console.error("Address geocoding failed:", err);
       setNearError("Address lookup failed. Check your connection and try again.");
       setNearStatus("idle");
     }
