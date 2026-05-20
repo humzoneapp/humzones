@@ -12,6 +12,8 @@ export default async function handler(req, res) {
     const body = req.body || {};
     const {
       searchAddress = "",
+      searchLat = "",
+      searchLng = "",
       facilities100km = "",
       highRiskCount = "",
       facilitiesFound = "",
@@ -23,6 +25,24 @@ export default async function handler(req, res) {
       const s = String(v);
       return s.length > 450 ? s.slice(0, 450) : s;
     };
+
+    // Append the critical search context to the success URL as query params so
+    // /report-success can still personalize the PDF even when some browsers
+    // (Safari ITP, third-party-cookie blockers, cross-domain redirects) drop
+    // localStorage between the Stripe handoff and our return URL. Stripe's
+    // {CHECKOUT_SESSION_ID} placeholder is left untouched; everything else is
+    // URL-encoded so commas/spaces in the address survive the redirect.
+    const addrTrimmed = String(searchAddress || "").slice(0, 200);
+    const successParams = [
+      `session_id={CHECKOUT_SESSION_ID}`,
+      `lat=${encodeURIComponent(String(searchLat || ""))}`,
+      `lng=${encodeURIComponent(String(searchLng || ""))}`,
+      `address=${encodeURIComponent(addrTrimmed)}`,
+      `r100=${encodeURIComponent(String(facilities100km || ""))}`,
+      `high=${encodeURIComponent(String(highRiskCount || ""))}`,
+      `found=${encodeURIComponent(String(facilitiesFound || ""))}`,
+      `radius=${encodeURIComponent(String(selectedRadius || ""))}`,
+    ].join("&");
 
     const session = await stripe.checkout.sessions.create({
       mode: "payment",
@@ -43,11 +63,12 @@ export default async function handler(req, res) {
           quantity: 1,
         },
       ],
-      success_url:
-        "https://humzones.com/report-success?session_id={CHECKOUT_SESSION_ID}",
+      success_url: `https://humzones.com/report-success?${successParams}`,
       cancel_url: "https://humzones.com/report-landing",
       metadata: {
         searchAddress: toMetaString(searchAddress),
+        searchLat: toMetaString(searchLat),
+        searchLng: toMetaString(searchLng),
         facilities100km: toMetaString(facilities100km),
         highRiskCount: toMetaString(highRiskCount),
         facilitiesFound: toMetaString(facilitiesFound),

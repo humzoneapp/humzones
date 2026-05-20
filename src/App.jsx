@@ -677,6 +677,8 @@ const ReportLandingPage = ({ onBack, onNavigate }) => {
       try { localStorage.setItem("hz_report_purchase_intent", new Date().toISOString()); } catch {}
       const payload = {
         searchAddress:   get("searchAddress"),
+        searchLat:       get("searchLat"),
+        searchLng:       get("searchLng"),
         facilities100km: get("facilities100km"),
         highRiskCount:   get("highRiskCount"),
         facilitiesFound: get("facilitiesFound"),
@@ -1029,20 +1031,43 @@ const ReportSuccessPage = ({ onBack, onNavigate }) => {
 
     const run = async () => {
       try {
-        // ─── 1. Pull search context from localStorage ───────────────────────
-        const searchAddress   = get("searchAddress") || "Your area";
-        const searchLat       = parseFloat(get("searchLat"));
-        const searchLng       = parseFloat(get("searchLng"));
-        const facilities100   = parseInt(get("facilities100km"), 10);
-        const highRisk        = parseInt(get("highRiskCount"), 10);
-        const facilitiesFound = parseInt(get("facilitiesFound"), 10);
-        const selectedRadius  = parseInt(get("selectedRadius"), 10);
-        console.log("[HumZones] /report-success inputs:", { searchAddress, searchLat, searchLng, facilities100, highRisk, facilitiesFound, selectedRadius });
+        // ─── 1. Pull search context from localStorage with URL-param fallback ─
+        // Safari ITP and some third-party-cookie blockers drop localStorage
+        // across the Stripe checkout redirect, so the create-checkout-session
+        // endpoint also encodes the search context onto the success URL. We
+        // prefer localStorage when present and fall back to the URL params.
+        console.log("localStorage dump:", {
+          searchLat:       localStorage.getItem("searchLat"),
+          searchLng:       localStorage.getItem("searchLng"),
+          searchAddress:   localStorage.getItem("searchAddress"),
+          facilities100km: localStorage.getItem("facilities100km"),
+          highRiskCount:   localStorage.getItem("highRiskCount"),
+          facilitiesFound: localStorage.getItem("facilitiesFound"),
+          selectedRadius:  localStorage.getItem("selectedRadius"),
+        });
+        const params = new URLSearchParams(window.location.search);
+        console.log("URL params dump:", {
+          session_id: params.get("session_id"),
+          lat:        params.get("lat"),
+          lng:        params.get("lng"),
+          address:    params.get("address"),
+          r100:       params.get("r100"),
+          high:       params.get("high"),
+          found:      params.get("found"),
+          radius:     params.get("radius"),
+        });
+
+        const searchAddress   = localStorage.getItem("searchAddress") || params.get("address") || "Your area";
+        const searchLat       = parseFloat(localStorage.getItem("searchLat") || params.get("lat"));
+        const searchLng       = parseFloat(localStorage.getItem("searchLng") || params.get("lng"));
+        const facilities100   = parseInt(localStorage.getItem("facilities100km") || params.get("r100"),   10);
+        const highRisk        = parseInt(localStorage.getItem("highRiskCount")   || params.get("high"),   10);
+        const facilitiesFound = parseInt(localStorage.getItem("facilitiesFound") || params.get("found"),  10);
+        const selectedRadius  = parseInt(localStorage.getItem("selectedRadius")  || params.get("radius"), 10);
+        console.log("[HumZones] /report-success resolved inputs:", { searchAddress, searchLat, searchLng, facilities100, highRisk, facilitiesFound, selectedRadius });
 
         // Best-effort buyer email lookup from the Stripe session.
-        const sessionId = (() => {
-          try { return new URLSearchParams(window.location.search).get("session_id") || ""; } catch { return ""; }
-        })();
+        const sessionId = params.get("session_id") || "";
         let buyerEmail = "";
         if (sessionId) {
           try {
@@ -1079,7 +1104,7 @@ const ReportSuccessPage = ({ onBack, onNavigate }) => {
         setProgress(50);
         const hasCoords = Number.isFinite(searchLat) && Number.isFinite(searchLng);
         if (!hasCoords) {
-          console.warn("[HumZones] Missing searchLat/searchLng in localStorage. Report will show 0 facilities.");
+          console.warn("[HumZones] Missing searchLat/searchLng in localStorage AND URL params. Report will show 0 facilities.");
         }
         const facsNear = hasCoords
           ? allFacs
