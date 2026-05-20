@@ -818,7 +818,9 @@ const ReportLandingPage = ({ onBack, onNavigate }) => {
 
           {/* Blurred fake report preview, taller, with SAMPLE REPORT diagonal + lock overlay */}
           <div style={{position:"relative"}}>
-            <div style={{maxWidth:460,margin:"0 auto",background:"#fff",borderRadius:18,boxShadow:"0 22px 60px rgba(15,23,42,.22),0 0 0 1px #e2e8f0",padding:"28px 26px",position:"relative",overflow:"hidden",minHeight:440}}>
+            {/* Soft orange halo behind the card */}
+            <div aria-hidden="true" style={{position:"absolute",inset:"-32px",background:"radial-gradient(ellipse at center, rgba(249,115,22,.42) 0%, rgba(249,115,22,0) 65%)",filter:"blur(22px)",pointerEvents:"none",zIndex:0}}/>
+            <div style={{maxWidth:460,margin:"0 auto",background:"#fff",borderRadius:18,boxShadow:"0 0 60px rgba(249,115,22,.45),0 0 110px rgba(249,115,22,.22),0 22px 60px rgba(15,23,42,.35),0 0 0 1px rgba(249,115,22,.45)",padding:"28px 26px",position:"relative",zIndex:1,overflow:"hidden",minHeight:440}}>
               <div style={{filter:"blur(5px)",pointerEvents:"none",userSelect:"none"}} aria-hidden="true">
                 <div style={{display:"flex",justifyContent:"space-between",alignItems:"baseline",marginBottom:14}}>
                   <div style={{fontSize:20,fontWeight:900,color:"#0f172a",letterSpacing:"-.01em"}}>HumZones Area Report</div>
