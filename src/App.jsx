@@ -1029,7 +1029,7 @@ export default function App() {
   // "Find Data Centers Near Me" panel state
   const [nearLoc,setNearLoc]     = useState(null);       // {lat,lng,label}
   const [nearAddr,setNearAddr]   = useState("");
-  const [nearRadius,setNearRadius] = useState(10);       // km
+  const [nearRadius,setNearRadius] = useState(50);       // km
   const [nearRisk,setNearRisk]   = useState("ALL");      // ALL | HIGH | HIGH_MOD
   const [nearStatus,setNearStatus] = useState("idle");   // idle | locating | geocoding
   const [nearError,setNearError] = useState("");
@@ -1786,9 +1786,9 @@ export default function App() {
               );
             };
 
-            const showAll = nearEmailUnlocked || nearResults.length <= 2;
-            const previewCards = showAll ? nearResults : nearResults.slice(0,2);
-            const lockedCards  = showAll ? [] : nearResults.slice(2);
+            const showAll = nearEmailUnlocked || nearResults.length <= 1;
+            const previewCards = showAll ? nearResults : nearResults.slice(0,1);
+            const lockedCards  = showAll ? [] : nearResults.slice(1);
             // Cap the rendered blurred preview so the page doesn't grow unbounded
             // for very long result lists; the overlay covers what's rendered.
             const blurredPreview = lockedCards.slice(0, Math.min(5, lockedCards.length));
