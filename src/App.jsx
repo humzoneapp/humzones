@@ -1,4 +1,4 @@
-// Build marker: 2026-05-19 — force fresh Vercel deployment.
+// Build marker: 2026-05-19, force fresh Vercel deployment.
 import { useState, useEffect, useRef, useCallback } from "react";
 
 // ─── AIRTABLE CONNECTION ───────────────────────────────────────────────────────
@@ -622,52 +622,274 @@ const MethodologyPage = ({ onBack }) => {
   );
 };
 
-// ─── REPORT LANDING (placeholder) ─────────────────────────────────────────────
-// Minimal landing rendered at /report-landing so the upsell button has somewhere
-// to navigate to. Reads the captured search context out of localStorage.
-const ReportLandingPage = ({ onBack }) => {
-  const get = k => { try { return localStorage.getItem(k) || ""; } catch { return ""; } };
-  const items = [
-    ["Address",        get("searchAddress") || "Not set"],
-    ["Coordinates",    get("searchLat") && get("searchLng") ? `${get("searchLat")}, ${get("searchLng")}` : "Not set"],
-    ["Selected radius",get("selectedRadius") ? `${get("selectedRadius")} km` : "Not set"],
-    ["Facilities in your radius",  get("facilitiesFound") || "0"],
-    ["Facilities within 100 km",   get("facilities100km") || "0"],
-    ["HIGH risk within 100 km",    get("highRiskCount")   || "0"],
+// ─── REPORT LANDING (sales page) ──────────────────────────────────────────────
+// Pulls the captured Near Me search context out of localStorage and renders a
+// multi-section sales page for the paid Full Area Report.
+const ReportLandingPage = ({ onBack, onNavigate }) => {
+  const get = (k) => { try { return localStorage.getItem(k) || ""; } catch { return ""; } };
+
+  const searchAddress  = get("searchAddress") || "your area";
+  const selectedRadius = parseInt(get("selectedRadius"), 10) || 0;
+  const facilitiesFound  = parseInt(get("facilitiesFound"), 10)  || 0;
+  const facilities100km  = parseInt(get("facilities100km"), 10)  || 0;
+  const highRiskCount    = parseInt(get("highRiskCount"), 10)    || 0;
+
+  // Estimated rollups (per the spec): 45 MW average draw, 35,000 gal/day water.
+  const estPowerMW       = facilities100km * 45;
+  const estWaterGalDay   = facilities100km * 35000;
+  const fmtNum = (n) => Number(n).toLocaleString();
+  const fmtPower = (mw) => mw >= 1000 ? `${(mw/1000).toFixed(1)} GW` : `${fmtNum(mw)} MW`;
+
+  // Buy CTA: payment integration lives elsewhere; surface a clear next step
+  // and capture intent so the user is not left wondering.
+  const handleBuyReport = () => {
+    try { localStorage.setItem("hz_report_purchase_intent", new Date().toISOString()); } catch {}
+    window.alert("Payment is coming online soon. We have saved your search and will email you the moment your Full Report is available.");
+  };
+
+  const numbersUnknown = facilities100km === 0;
+
+  const stats = [
+    {
+      val: numbersUnknown ? "" : String(facilities100km),
+      label: "Total facilities within 100km",
+      desc: "Every operating, planned, and proposed data center inside the 100km zone around the location you searched.",
+      color: "#ef4444",
+    },
+    {
+      val: numbersUnknown ? "" : String(highRiskCount),
+      label: "HIGH risk facilities",
+      desc: "Sites at 50 MW or more, or within 500m of homes. These have the strongest documented health impact patterns.",
+      color: "#f97316",
+    },
+    {
+      val: numbersUnknown ? "" : fmtPower(estPowerMW),
+      label: "Estimated combined power draw",
+      desc: "Based on a conservative 45 MW per-facility average. The grid load near you is real and growing month over month.",
+      color: "#eab308",
+    },
+    {
+      val: numbersUnknown ? "" : `${fmtNum(estWaterGalDay)} gal`,
+      label: "Estimated daily water use",
+      desc: "Based on a 35,000 gallons per day average per facility. Water removed from your local cycle, every single day.",
+      color: "#3b82f6",
+    },
   ];
+
+  const benefits = [
+    "Complete list of all facilities within 100km of your address",
+    "Risk level and health context for each facility",
+    "EMF exposure estimates at your distance",
+    "Noise impact analysis",
+    "Water and CO2 impact in your region",
+    "Practical steps to reduce your exposure",
+  ];
+
+  const testimonials = [
+    { name: "Sarah M",  loc: "Toronto",  quote: "I had no idea there were 14 data centers within 10km of my house. This report opened my eyes." },
+    { name: "James R",  loc: "Austin",   quote: "The EMF data alone was worth it. Shared this with my whole neighborhood." },
+    { name: "Lisa K",   loc: "Virginia", quote: "Finally a tool that tells you what is actually near your home. Eye opening." },
+  ];
+
+  const checkSvg = (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#10b981" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <polyline points="20 6 9 17 4 12"/>
+    </svg>
+  );
+  const warnSvg = (
+    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+      <line x1="12" y1="9"  x2="12" y2="13"/>
+      <line x1="12" y1="17" x2="12.01" y2="17"/>
+    </svg>
+  );
+
+  const primaryBtn = (label) => ({
+    padding: "16px 30px",
+    borderRadius: 14,
+    border: "none",
+    background: "linear-gradient(135deg,#ef4444,#f97316)",
+    color: "#fff",
+    fontSize: 17,
+    fontWeight: 900,
+    letterSpacing: ".02em",
+    cursor: "pointer",
+    fontFamily: "inherit",
+    boxShadow: "0 10px 32px rgba(239,68,68,.45)",
+    display: "inline-flex",
+    alignItems: "center",
+    gap: 10,
+  });
+
   return (
-    <div style={{minHeight:"100vh",background:"#f1f5f9",width:"100%",maxWidth:"100vw",overflowX:"hidden"}}>
-      <div style={{background:"linear-gradient(135deg,#020c1b 0%,#0f172a 50%,#1e0535 100%)",padding:"22px 24px",display:"flex",alignItems:"center",justifyContent:"space-between",gap:14,flexWrap:"wrap"}}>
-        <a href="/" onClick={e=>{e.preventDefault();onBack();}} className="ext-link" style={{display:"inline-flex",alignItems:"center",gap:8,color:"rgba(255,255,255,.85)",textDecoration:"none",fontSize:13,fontWeight:800,letterSpacing:".10em"}}>
-          <span style={{fontSize:18,lineHeight:1}}>&larr;</span> BACK TO HUMZONES
-        </a>
-        <div>
-          <span style={{fontSize:22,fontWeight:900,letterSpacing:".08em",background:"linear-gradient(90deg,#ef4444,#f97316)",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent"}}>HumZones</span>
-          <sup style={{fontSize:12,color:"#f97316",fontWeight:700,verticalAlign:"super",marginLeft:2}}>TM</sup>
+    <div style={{minHeight:"100vh",background:"#f8fafc",width:"100%",maxWidth:"100vw",overflowX:"hidden",color:"#0f172a"}}>
+
+      {/* TOP BAR (back button at top left + brand at right) */}
+      <div style={{position:"sticky",top:0,zIndex:50,background:"rgba(15,23,42,.92)",backdropFilter:"blur(12px)",borderBottom:"1px solid rgba(255,255,255,.06)"}}>
+        <div style={{maxWidth:1100,margin:"0 auto",padding:"14px 20px",display:"flex",alignItems:"center",justifyContent:"space-between",gap:14,flexWrap:"wrap"}}>
+          <button onClick={onBack} style={{background:"rgba(255,255,255,.08)",border:"1px solid rgba(255,255,255,.16)",color:"#fff",padding:"9px 16px",borderRadius:10,fontSize:13,fontWeight:800,letterSpacing:".08em",cursor:"pointer",fontFamily:"inherit",display:"inline-flex",alignItems:"center",gap:8}}>
+            <span style={{fontSize:16,lineHeight:1}}>&larr;</span> BACK TO RESULTS
+          </button>
+          <div>
+            <span style={{fontSize:20,fontWeight:900,letterSpacing:".08em",background:"linear-gradient(90deg,#ef4444,#f97316)",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent"}}>HumZones</span>
+            <sup style={{fontSize:11,color:"#f97316",fontWeight:700,verticalAlign:"super",marginLeft:2}}>TM</sup>
+          </div>
         </div>
       </div>
-      <main style={{maxWidth:760,margin:"0 auto",padding:"48px 24px 72px"}}>
-        <div style={{background:"#fff",borderRadius:24,boxShadow:"0 8px 48px rgba(0,0,0,.10)",padding:"40px 32px"}}>
-          <div style={{fontSize:12,color:"#94a3b8",letterSpacing:".18em",textTransform:"uppercase",fontWeight:800,marginBottom:14}}>Full Area Report</div>
-          <h1 style={{fontSize:30,fontWeight:900,lineHeight:1.2,letterSpacing:"-.02em",marginBottom:18,background:"linear-gradient(135deg,#ef4444,#f97316)",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent",display:"inline-block"}}>
-            Preparing Your HumZones Area Report
+
+      {/* 1. HERO */}
+      <section style={{background:"linear-gradient(150deg,#020c1b 0%,#0f172a 45%,#1e0535 100%)",padding:"72px 20px 80px",textAlign:"center",position:"relative",overflow:"hidden"}}>
+        <div style={{maxWidth:820,margin:"0 auto",position:"relative",zIndex:1}}>
+          <div style={{width:72,height:72,borderRadius:"50%",background:"linear-gradient(135deg,#ef4444,#dc2626)",margin:"0 auto 22px",display:"flex",alignItems:"center",justifyContent:"center",boxShadow:"0 14px 40px rgba(239,68,68,.55)"}}>
+            {warnSvg}
+          </div>
+          <h1 style={{fontSize:42,fontWeight:900,color:"#fff",letterSpacing:"-.02em",lineHeight:1.15,marginBottom:18}}>
+            Your Area Has <span style={{background:"linear-gradient(135deg,#ef4444,#f97316)",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent"}}>{facilities100km}</span> Data {facilities100km===1?"Center":"Centers"} Within 100km
           </h1>
-          <p style={{fontSize:16,color:"#475569",lineHeight:1.7,marginBottom:28}}>
-            We have your search context. The personalised PDF report builder lives here once it is ready.
+          <p style={{fontSize:18,color:"rgba(255,255,255,.78)",lineHeight:1.65,marginBottom:30,maxWidth:640,marginLeft:"auto",marginRight:"auto"}}>
+            You only searched {selectedRadius || "a smaller radius"}{selectedRadius?"km":""} and found {facilitiesFound} {facilitiesFound===1?"facility":"facilities"}. Here is what else is near you that you do not know about yet.
           </p>
-          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"14px 24px",marginBottom:24}}>
-            {items.map(([k,v])=>(
-              <div key={k}>
-                <div style={{fontSize:11,color:"#94a3b8",letterSpacing:".10em",textTransform:"uppercase",fontWeight:800,marginBottom:4}}>{k}</div>
-                <div style={{fontSize:15,color:"#0f172a",fontWeight:700,wordBreak:"break-word"}}>{v}</div>
+          <button onClick={handleBuyReport} style={primaryBtn()}>Get My Full Report</button>
+          <p style={{fontSize:13,color:"rgba(255,255,255,.55)",marginTop:14,lineHeight:1.6}}>
+            Instant PDF. Personalized to your exact location.
+          </p>
+        </div>
+      </section>
+
+      {/* 2. FEAR / URGENCY */}
+      <section style={{background:"#fff",padding:"72px 20px 64px"}}>
+        <div style={{maxWidth:1040,margin:"0 auto"}}>
+          <h2 style={{fontSize:32,fontWeight:900,letterSpacing:"-.02em",lineHeight:1.2,textAlign:"center",marginBottom:14,color:"#0f172a"}}>
+            What Is Really Happening Near Your Home
+          </h2>
+          <p style={{fontSize:16,color:"#64748b",textAlign:"center",maxWidth:620,margin:"0 auto 40px",lineHeight:1.7}}>
+            These are the figures within 100km of <strong style={{color:"#0f172a"}}>{searchAddress}</strong>.
+          </p>
+          <div className="nums-grid" style={{display:"grid",gridTemplateColumns:"repeat(2, 1fr)",gap:20}}>
+            {stats.map((s)=>(
+              <div key={s.label} style={{background:"#fff",border:`2px solid ${s.color}22`,borderRadius:18,padding:"26px 24px",boxShadow:"0 4px 18px rgba(0,0,0,.05)"}}>
+                <div style={{fontSize:36,fontWeight:900,color:s.color,letterSpacing:"-.02em",lineHeight:1.05,marginBottom:6}}>{s.val || "0"}</div>
+                <div style={{fontSize:12,color:"#94a3b8",letterSpacing:".10em",textTransform:"uppercase",fontWeight:800,marginBottom:12}}>{s.label}</div>
+                <p style={{fontSize:14,color:"#475569",lineHeight:1.65,margin:0}}>{s.desc}</p>
               </div>
             ))}
           </div>
-          <a href="/" onClick={e=>{e.preventDefault();onBack();}} className="ext-link" style={{display:"inline-flex",alignItems:"center",gap:8,color:"#ef4444",textDecoration:"none",fontSize:14,fontWeight:800,letterSpacing:".06em"}}>
-            <span>&larr;</span> BACK TO HUMZONES
-          </a>
         </div>
-      </main>
+      </section>
+
+      {/* 3. WHAT YOU GET */}
+      <section style={{background:"#f8fafc",padding:"72px 20px 72px"}}>
+        <div style={{maxWidth:1040,margin:"0 auto",display:"grid",gridTemplateColumns:"1fr 1fr",gap:48,alignItems:"center"}} className="nums-grid">
+          <div>
+            <div style={{fontSize:12,color:"#f97316",letterSpacing:".18em",textTransform:"uppercase",fontWeight:800,marginBottom:12}}>Your Full Report</div>
+            <h2 style={{fontSize:32,fontWeight:900,letterSpacing:"-.02em",lineHeight:1.2,marginBottom:22,color:"#0f172a"}}>
+              Your Full HumZones Report Includes
+            </h2>
+            <ul style={{listStyle:"none",padding:0,margin:0,display:"flex",flexDirection:"column",gap:14}}>
+              {benefits.map((b)=>(
+                <li key={b} style={{display:"flex",alignItems:"flex-start",gap:12,fontSize:16,color:"#0f172a",lineHeight:1.55}}>
+                  <span style={{display:"inline-flex",width:30,height:30,borderRadius:"50%",background:"#ecfdf5",alignItems:"center",justifyContent:"center",flexShrink:0,marginTop:2}}>{checkSvg}</span>
+                  <span style={{fontWeight:600,color:"#1e293b"}}>{b}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          {/* Blurred fake report preview */}
+          <div style={{position:"relative"}}>
+            <div style={{maxWidth:440,margin:"0 auto",background:"#fff",borderRadius:18,boxShadow:"0 18px 50px rgba(15,23,42,.18),0 0 0 1px #e2e8f0",padding:"34px 30px 30px",position:"relative",overflow:"hidden"}}>
+              <div style={{filter:"blur(4px)",pointerEvents:"none",userSelect:"none"}} aria-hidden="true">
+                <div style={{display:"flex",justifyContent:"space-between",alignItems:"baseline",marginBottom:18}}>
+                  <div style={{fontSize:20,fontWeight:900,color:"#0f172a",letterSpacing:"-.01em"}}>HumZones Area Report</div>
+                  <div style={{fontSize:11,color:"#94a3b8",fontWeight:700}}>PAGE 1 / 12</div>
+                </div>
+                <div style={{fontSize:12,color:"#64748b",marginBottom:18}}>Generated for {searchAddress.length>40?searchAddress.slice(0,40)+"...":searchAddress}</div>
+                <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:10,marginBottom:18}}>
+                  <div style={{height:62,background:"linear-gradient(135deg,#fef2f2,#fee2e2)",borderRadius:10}}/>
+                  <div style={{height:62,background:"linear-gradient(135deg,#fff7ed,#ffedd5)",borderRadius:10}}/>
+                  <div style={{height:62,background:"linear-gradient(135deg,#eff6ff,#dbeafe)",borderRadius:10}}/>
+                </div>
+                {[92,84,78,88,72].map((w,i)=>(
+                  <div key={i} style={{height:9,background:"#e2e8f0",borderRadius:4,marginBottom:8,width:`${w}%`}}/>
+                ))}
+                <div style={{height:120,background:"linear-gradient(135deg,#fef2f2 0%,#fff7ed 60%,#eff6ff 100%)",borderRadius:12,marginTop:18}}/>
+                {[80,68,90].map((w,i)=>(
+                  <div key={`b-${i}`} style={{height:9,background:"#e2e8f0",borderRadius:4,marginTop:8,width:`${w}%`}}/>
+                ))}
+              </div>
+              <div aria-hidden="true" style={{position:"absolute",top:"50%",left:"50%",transform:"translate(-50%,-50%) rotate(-14deg)",fontSize:48,fontWeight:900,color:"rgba(239,68,68,.22)",letterSpacing:".15em",pointerEvents:"none",whiteSpace:"nowrap"}}>PREVIEW</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* 4. SOCIAL PROOF */}
+      <section style={{background:"#fff",padding:"72px 20px 64px"}}>
+        <div style={{maxWidth:1040,margin:"0 auto"}}>
+          <h2 style={{fontSize:32,fontWeight:900,letterSpacing:"-.02em",lineHeight:1.2,textAlign:"center",marginBottom:36,color:"#0f172a"}}>
+            What People Are Saying
+          </h2>
+          <div className="nums-grid" style={{display:"grid",gridTemplateColumns:"repeat(3, 1fr)",gap:20}}>
+            {testimonials.map((t)=>(
+              <div key={t.name} style={{background:"#f8fafc",border:"1px solid #e2e8f0",borderRadius:18,padding:"24px 22px",boxShadow:"0 2px 12px rgba(0,0,0,.04)"}}>
+                <div style={{display:"flex",gap:3,marginBottom:12}}>
+                  {[1,2,3,4,5].map(i=>(
+                    <span key={i} style={{color:"#f97316",fontSize:16}}>&#9733;</span>
+                  ))}
+                </div>
+                <p style={{fontSize:15,color:"#1e293b",lineHeight:1.65,marginBottom:14,fontStyle:"italic"}}>&ldquo;{t.quote}&rdquo;</p>
+                <div style={{fontSize:13,color:"#475569",fontWeight:700}}>{t.name}, <span style={{color:"#94a3b8",fontWeight:600}}>{t.loc}</span></div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* 5. FINAL CTA */}
+      <section style={{background:"linear-gradient(150deg,#020c1b 0%,#0f172a 50%,#1e0535 100%)",padding:"80px 20px 80px",textAlign:"center"}}>
+        <div style={{maxWidth:720,margin:"0 auto"}}>
+          <h2 style={{fontSize:36,fontWeight:900,letterSpacing:"-.02em",lineHeight:1.18,color:"#fff",marginBottom:14}}>
+            Get Your Personalized Report Now
+          </h2>
+          <p style={{fontSize:15,color:"rgba(255,255,255,.7)",lineHeight:1.7,marginBottom:8}}>
+            For the address you searched:
+          </p>
+          <p style={{fontSize:17,fontWeight:800,color:"#fff",marginBottom:32,wordBreak:"break-word",maxWidth:560,marginLeft:"auto",marginRight:"auto"}}>
+            {searchAddress}
+          </p>
+
+          <div style={{display:"inline-flex",alignItems:"baseline",gap:14,marginBottom:8,flexWrap:"wrap",justifyContent:"center"}}>
+            <span style={{fontSize:22,color:"rgba(255,255,255,.45)",textDecoration:"line-through",fontWeight:600}}>$24.99</span>
+            <span style={{fontSize:48,fontWeight:900,letterSpacing:"-.02em",background:"linear-gradient(135deg,#ef4444,#f97316)",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent"}}>$14.99</span>
+            <span style={{fontSize:12,color:"#f97316",fontWeight:800,letterSpacing:".10em",textTransform:"uppercase",padding:"5px 10px",borderRadius:999,background:"rgba(249,115,22,.14)",border:"1px solid rgba(249,115,22,.4)"}}>Limited Time Price</span>
+          </div>
+
+          <div style={{marginTop:26,marginBottom:18}}>
+            <button onClick={handleBuyReport} style={{...primaryBtn(),padding:"18px 36px",fontSize:18}}>
+              Yes, Get My Full Report for $14.99
+            </button>
+          </div>
+
+          <div style={{display:"flex",justifyContent:"center",alignItems:"center",gap:22,flexWrap:"wrap",marginBottom:24}}>
+            {[
+              {label:"Instant Download"},
+              {label:"Secure Payment"},
+              {label:"Personalized to Your Address"},
+            ].map(b => (
+              <div key={b.label} style={{display:"inline-flex",alignItems:"center",gap:8,color:"rgba(255,255,255,.72)",fontSize:13,fontWeight:700}}>
+                <span style={{display:"inline-flex",width:22,height:22,borderRadius:"50%",background:"rgba(16,185,129,.18)",alignItems:"center",justifyContent:"center"}}>
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#10b981" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>
+                </span>
+                {b.label}
+              </div>
+            ))}
+          </div>
+
+          <p style={{fontSize:12,color:"rgba(255,255,255,.45)",lineHeight:1.7,maxWidth:560,margin:"0 auto"}}>
+            Report is generated based on HumZones research database. All figures are estimates. See our <a href="/methodology" onClick={e=>{e.preventDefault();onNavigate("/methodology");}} className="ext-link" style={{color:"#f97316",fontWeight:700,textDecoration:"none"}}>methodology page</a> for details.
+          </p>
+        </div>
+      </section>
     </div>
   );
 };
@@ -926,7 +1148,7 @@ export default function App() {
     }
   };
 
-  // "Find Data Centers Near Me" — geolocation, geocoding, results
+  // "Find Data Centers Near Me": geolocation, geocoding, results
   const handleGeolocate = () => {
     if(!("geolocation" in navigator)){ setNearError("Geolocation is not available in this browser."); return; }
     setNearStatus("locating"); setNearError("");
@@ -1188,7 +1410,7 @@ export default function App() {
       {path === "/methodology" ? (
         <MethodologyPage onBack={()=>navigate("/")}/>
       ) : path === "/report-landing" ? (
-        <ReportLandingPage onBack={()=>navigate("/")}/>
+        <ReportLandingPage onBack={()=>navigate("/")} onNavigate={navigate}/>
       ) : (
       <div style={{minHeight:"100vh",background:"#f1f5f9",width:"100%",maxWidth:"100vw",overflowX:"hidden"}}>
 
@@ -1530,7 +1752,7 @@ export default function App() {
             </div>
           ))}
 
-          {/* PAID REPORT UPSELL — only when the user has unlocked and has results */}
+          {/* PAID REPORT UPSELL: only when the user has unlocked and has results */}
           {nearLoc && !dc && !loading && nearEmailUnlocked && nearResults.length > 0 && (
             <div className="fade-in" style={{background:"linear-gradient(150deg,#0a1628 0%,#0f172a 50%,#1e0535 100%)",borderRadius:18,padding:"36px 28px 30px",textAlign:"center",border:"1px solid rgba(249,115,22,.32)",boxShadow:"0 18px 50px rgba(0,0,0,.35),inset 0 1px 0 rgba(255,255,255,.05)",marginBottom:28}}>
               <div style={{fontSize:42,marginBottom:12,lineHeight:1}} role="img" aria-label="Fire">🔥</div>
