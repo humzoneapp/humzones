@@ -3473,7 +3473,8 @@ export default function App() {
             ))}
           </div>
           <div style={{fontSize:15,color:"#94a3b8",borderTop:"1px solid #1e293b",paddingTop:20,lineHeight:1.8}}>
-            &copy; 2026 HumZones Technologies Inc. All rights reserved.
+            <div>HumZones<sup style={{fontSize:".55em",color:"#f97316",fontWeight:700,verticalAlign:"super",marginLeft:1,marginRight:4}}>TM</sup>Technologies Inc.</div>
+            <div>&copy; 2026 All Rights Reserved</div>
           </div>
           <div style={{fontSize:13,color:"#475569",marginTop:6}}>
             humzones.com &middot; Built for residents, not the industry
