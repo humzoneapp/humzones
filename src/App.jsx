@@ -139,6 +139,26 @@ async function postReport(fields) {
   }
 }
 
+// POST a row to the Emails capture table. Used by the Near Me email gate.
+// Quietly returns false on failure so the caller can still unlock optimistically.
+async function postEmail(fields) {
+  try {
+    const r = await fetch(`${APIURL}/Emails`, {
+      method: "POST",
+      headers: HDR,
+      body: JSON.stringify({ fields }),
+    });
+    if(!r.ok){
+      const err = await r.json().catch(()=>({error:"unknown"}));
+      console.error("Email capture error:", JSON.stringify(err));
+    }
+    return r.ok;
+  } catch(e){
+    console.error("Email capture network error:", e);
+    return false;
+  }
+}
+
 // ─── OPENSTREETMAP STATIC MAP ─────────────────────────────────────────────────
 // Uses OSM tile server to create a map image centered on facility coordinates
 const getOSMMapUrl = (lat, lng, name) => {
@@ -354,6 +374,8 @@ const CSS = `
   @keyframes pulse{0%,100%{opacity:.55}50%{opacity:1}}
   @keyframes fadeIn{from{opacity:0}to{opacity:1}}
   .fade-in{animation:fadeIn .5s ease-out both}
+  .email-gate-input::placeholder{color:rgba(255,255,255,.45)}
+  .email-gate-input:focus{outline:none!important;border-color:rgba(249,115,22,.6)!important;background:rgba(255,255,255,.13)!important}
 
   /* Hard guard against horizontal overflow shifting content sideways on iPhone. */
   *{box-sizing:border-box}
@@ -666,6 +688,16 @@ export default function App() {
   const [nearRisk,setNearRisk]   = useState("ALL");      // ALL | HIGH | HIGH_MOD
   const [nearStatus,setNearStatus] = useState("idle");   // idle | locating | geocoding
   const [nearError,setNearError] = useState("");
+  // Email gate: unlock state persists in localStorage; "just unlocked" is a
+  // session-only flag that controls the green success headline.
+  const [nearEmailUnlocked,setNearEmailUnlocked] = useState(()=>{
+    if(typeof window==="undefined") return false;
+    try{ return localStorage.getItem("hz_near_email_unlocked")==="1"; }catch{ return false; }
+  });
+  const [nearEmailInput,setNearEmailInput]   = useState("");
+  const [nearEmailSending,setNearEmailSending] = useState(false);
+  const [nearEmailError,setNearEmailError]   = useState("");
+  const [justUnlocked,setJustUnlocked]       = useState(false);
   const cRef    = useRef(null);
   const rRef    = useRef(null);
   const ciRef   = useRef(null);
@@ -876,6 +908,25 @@ export default function App() {
     }
   };
   const clearNear = () => { setNearLoc(null); setNearAddr(""); setNearError(""); setNearStatus("idle"); };
+
+  const handleEmailUnlock = () => {
+    const email = nearEmailInput.trim();
+    if(!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){
+      setNearEmailError("Please enter a valid email address.");
+      return;
+    }
+    setNearEmailError(""); setNearEmailSending(true);
+    // Unlock optimistically so the UI feels instant; the Airtable POST runs in
+    // the background and we keep the user unlocked even if it fails.
+    try{ localStorage.setItem("hz_near_email_unlocked","1"); }catch{}
+    setNearEmailUnlocked(true);
+    setJustUnlocked(true);
+    postEmail({
+      Email: email,
+      Date: new Date().toISOString().slice(0,10),
+      Source: "NearMe",
+    }).finally(()=>setNearEmailSending(false));
+  };
 
   const nearResults = nearLoc ? facs
     .map(f => {
@@ -1251,14 +1302,20 @@ export default function App() {
           )}
           {nearLoc && !dc && !loading && (
             <div
-              key={`near-count-${nearLoc.lat}-${nearLoc.lng}-${nearRadius}-${nearRisk}`}
+              key={`near-count-${nearLoc.lat}-${nearLoc.lng}-${nearRadius}-${nearRisk}-${justUnlocked?"u":"l"}`}
               className="fade-in"
               style={{textAlign:"center",fontSize:28,fontWeight:900,letterSpacing:"-.02em",lineHeight:1.25,margin:"4px 0 20px"}}
             >
               {nearResults.length > 0 ? (
-                <span style={{background:"linear-gradient(135deg,#ef4444,#f97316)",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent",backgroundClip:"text"}}>
-                  {nearResults.length} {nearResults.length === 1 ? "facility" : "facilities"} found within {nearRadius}km of your location
-                </span>
+                justUnlocked && nearResults.length > 2 ? (
+                  <span style={{color:"#10b981"}}>
+                    &#10003; {nearResults.length} {nearResults.length === 1 ? "facility" : "facilities"} unlocked near you
+                  </span>
+                ) : (
+                  <span style={{background:"linear-gradient(135deg,#ef4444,#f97316)",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent",backgroundClip:"text"}}>
+                    {nearResults.length} {nearResults.length === 1 ? "facility" : "facilities"} found within {nearRadius}km of your location
+                  </span>
+                )
               ) : (
                 <span style={{color:"#94a3b8"}}>
                   0 facilities found within {nearRadius}km of your location
@@ -1266,33 +1323,93 @@ export default function App() {
               )}
             </div>
           )}
-          {nearLoc && !dc && !loading && (nearResults.length > 0 ? (
-            <div style={{display:"flex",flexDirection:"column",gap:14,marginBottom:28}}>
-              {nearResults.map(f => {
-                const st = STATUS[f.Facility_Status] || STATUS.OPERATING;
-                const rclr = RISK_C[f.Risk_Level] || "#64748b";
-                const dclr = distColor(f._km);
-                return (
-                  <div key={f.id} className="sym-card near-card" onClick={()=>pickFac(f.id)} style={{background:"#fff",borderRadius:18,boxShadow:"0 4px 18px rgba(0,0,0,.06)",padding:"18px 22px",cursor:"pointer",display:"flex",alignItems:"center",gap:16,flexWrap:"wrap"}}>
-                    <div style={{flex:1,minWidth:0}}>
-                      <div style={{fontSize:17,fontWeight:800,color:"#0f172a",marginBottom:4,lineHeight:1.3}}>{f.Name}</div>
-                      <div style={{fontSize:13,color:"#64748b",fontWeight:600}}>{f.Company} &middot; {[f.City,f.State_Region,f.Country].filter(Boolean).join(", ")}</div>
-                      <div style={{fontSize:13,color:"#64748b",fontWeight:600,marginTop:2}}>{f.Power_MW>=1000?`${(f.Power_MW/1000).toFixed(1)} GW`:`${f.Power_MW||"?"}MW`}</div>
+          {nearLoc && !dc && !loading && (nearResults.length > 0 ? (() => {
+            const renderNearCard = (f, locked=false) => {
+              const st = STATUS[f.Facility_Status] || STATUS.OPERATING;
+              const rclr = RISK_C[f.Risk_Level] || "#64748b";
+              const dclr = distColor(f._km);
+              return (
+                <div key={f.id} className="sym-card near-card" onClick={locked?undefined:()=>pickFac(f.id)} style={{background:"#fff",borderRadius:18,boxShadow:"0 4px 18px rgba(0,0,0,.06)",padding:"18px 22px",cursor:locked?"default":"pointer",display:"flex",alignItems:"center",gap:16,flexWrap:"wrap"}}>
+                  <div style={{flex:1,minWidth:0}}>
+                    <div style={{fontSize:17,fontWeight:800,color:"#0f172a",marginBottom:4,lineHeight:1.3}}>{f.Name}</div>
+                    <div style={{fontSize:13,color:"#64748b",fontWeight:600}}>{f.Company} &middot; {[f.City,f.State_Region,f.Country].filter(Boolean).join(", ")}</div>
+                    <div style={{fontSize:13,color:"#64748b",fontWeight:600,marginTop:2}}>{f.Power_MW>=1000?`${(f.Power_MW/1000).toFixed(1)} GW`:`${f.Power_MW||"?"}MW`}</div>
+                  </div>
+                  <div className="near-right" style={{display:"flex",flexDirection:"column",gap:8,alignItems:"flex-end",flexShrink:0,marginLeft:"auto"}}>
+                    <div style={{padding:"6px 12px",borderRadius:999,background:dclr,color:"#fff",fontWeight:800,fontSize:13,letterSpacing:".02em",boxShadow:`0 4px 14px ${dclr}55`}}>
+                      {f._km.toFixed(1)} km away
                     </div>
-                    <div className="near-right" style={{display:"flex",flexDirection:"column",gap:8,alignItems:"flex-end",flexShrink:0,marginLeft:"auto"}}>
-                      <div style={{padding:"6px 12px",borderRadius:999,background:dclr,color:"#fff",fontWeight:800,fontSize:13,letterSpacing:".02em",boxShadow:`0 4px 14px ${dclr}55`}}>
-                        {f._km.toFixed(1)} km away
-                      </div>
-                      <div style={{display:"flex",gap:6}}>
-                        <Chip label={st.label} color={st.color} small/>
-                        <Chip label={f.Risk_Level} color={rclr} small/>
+                    <div style={{display:"flex",gap:6}}>
+                      <Chip label={st.label} color={st.color} small/>
+                      <Chip label={f.Risk_Level} color={rclr} small/>
+                    </div>
+                  </div>
+                </div>
+              );
+            };
+
+            const showAll = nearEmailUnlocked || nearResults.length <= 2;
+            const previewCards = showAll ? nearResults : nearResults.slice(0,2);
+            const lockedCards  = showAll ? [] : nearResults.slice(2);
+            // Cap the rendered blurred preview so the page doesn't grow unbounded
+            // for very long result lists; the overlay covers what's rendered.
+            const blurredPreview = lockedCards.slice(0, Math.min(5, lockedCards.length));
+
+            return (
+              <div className={justUnlocked?"fade-in":undefined} style={{display:"flex",flexDirection:"column",gap:14,marginBottom:28}}>
+                {previewCards.map(f=>renderNearCard(f,false))}
+
+                {lockedCards.length > 0 && (
+                  <div style={{position:"relative"}}>
+                    {/* Blurred decoy cards behind the gate */}
+                    <div aria-hidden="true" style={{filter:"blur(6px)",pointerEvents:"none",userSelect:"none",display:"flex",flexDirection:"column",gap:14}}>
+                      {blurredPreview.map(f=>renderNearCard(f,true))}
+                    </div>
+                    {/* Email gate overlay */}
+                    <div style={{position:"absolute",inset:0,display:"flex",alignItems:"flex-start",justifyContent:"center",padding:"22px 14px",borderRadius:18,background:"linear-gradient(180deg,rgba(15,23,42,.25) 0%,rgba(15,23,42,.78) 30%,rgba(2,12,27,.92) 100%)"}}>
+                      <div className="fade-in" style={{maxWidth:520,width:"100%",background:"linear-gradient(150deg,#0a1628 0%,#0f172a 50%,#1e0535 100%)",borderRadius:18,padding:"34px 28px 28px",textAlign:"center",border:"1px solid rgba(249,115,22,.32)",boxShadow:"0 24px 60px rgba(0,0,0,.55),inset 0 1px 0 rgba(255,255,255,.05)"}}>
+                        <div style={{width:60,height:60,borderRadius:"50%",background:"linear-gradient(135deg,#ef4444,#f97316)",margin:"0 auto 18px",display:"flex",alignItems:"center",justifyContent:"center",boxShadow:"0 8px 26px rgba(239,68,68,.45)"}}>
+                          <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                            <rect x="4" y="11" width="16" height="10" rx="2"/>
+                            <path d="M8 11V7a4 4 0 0 1 8 0v4"/>
+                          </svg>
+                        </div>
+                        <h3 style={{fontSize:22,fontWeight:900,color:"#fff",marginBottom:10,letterSpacing:"-.01em",lineHeight:1.25}}>Your Full Area Report is Ready</h3>
+                        <p style={{fontSize:15,color:"rgba(255,255,255,.72)",marginBottom:22,lineHeight:1.6}}>
+                          See all {nearResults.length} facilities near you, their risk levels, EMF readings, noise levels and more.
+                        </p>
+                        <div style={{display:"flex",flexDirection:"column",gap:10,maxWidth:380,margin:"0 auto"}}>
+                          <input
+                            type="email"
+                            className="email-gate-input"
+                            value={nearEmailInput}
+                            onChange={e=>setNearEmailInput(e.target.value)}
+                            onKeyDown={e=>{ if(e.key==="Enter") handleEmailUnlock(); }}
+                            placeholder="Enter your email address"
+                            disabled={nearEmailSending}
+                            style={{padding:"13px 16px",fontSize:15,borderRadius:12,border:"1.5px solid rgba(255,255,255,.18)",background:"rgba(255,255,255,.08)",color:"#fff",fontFamily:"inherit",boxSizing:"border-box",width:"100%"}}
+                          />
+                          <button
+                            onClick={handleEmailUnlock}
+                            disabled={nearEmailSending}
+                            style={{padding:"13px 22px",borderRadius:12,border:"none",background:"linear-gradient(135deg,#ef4444,#f97316)",color:"#fff",fontSize:15,fontWeight:800,letterSpacing:".02em",cursor:nearEmailSending?"wait":"pointer",fontFamily:"inherit",boxShadow:"0 8px 26px rgba(239,68,68,.4)",opacity:nearEmailSending?.8:1}}
+                          >
+                            {nearEmailSending ? "Unlocking..." : "Unlock Free Results"}
+                          </button>
+                        </div>
+                        {nearEmailError && (
+                          <div style={{fontSize:13,color:"#fca5a5",fontWeight:600,marginTop:12}}>{nearEmailError}</div>
+                        )}
+                        <p style={{fontSize:12,color:"rgba(255,255,255,.5)",marginTop:16,lineHeight:1.6}}>
+                          Free access. No spam. Unsubscribe anytime.
+                        </p>
                       </div>
                     </div>
                   </div>
-                );
-              })}
-            </div>
-          ) : (
+                )}
+              </div>
+            );
+          })() : (
             <div style={{background:"#fff",borderRadius:18,padding:"44px 24px",textAlign:"center",boxShadow:"0 4px 18px rgba(0,0,0,.06)",marginBottom:28}}>
               <div style={{fontSize:42,marginBottom:12}}>📍</div>
               <div style={{fontSize:17,color:"#475569",fontWeight:600,lineHeight:1.6,maxWidth:480,margin:"0 auto"}}>
