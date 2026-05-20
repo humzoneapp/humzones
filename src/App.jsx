@@ -751,7 +751,7 @@ const SHARE_TARGETS = [
 const ShareSection = () => (
   <section aria-label="Share HumZones" className="share-section" style={{background:"#fff",textAlign:"center",borderBottom:"1px solid #f1f5f9"}}>
     <p style={{fontSize:13,color:"#94a3b8",margin:0,marginBottom:14,fontWeight:600,letterSpacing:".02em"}}>
-      Help your neighbors know what is near them
+      Know someone who should check this?
     </p>
     <div className="share-row">
       {SHARE_TARGETS.map((s, i) => (
@@ -2678,9 +2678,6 @@ export default function App() {
           </div>
         </div>
 
-        {/* SOCIAL SHARE */}
-        <ShareSection/>
-
         {/* MAIN */}
         <main className="main" ref={topRef} style={{maxWidth:1040,margin:"0 auto",padding:"36px 24px 72px",width:"100%",boxSizing:"border-box",overflowX:"hidden"}}>
 
@@ -2905,6 +2902,11 @@ export default function App() {
           ))}
           </div>
           )}
+
+          {/* SOCIAL SHARE: lives directly below the Find Data Centers Near Me
+              feature so the prompt to share lands after the buyer has seen
+              their own results, upsell banner and email gate. */}
+          {!dc && <ShareSection/>}
 
           {!dc && !nearLoc && !loading && (
             <div style={{textAlign:"center",padding:"80px 24px"}}>
