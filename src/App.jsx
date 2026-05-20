@@ -909,6 +909,26 @@ export default function App() {
   };
   const clearNear = () => { setNearLoc(null); setNearAddr(""); setNearError(""); setNearStatus("idle"); };
 
+  // Build a comma-separated risk roll-up like "3 HIGH, 4 MODERATE, 2 LOW".
+  // Known levels render in a fixed order so the column is easy to scan; any
+  // unexpected Risk_Level value is appended at the end so nothing is dropped.
+  const buildRiskSummary = (results) => {
+    const counts = {};
+    for(const f of results){
+      const lvl = f.Risk_Level || "UNKNOWN";
+      counts[lvl] = (counts[lvl] || 0) + 1;
+    }
+    const order = ["HIGH","MODERATE","LOW-MODERATE","LOW"];
+    const parts = [];
+    for(const lvl of order){
+      if(counts[lvl]) parts.push(`${counts[lvl]} ${lvl}`);
+    }
+    for(const k of Object.keys(counts)){
+      if(!order.includes(k)) parts.push(`${counts[k]} ${k}`);
+    }
+    return parts.join(", ");
+  };
+
   const handleEmailUnlock = () => {
     const email = nearEmailInput.trim();
     if(!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){
@@ -921,10 +941,17 @@ export default function App() {
     try{ localStorage.setItem("hz_near_email_unlocked","1"); }catch{}
     setNearEmailUnlocked(true);
     setJustUnlocked(true);
+    const isGPS = nearLoc && nearLoc.label === "My location";
     postEmail({
       Email: email,
       Date: new Date().toISOString().slice(0,10),
       Source: "NearMe",
+      Address: nearLoc ? (isGPS ? "GPS Location" : nearLoc.label) : "",
+      Latitude: nearLoc ? nearLoc.lat : null,
+      Longitude: nearLoc ? nearLoc.lng : null,
+      Radius_KM: nearRadius,
+      Facilities_Count: nearResults.length,
+      Risk_Summary: buildRiskSummary(nearResults),
     }).finally(()=>setNearEmailSending(false));
   };
 
