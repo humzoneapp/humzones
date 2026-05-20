@@ -926,7 +926,7 @@ const ReportLandingPage = ({ onBack, onNavigate }) => {
               <line x1="12" y1="17" x2="12.01" y2="17"/>
             </svg>
             <p style={{fontSize:13,color:"rgba(255,255,255,.82)",lineHeight:1.6,margin:0}}>
-              <strong style={{color:"#f97316",fontWeight:900,letterSpacing:".02em"}}>Important:</strong> The HumZones Area Report is based on research-compiled data and modeling estimates. All figures including EMF readings, noise levels, power consumption, CO2 estimates and water usage are approximations derived from public sources and industry standard formulas. They are not certified field measurements and should not be used as legal, medical or environmental evidence. Risk levels are relative indicators for public awareness only. Residents with health concerns should consult qualified medical and environmental professionals.
+              <strong style={{color:"#f97316",fontWeight:900,letterSpacing:".02em"}}>Important:</strong> The HumZones Area Report is based on research-compiled data and modeling estimates derived from public sources and industry standards formulas. They are not certified field measurements and should not be used as legal, medical or environmental evidence. Risk levels are relative indicators for public awareness only. Residents with health concerns should consult qualified medical and environmental professionals.
             </p>
           </div>
 
