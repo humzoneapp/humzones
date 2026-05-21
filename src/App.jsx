@@ -1149,9 +1149,12 @@ const ReportLandingPage = ({ onBack, onNavigate }) => {
           {/* Price with subtle orange radial glow behind it */}
           <div style={{position:"relative",display:"inline-block",padding:"6px 18px",marginBottom:6}}>
             <div aria-hidden="true" style={{position:"absolute",inset:"-30px -40px",background:"radial-gradient(ellipse at center, rgba(249,115,22,.40) 0%, rgba(249,115,22,0) 65%)",filter:"blur(8px)",pointerEvents:"none",zIndex:0}}/>
-            <div style={{display:"inline-flex",alignItems:"baseline",gap:14,position:"relative",zIndex:1,flexWrap:"wrap",justifyContent:"center"}}>
+            <div style={{display:"inline-flex",alignItems:"center",gap:14,position:"relative",zIndex:1,flexWrap:"wrap",justifyContent:"center"}}>
               <span style={{fontSize:22,color:"rgba(255,255,255,.5)",textDecoration:"line-through",fontWeight:600}}>$24.99</span>
               <span style={{fontSize:58,fontWeight:900,letterSpacing:"-.025em",background:"linear-gradient(135deg,#ef4444,#f97316)",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent",lineHeight:1}}>$14.99</span>
+              <span style={{display:"inline-flex",alignItems:"center",gap:5,background:"#f97316",color:"#fff",fontSize:12,fontWeight:800,padding:"5px 12px",borderRadius:999,boxShadow:"0 4px 14px rgba(249,115,22,.45)",letterSpacing:".02em",whiteSpace:"nowrap"}}>
+                <span role="img" aria-label="Lightning">⚡</span> Instant Download
+              </span>
             </div>
           </div>
 
@@ -1168,14 +1171,25 @@ const ReportLandingPage = ({ onBack, onNavigate }) => {
 
           <div style={{display:"flex",justifyContent:"center",alignItems:"center",gap:18,flexWrap:"wrap",marginBottom:18}}>
             {[
-              {label:"Instant Download"},
+              {label:"Instant Download", emphasis:true},
               {label:"Secure Payment"},
               {label:"Personalized to Your Address"},
             ].map(b => (
-              <div key={b.label} style={{display:"inline-flex",alignItems:"center",gap:8,color:"rgba(255,255,255,.75)",fontSize:13,fontWeight:700}}>
-                <span style={{display:"inline-flex",width:22,height:22,borderRadius:"50%",background:"rgba(16,185,129,.18)",alignItems:"center",justifyContent:"center"}}>
-                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#10b981" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>
-                </span>
+              <div key={b.label} style={{
+                display:"inline-flex",
+                alignItems:"center",
+                gap:8,
+                color: b.emphasis ? "#f97316" : "rgba(255,255,255,.75)",
+                fontSize: b.emphasis ? 15 : 13,
+                fontWeight: b.emphasis ? 800 : 700,
+              }}>
+                {b.emphasis ? (
+                  <span role="img" aria-label="Lightning" style={{fontSize:16,lineHeight:1}}>⚡</span>
+                ) : (
+                  <span style={{display:"inline-flex",width:22,height:22,borderRadius:"50%",background:"rgba(16,185,129,.18)",alignItems:"center",justifyContent:"center"}}>
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#10b981" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>
+                  </span>
+                )}
                 {b.label}
               </div>
             ))}
@@ -2792,8 +2806,9 @@ export default function App() {
               >
                 Show Me Everything
               </button>
-              <p style={{fontSize:12,color:"rgba(255,255,255,.55)",marginTop:14,lineHeight:1.6}}>
-                Instant PDF download. Personalized to your location.
+              <p style={{fontSize:13,color:"#fff",marginTop:14,lineHeight:1.6,fontWeight:600,letterSpacing:".01em"}}>
+                <span role="img" aria-label="Lightning" style={{marginRight:6}}>⚡</span>
+                Instant Download. Get your report in seconds.
               </p>
             </div>
           )}
