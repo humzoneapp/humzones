@@ -2023,10 +2023,12 @@ export default function App() {
   const [nearStatus,setNearStatus] = useState("idle");   // idle | locating | geocoding
   const [nearError,setNearError] = useState("");
   // Email gate: unlock state persists in localStorage; "just unlocked" is a
-  // session-only flag that controls the green success headline.
+  // session-only flag that controls the green success headline. The key is
+  // humzones_email_unlocked so any previous unlocks under older keys are
+  // intentionally invalidated and existing visitors see the gate again.
   const [nearEmailUnlocked,setNearEmailUnlocked] = useState(()=>{
     if(typeof window==="undefined") return false;
-    try{ return localStorage.getItem("hz_near_email_unlocked")==="1"; }catch{ return false; }
+    try{ return localStorage.getItem("humzones_email_unlocked")==="1"; }catch{ return false; }
   });
   const [nearEmailInput,setNearEmailInput]   = useState("");
   const [nearEmailSending,setNearEmailSending] = useState(false);
@@ -2325,7 +2327,7 @@ export default function App() {
     setNearEmailError(""); setNearEmailSending(true);
     // Unlock optimistically so the UI feels instant; the Airtable POST runs in
     // the background and we keep the user unlocked even if it fails.
-    try{ localStorage.setItem("hz_near_email_unlocked","1"); }catch{}
+    try{ localStorage.setItem("humzones_email_unlocked","1"); }catch{}
     setNearEmailUnlocked(true);
     setJustUnlocked(true);
     const isGPS = nearLoc && nearLoc.label === "My location";
@@ -2777,8 +2779,11 @@ export default function App() {
               )}
             </div>
           )}
-          {/* PAID REPORT UPSELL: shown immediately after the count headline */}
-          {nearLoc && !dc && !loading && nearEmailUnlocked && nearResults.length > 0 && (
+          {/* PAID REPORT UPSELL: shown immediately after the count headline,
+              regardless of email-gate state, so the Full Report pitch lands
+              alongside the 1-free-card + email gate during the locked phase
+              and continues to render after the user unlocks. */}
+          {nearLoc && !dc && !loading && nearResults.length > 0 && (
             <div className="fade-in" style={{background:"linear-gradient(150deg,#0a1628 0%,#0f172a 50%,#1e0535 100%)",borderRadius:18,padding:"36px 28px 30px",textAlign:"center",border:"1px solid rgba(249,115,22,.32)",boxShadow:"0 18px 50px rgba(0,0,0,.35),inset 0 1px 0 rgba(255,255,255,.05)",marginBottom:28,width:"100%",maxWidth:"100%",boxSizing:"border-box",marginLeft:0,marginRight:0}}>
               <div style={{fontSize:42,marginBottom:12,lineHeight:1}} role="img" aria-label="Fire">🔥</div>
               <h3 style={{fontSize:24,fontWeight:900,color:"#fff",marginBottom:8,letterSpacing:"-.01em",lineHeight:1.25}}>
