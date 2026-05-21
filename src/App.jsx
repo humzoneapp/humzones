@@ -1975,22 +1975,32 @@ const VerifyReportPage = ({ onNavigate }) => {
         const facilityName = params.get("facility") || "";
         const reportText   = params.get("report")   || "";
         const address      = params.get("address")  || "";
+        const cityParam    = params.get("city")     || "";
+        const countryParam = params.get("country")  || "";
         const symptoms     = params.get("symptoms") || "";
+        const duration     = params.get("duration") || "";
 
         if (!token || !email || !reportText) {
           throw new Error("This verification link is incomplete or has expired. Please resubmit your report.");
         }
 
+        // Field names match the Airtable Reports table schema exactly.
+        // Reporter and Email are both populated with the buyer email per
+        // table convention (Reporter is the display column). Verified is
+        // intentionally not written; manual review uses Approved=0.
         const fields = {
-          Email:    email,
-          Facility: facilityName,
-          Report:   reportText,
-          Address:  address,
-          Symptoms: symptoms,
-          Verified: 1,
-          Approved: 0,
-          Date:     new Date().toISOString().slice(0, 10),
-          Source:   "CommunityReport",
+          Reporter:       email,
+          Email:          email,
+          Facility:       facilityName,
+          Report_Text:    reportText,
+          Address:        address,
+          City:           cityParam,
+          Country:        countryParam,
+          Symptoms:       symptoms,
+          Duration:       duration,
+          Approved:       0,
+          Date_Submitted: new Date().toISOString().slice(0, 10),
+          Source:         "CommunityReport",
         };
 
         const r = await fetch(`${APIURL}/Reports`, {
@@ -2642,7 +2652,10 @@ export default function App() {
           facilityName: dc.Name || "",
           reportText:   draft,
           address:      [dc.Address, dc.City, dc.State_Region, dc.Country].filter(Boolean).join(", "),
+          city:         dc.City || "",
+          country:      dc.Country || "",
           symptoms:     repSymptoms.join(", "),
+          duration:     repDuration || "",
         }),
       });
       if(!r.ok){
@@ -3474,12 +3487,14 @@ export default function App() {
                             </div>
                           </div>
                           <div style={{marginBottom:16}}>
-                            <label style={{fontSize:13,fontWeight:700,color:"#374151",display:"block",marginBottom:8}}>How long have you lived at this address?</label>
-                            <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
-                              {["Less than 1 year","1 to 3 years","3 to 10 years","More than 10 years"].map(d=>(
-                                <button key={d} onClick={()=>setRepDuration(d)} style={{padding:"9px 16px",borderRadius:20,border:`2px solid ${repDuration===d?rc:"#e2e8f0"}`,background:repDuration===d?rc+"12":"#fff",color:repDuration===d?rc:"#64748b",fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:"inherit",transition:"all .15s"}}>{d}</button>
-                              ))}
-                            </div>
+                            <label style={{fontSize:13,fontWeight:700,color:"#374151",display:"block",marginBottom:6}}>How long have you lived or worked near this facility?</label>
+                            <input
+                              type="text"
+                              value={repDuration}
+                              onChange={e=>setRepDuration(e.target.value)}
+                              placeholder="e.g. 2 years, 6 months"
+                              style={{width:"100%",padding:"13px 16px",borderRadius:10,border:`1.5px solid ${repDuration.trim()?"#3b82f6":"#e2e8f0"}`,fontSize:15,boxSizing:"border-box",outline:"none",fontFamily:"inherit",color:"#1e293b",transition:"border-color .2s"}}
+                            />
                           </div>
                           <div style={{marginBottom:16}}>
                             <label style={{fontSize:13,fontWeight:700,color:"#374151",display:"block",marginBottom:8}}>Which of these have you experienced? <span style={{color:"#94a3b8",fontWeight:400}}>(select all that apply)</span></label>

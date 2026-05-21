@@ -20,7 +20,10 @@ module.exports = async (req, res) => {
       facilityName = "",
       reportText = "",
       address = "",
+      city = "",
+      country = "",
       symptoms = "",
+      duration = "",
     } = body;
 
     if (!email || !reportText) {
@@ -35,7 +38,10 @@ module.exports = async (req, res) => {
       "&facility=" + encodeURIComponent(facilityName) +
       "&report="   + encodeURIComponent(reportText) +
       "&address="  + encodeURIComponent(address) +
-      "&symptoms=" + encodeURIComponent(symptoms);
+      "&city="     + encodeURIComponent(city) +
+      "&country="  + encodeURIComponent(country) +
+      "&symptoms=" + encodeURIComponent(symptoms) +
+      "&duration=" + encodeURIComponent(duration);
 
     const transporter = nodemailer.createTransport({
       host: process.env.EMAIL_HOST,
