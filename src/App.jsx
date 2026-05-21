@@ -2057,7 +2057,22 @@ const BIZ_FIELD = {
   Login_Token:        "fldWIBRNN4MFc30B3",
   Token_Expiry:       "fldlRsSLLbrURuVb1",
   Recovery_PIN:       "fldNCDrm8FTAde1yI",
+  Security_Question:  "fld70Jq3GDJEC52W9",
+  Security_Answer:    "fldNpLubvAo6qbh45",
 };
+
+// Security questions offered at business signup. The chosen question is
+// stored verbatim; the answer is hashed (lowercased + trimmed first).
+const SECURITY_QUESTIONS = [
+  "What was the name of your first pet?",
+  "What street did you grow up on?",
+  "What is your mother's maiden name?",
+  "What was the name of your first school?",
+  "What city were you born in?",
+  "What was your childhood nickname?",
+  "What is the name of your favorite sports team?",
+  "What was the make of your first car?",
+];
 
 const BUSINESS_REPORTS_TABLE = "tblFPqxXwxgcuTZhM";
 const BIZ_REP_FIELD = {
@@ -2445,6 +2460,8 @@ const BusinessSuccessPage = ({ onNavigate }) => {
   const [email,     setEmail]     = useState("");
   const [pin,       setPin]       = useState("");
   const [pinConfirm,setPinConfirm]= useState("");
+  const [securityQuestion, setSecurityQuestion] = useState("");
+  const [securityAnswer,   setSecurityAnswer]   = useState("");
   const [status,    setStatus]    = useState("form"); // form | submitting | done | error
   const [errMsg,    setErrMsg]    = useState("");
   const [created,   setCreated]   = useState(null);
@@ -2453,7 +2470,8 @@ const BusinessSuccessPage = ({ onNavigate }) => {
   const pinValid    = /^[0-9]{4}$/.test(pin);
   const pinMismatch = pin && pinConfirm && pin !== pinConfirm;
   const canSubmit = firstName.trim() && company.trim() && email.trim() &&
-    pinValid && pin === pinConfirm && status === "form";
+    pinValid && pin === pinConfirm &&
+    securityQuestion && securityAnswer.trim() && status === "form";
 
   const submit = async () => {
     if (!canSubmit) return;
@@ -2464,9 +2482,11 @@ const BusinessSuccessPage = ({ onNavigate }) => {
       const renewalDate  = isAnnual ? addMonths(12) : addMonths(1);
       const token        = generateToken();
       const tokenExpiry  = new Date(Date.now() + 24*60*60*1000).toISOString();
-      // Hash the PIN before it ever leaves the browser; the raw value is
-      // never written to Airtable.
+      // Hash the PIN and the security answer before they leave the browser;
+      // the raw values are never written to Airtable. The answer is
+      // lowercased and trimmed first so capitalisation never matters.
       const pinHash      = await sha256Hex(pin.trim());
+      const answerHash   = await sha256Hex(securityAnswer.trim().toLowerCase());
 
       const fields = {
         [BIZ_FIELD.Email]:             email.trim(),
@@ -2483,6 +2503,8 @@ const BusinessSuccessPage = ({ onNavigate }) => {
         [BIZ_FIELD.Login_Token]:       token,
         [BIZ_FIELD.Token_Expiry]:      tokenExpiry,
         [BIZ_FIELD.Recovery_PIN]:      pinHash,
+        [BIZ_FIELD.Security_Question]: securityQuestion,
+        [BIZ_FIELD.Security_Answer]:   answerHash,
       };
 
       const rec = await createBusinessAccount(fields);
@@ -2572,6 +2594,23 @@ const BusinessSuccessPage = ({ onNavigate }) => {
                 )}
               </div>
 
+              <div style={{marginBottom:14}}>
+                <label style={{fontSize:13,fontWeight:700,color:"rgba(255,255,255,.85)",display:"block",marginBottom:6}}>Choose a Security Question *</label>
+                <select value={securityQuestion} onChange={e=>setSecurityQuestion(e.target.value)} style={{...inputStyle(securityQuestion), paddingRight:36, appearance:"none"}}>
+                  <option value="" style={{color:"#0f172a"}}>Select a question...</option>
+                  {SECURITY_QUESTIONS.map(q => (
+                    <option key={q} value={q} style={{color:"#0f172a"}}>{q}</option>
+                  ))}
+                </select>
+              </div>
+              <div style={{marginBottom:14}}>
+                <label style={{fontSize:13,fontWeight:700,color:"rgba(255,255,255,.85)",display:"block",marginBottom:6}}>Your Answer *</label>
+                <input type="text" value={securityAnswer} onChange={e=>setSecurityAnswer(e.target.value)} placeholder="One word answers are easiest to remember" style={inputStyle(securityAnswer)}/>
+                <div style={{fontSize:12,color:"rgba(255,255,255,.5)",marginTop:6,lineHeight:1.55}}>
+                  Tip: use a single word answer and remember it exactly as you type it. Spelling matters but capitals do not.
+                </div>
+              </div>
+
               <div style={{display:"flex",gap:12,alignItems:"flex-start",padding:"14px 16px",borderRadius:12,background:"rgba(249,115,22,.1)",border:"1.5px solid rgba(249,115,22,.55)",marginBottom:18}}>
                 <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#f97316" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={{flexShrink:0,marginTop:1}}>
                   <path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
@@ -2579,7 +2618,7 @@ const BusinessSuccessPage = ({ onNavigate }) => {
                   <line x1="12" y1="17" x2="12.01" y2="17"/>
                 </svg>
                 <p style={{fontSize:13,color:"rgba(255,255,255,.85)",lineHeight:1.6,margin:0}}>
-                  <strong style={{color:"#f97316"}}>Important:</strong> Your 4-digit PIN is the only way to recover your login email if you forget it. Store it somewhere safe such as a password manager or written note. If you lose your PIN we have no way to verify your identity or recover your account.
+                  <strong style={{color:"#f97316"}}>Important:</strong> Your 4-digit PIN and security question answer are the only way to recover your login email if you forget it. Store your PIN somewhere safe such as a password manager or written note. If you lose both your PIN and security answer we have no way to verify your identity or recover your account.
                 </p>
               </div>
 
@@ -2897,52 +2936,98 @@ const BusinessGeneratePage = ({ onNavigate }) => {
   );
 };
 
-// ─── /business-recover: PIN-BASED EMAIL RECOVERY ─────────────────────────────
-// A subscriber who forgot which email they signed up with enters their
-// 4-digit recovery PIN; we hash it and scan Business_Accounts for a match,
-// then reveal the full login email. Three wrong attempts lock the form.
-const RECOVER_ATTEMPTS_KEY = "humzones_recover_attempts";
+// ─── /business-recover: PIN + SECURITY QUESTION EMAIL RECOVERY ───────────────
+// Two-step flow. Step 1: enter the 4-digit PIN; we hash it and scan
+// Business_Accounts for matches. Step 2: answer the security question on the
+// first matched record; a correct hashed answer reveals the login email.
+// Each step has its own 3-attempt lockout tracked in localStorage.
+const RECOVER_PIN_ATTEMPTS_KEY    = "humzones_recover_attempts";
+const RECOVER_ANSWER_ATTEMPTS_KEY = "humzones_recover_answer_attempts";
+
+const readRecoverAttempts = (key) => {
+  try { return parseInt(localStorage.getItem(key) || "0", 10) || 0; } catch { return 0; }
+};
+const bumpRecoverAttempts = (key) => {
+  const n = readRecoverAttempts(key) + 1;
+  try { localStorage.setItem(key, String(n)); } catch {}
+  return n;
+};
+const clearRecoverAttempts = (key) => {
+  try { localStorage.removeItem(key); } catch {}
+};
 
 const BusinessRecoverPage = ({ onNavigate }) => {
-  const [pin, setPin] = useState("");
-  const [status, setStatus] = useState(() => {
-    try {
-      const n = parseInt(localStorage.getItem(RECOVER_ATTEMPTS_KEY) || "0", 10);
-      return n >= 3 ? "locked" : "idle";
-    } catch { return "idle"; }
-  }); // idle | searching | found | error | locked
+  const [step, setStep]   = useState("pin"); // pin | question | done
+  const [pin, setPin]     = useState("");
+  const [answer, setAnswer] = useState("");
+  const [matched, setMatched] = useState(null); // first matched Airtable record
   const [foundEmail, setFoundEmail] = useState("");
+
+  const [pinBusy, setPinBusy]     = useState(false);
+  const [pinError, setPinError]   = useState("");
+  const [pinLocked, setPinLocked] = useState(() => readRecoverAttempts(RECOVER_PIN_ATTEMPTS_KEY) >= 3);
+
+  const [answerBusy, setAnswerBusy]     = useState(false);
+  const [answerError, setAnswerError]   = useState("");
+  const [answerLocked, setAnswerLocked] = useState(() => readRecoverAttempts(RECOVER_ANSWER_ATTEMPTS_KEY) >= 3);
 
   const pinValid = /^[0-9]{4}$/.test(pin);
 
-  const registerFailure = () => {
-    let n = 0;
-    try {
-      n = parseInt(localStorage.getItem(RECOVER_ATTEMPTS_KEY) || "0", 10) + 1;
-      localStorage.setItem(RECOVER_ATTEMPTS_KEY, String(n));
-    } catch { n = 3; }
-    setStatus(n >= 3 ? "locked" : "error");
-  };
-
-  const findAccount = async () => {
-    if (!pinValid || status === "searching" || status === "locked") return;
-    setStatus("searching");
+  const submitPin = async () => {
+    if (!pinValid || pinBusy || pinLocked) return;
+    setPinBusy(true);
+    setPinError("");
     try {
       const hash = await sha256Hex(pin.trim());
       const records = await fetchAllBusinessAccounts();
-      const match = records.find(rec => rec.fields && rec.fields[BIZ_FIELD.Recovery_PIN] === hash);
-      if (match) {
-        setFoundEmail(match.fields[BIZ_FIELD.Email] || "");
-        setStatus("found");
-        try { localStorage.removeItem(RECOVER_ATTEMPTS_KEY); } catch {}
+      const matches = records.filter(rec => rec.fields && rec.fields[BIZ_FIELD.Recovery_PIN] === hash);
+      if (matches.length === 0) {
+        const n = bumpRecoverAttempts(RECOVER_PIN_ATTEMPTS_KEY);
+        if (n >= 3) setPinLocked(true);
+        else setPinError("No account found with that PIN. Please check and try again.");
       } else {
-        registerFailure();
+        // Multiple PINs can collide; the security answer disambiguates, so
+        // we proceed with the first match without revealing anything yet.
+        setMatched(matches[0]);
+        setAnswer("");
+        setAnswerError("");
+        setStep("question");
       }
     } catch (e) {
-      console.error("Recovery lookup failed:", e);
-      setStatus("error");
+      console.error("Recovery PIN lookup failed:", e);
+      setPinError("Something went wrong. Please try again.");
+    } finally {
+      setPinBusy(false);
     }
   };
+
+  const submitAnswer = async () => {
+    if (!answer.trim() || answerBusy || answerLocked || !matched) return;
+    setAnswerBusy(true);
+    setAnswerError("");
+    try {
+      const hash = await sha256Hex(answer.trim().toLowerCase());
+      if (hash === matched.fields[BIZ_FIELD.Security_Answer]) {
+        setFoundEmail(matched.fields[BIZ_FIELD.Email] || "");
+        setStep("done");
+        clearRecoverAttempts(RECOVER_PIN_ATTEMPTS_KEY);
+        clearRecoverAttempts(RECOVER_ANSWER_ATTEMPTS_KEY);
+      } else {
+        const n = bumpRecoverAttempts(RECOVER_ANSWER_ATTEMPTS_KEY);
+        if (n >= 3) setAnswerLocked(true);
+        else setAnswerError("Incorrect answer. Please try again.");
+      }
+    } catch (e) {
+      console.error("Recovery answer check failed:", e);
+      setAnswerError("Something went wrong. Please try again.");
+    } finally {
+      setAnswerBusy(false);
+    }
+  };
+
+  const errorBox = (msg) => (
+    <div style={{padding:"12px 14px",borderRadius:10,background:"rgba(239,68,68,.12)",border:"1px solid rgba(239,68,68,.4)",color:"#fecaca",fontSize:14,marginBottom:14}}>{msg}</div>
+  );
 
   return (
     <div style={{minHeight:"100vh",background:"linear-gradient(150deg,#020c1b 0%,#0f172a 50%,#1e0535 100%)",color:"#fff"}}>
@@ -2954,50 +3039,86 @@ const BusinessRecoverPage = ({ onNavigate }) => {
       </div>
 
       <main style={{maxWidth:480,margin:"0 auto",padding:"24px 24px 80px"}}>
-        <div style={{textAlign:"center",marginBottom:24}}>
-          <h1 style={{fontSize:30,fontWeight:900,letterSpacing:"-.01em",marginBottom:10}}>Account Recovery</h1>
-          <p style={{fontSize:15,color:"rgba(255,255,255,.7)",lineHeight:1.65}}>Enter your 4-digit recovery PIN to instantly retrieve your login email.</p>
-        </div>
 
-        {status === "found" ? (
-          <div style={{background:"rgba(34,197,94,.08)",border:"1px solid rgba(34,197,94,.35)",borderRadius:16,padding:"28px",textAlign:"center"}}>
-            <div style={{fontSize:15,color:"#86efac",fontWeight:700,marginBottom:10}}>We found your account. Your login email is:</div>
-            <div style={{fontSize:22,fontWeight:900,color:"#f97316",wordBreak:"break-all",marginBottom:20}}>{foundEmail}</div>
-            <button onClick={()=>onNavigate("/business-login")} style={{padding:"14px 28px",borderRadius:12,border:"none",cursor:"pointer",fontFamily:"inherit",fontSize:15,fontWeight:900,background:"linear-gradient(135deg,#ef4444,#f97316)",color:"#fff",boxShadow:"0 10px 28px rgba(249,115,22,.4)"}}>Go to Login</button>
-            <p style={{fontSize:13,color:"rgba(255,255,255,.55)",marginTop:14,lineHeight:1.55}}>
-              Enter this email at humzones.com/business-login to receive your instant login link.
-            </p>
-          </div>
-        ) : (
-          <div style={{background:"rgba(15,23,42,.55)",border:"1px solid rgba(255,255,255,.1)",borderRadius:16,padding:"26px"}}>
-            {status === "error" && (
-              <div style={{padding:"12px 14px",borderRadius:10,background:"rgba(239,68,68,.12)",border:"1px solid rgba(239,68,68,.4)",color:"#fecaca",fontSize:14,marginBottom:14}}>
-                No account found with that PIN. Please check your PIN and try again.
-              </div>
-            )}
-            {status === "locked" && (
-              <div style={{padding:"12px 14px",borderRadius:10,background:"rgba(239,68,68,.12)",border:"1px solid rgba(239,68,68,.4)",color:"#fecaca",fontSize:14,marginBottom:14}}>
-                Too many failed attempts. Please try again later.
-              </div>
-            )}
-            <label style={{fontSize:13,fontWeight:700,color:"rgba(255,255,255,.85)",display:"block",marginBottom:6}}>Recovery PIN</label>
-            <input
-              type="number" min="1000" max="9999"
-              value={pin}
-              onChange={e=>setPin(e.target.value)}
-              onKeyDown={e=>{ if (e.key === "Enter") findAccount(); }}
-              disabled={status === "locked"}
-              placeholder="Your 4-digit recovery PIN"
-              style={{width:"100%",padding:"14px 16px",borderRadius:10,border:`1.5px solid ${pinValid?"#f97316":"rgba(255,255,255,.18)"}`,fontSize:16,boxSizing:"border-box",outline:"none",fontFamily:"inherit",color:"#fff",background:"rgba(255,255,255,.06)",marginBottom:16,opacity:status==="locked"?.5:1}}
-            />
-            <button onClick={findAccount} disabled={!pinValid || status === "searching" || status === "locked"} style={{width:"100%",padding:"15px 22px",borderRadius:12,border:"none",cursor:(!pinValid||status==="searching"||status==="locked")?"not-allowed":"pointer",fontFamily:"inherit",fontSize:16,fontWeight:900,letterSpacing:".04em",background:(pinValid&&status!=="locked")?"linear-gradient(135deg,#ef4444,#f97316)":"rgba(255,255,255,.1)",color:"#fff",boxShadow:(pinValid&&status!=="locked")?"0 10px 28px rgba(249,115,22,.4)":"none"}}>
-              {status === "searching" ? "Searching..." : "Find My Account"}
-            </button>
-            <p style={{fontSize:13,color:"rgba(255,255,255,.55)",textAlign:"center",marginTop:14,paddingTop:14,borderTop:"1px solid rgba(255,255,255,.08)"}}>
-              Remembered your email? <a href="/business-login" onClick={e=>{e.preventDefault();onNavigate("/business-login");}} style={{color:"#f97316",fontWeight:700,textDecoration:"none"}}>Sign in</a>
-            </p>
-          </div>
+        {step === "pin" && (
+          <>
+            <div style={{textAlign:"center",marginBottom:24}}>
+              <h1 style={{fontSize:30,fontWeight:900,letterSpacing:"-.01em",marginBottom:10}}>Account Recovery</h1>
+              <p style={{fontSize:15,color:"rgba(255,255,255,.7)",lineHeight:1.65}}>Enter your 4-digit recovery PIN to begin.</p>
+            </div>
+            <div style={{background:"rgba(15,23,42,.55)",border:"1px solid rgba(255,255,255,.1)",borderRadius:16,padding:"26px"}}>
+              {pinError && errorBox(pinError)}
+              {pinLocked && errorBox("Too many failed attempts. Please try again later.")}
+              <label style={{fontSize:13,fontWeight:700,color:"rgba(255,255,255,.85)",display:"block",marginBottom:6}}>Recovery PIN</label>
+              <input
+                type="number" min="1000" max="9999"
+                value={pin}
+                onChange={e=>setPin(e.target.value)}
+                onKeyDown={e=>{ if (e.key === "Enter") submitPin(); }}
+                disabled={pinLocked}
+                placeholder="Your 4-digit recovery PIN"
+                style={{width:"100%",padding:"14px 16px",borderRadius:10,border:`1.5px solid ${pinValid?"#f97316":"rgba(255,255,255,.18)"}`,fontSize:16,boxSizing:"border-box",outline:"none",fontFamily:"inherit",color:"#fff",background:"rgba(255,255,255,.06)",marginBottom:16,opacity:pinLocked?.5:1}}
+              />
+              <button onClick={submitPin} disabled={!pinValid || pinBusy || pinLocked} style={{width:"100%",padding:"15px 22px",borderRadius:12,border:"none",cursor:(!pinValid||pinBusy||pinLocked)?"not-allowed":"pointer",fontFamily:"inherit",fontSize:16,fontWeight:900,letterSpacing:".04em",background:(pinValid&&!pinLocked)?"linear-gradient(135deg,#ef4444,#f97316)":"rgba(255,255,255,.1)",color:"#fff",boxShadow:(pinValid&&!pinLocked)?"0 10px 28px rgba(249,115,22,.4)":"none"}}>
+                {pinBusy ? "Checking..." : "Continue"}
+              </button>
+              <p style={{fontSize:13,color:"rgba(255,255,255,.55)",textAlign:"center",marginTop:14,paddingTop:14,borderTop:"1px solid rgba(255,255,255,.08)"}}>
+                Remembered your email? <a href="/business-login" onClick={e=>{e.preventDefault();onNavigate("/business-login");}} style={{color:"#f97316",fontWeight:700,textDecoration:"none"}}>Sign in</a>
+              </p>
+            </div>
+          </>
         )}
+
+        {step === "question" && (
+          <>
+            <div style={{textAlign:"center",marginBottom:24}}>
+              <h1 style={{fontSize:30,fontWeight:900,letterSpacing:"-.01em",marginBottom:10}}>One more step</h1>
+              <p style={{fontSize:15,color:"rgba(255,255,255,.7)",lineHeight:1.65}}>Answer your security question to confirm your identity.</p>
+            </div>
+            <div style={{background:"rgba(15,23,42,.55)",border:"1px solid rgba(255,255,255,.1)",borderRadius:16,padding:"26px"}}>
+              {answerError && errorBox(answerError)}
+              {answerLocked && errorBox("Too many failed attempts. Please try again later.")}
+              <div style={{fontSize:12,color:"#f97316",letterSpacing:".14em",textTransform:"uppercase",fontWeight:800,marginBottom:8}}>Security Question</div>
+              <div style={{fontSize:19,fontWeight:900,color:"#fff",lineHeight:1.4,marginBottom:16}}>
+                {(matched && matched.fields[BIZ_FIELD.Security_Question]) || "Answer your security question"}
+              </div>
+              <label style={{fontSize:13,fontWeight:700,color:"rgba(255,255,255,.85)",display:"block",marginBottom:6}}>Your Answer</label>
+              <input
+                type="text"
+                value={answer}
+                onChange={e=>setAnswer(e.target.value)}
+                onKeyDown={e=>{ if (e.key === "Enter") submitAnswer(); }}
+                disabled={answerLocked}
+                placeholder="Your answer"
+                style={{width:"100%",padding:"14px 16px",borderRadius:10,border:`1.5px solid ${answer.trim()?"#f97316":"rgba(255,255,255,.18)"}`,fontSize:16,boxSizing:"border-box",outline:"none",fontFamily:"inherit",color:"#fff",background:"rgba(255,255,255,.06)",marginBottom:6,opacity:answerLocked?.5:1}}
+              />
+              <div style={{fontSize:12,color:"rgba(255,255,255,.5)",marginBottom:16}}>Spelling matters but capitals do not</div>
+              <button onClick={submitAnswer} disabled={!answer.trim() || answerBusy || answerLocked} style={{width:"100%",padding:"15px 22px",borderRadius:12,border:"none",cursor:(!answer.trim()||answerBusy||answerLocked)?"not-allowed":"pointer",fontFamily:"inherit",fontSize:16,fontWeight:900,letterSpacing:".04em",background:(answer.trim()&&!answerLocked)?"linear-gradient(135deg,#ef4444,#f97316)":"rgba(255,255,255,.1)",color:"#fff",boxShadow:(answer.trim()&&!answerLocked)?"0 10px 28px rgba(249,115,22,.4)":"none"}}>
+                {answerBusy ? "Verifying..." : "Verify My Answer"}
+              </button>
+              <p style={{fontSize:13,color:"rgba(255,255,255,.55)",textAlign:"center",marginTop:14}}>
+                <a href="/business-recover" onClick={e=>{e.preventDefault();setStep("pin");setAnswerError("");}} style={{color:"rgba(255,255,255,.75)",fontWeight:700,textDecoration:"underline",cursor:"pointer"}}>Back</a>
+              </p>
+            </div>
+          </>
+        )}
+
+        {step === "done" && (
+          <>
+            <div style={{textAlign:"center",marginBottom:24}}>
+              <h1 style={{fontSize:30,fontWeight:900,letterSpacing:"-.01em",marginBottom:10}}>Account Recovery</h1>
+            </div>
+            <div style={{background:"rgba(34,197,94,.08)",border:"1px solid rgba(34,197,94,.35)",borderRadius:16,padding:"28px",textAlign:"center"}}>
+              <div style={{fontSize:15,color:"#86efac",fontWeight:700,marginBottom:10}}>We found your account. Your login email is:</div>
+              <div style={{fontSize:22,fontWeight:900,color:"#f97316",wordBreak:"break-all",marginBottom:20}}>{foundEmail}</div>
+              <button onClick={()=>onNavigate("/business-login")} style={{padding:"14px 28px",borderRadius:12,border:"none",cursor:"pointer",fontFamily:"inherit",fontSize:15,fontWeight:900,background:"linear-gradient(135deg,#ef4444,#f97316)",color:"#fff",boxShadow:"0 10px 28px rgba(249,115,22,.4)"}}>Go to Login</button>
+              <p style={{fontSize:13,color:"rgba(255,255,255,.55)",marginTop:14,lineHeight:1.55}}>
+                Enter this email at humzones.com/business-login to receive your instant login link.
+              </p>
+            </div>
+          </>
+        )}
+
       </main>
     </div>
   );

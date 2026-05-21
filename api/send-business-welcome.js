@@ -73,8 +73,8 @@ module.exports = async (req, res) => {
               '<a href="' + loginUrl + '" style="background: #f97316; color: white; padding: 16px 32px; border-radius: 8px; text-decoration: none; font-weight: bold; font-size: 16px; display: inline-block;">Access My Dashboard</a>' +
             '</div>' +
             '<div style="background: #fff7ed; border: 1px solid #fdba74; border-radius: 8px; padding: 16px 18px; margin: 24px 0;">' +
-              '<p style="color: #c2410c; font-size: 14px; font-weight: bold; margin: 0 0 6px 0;">Your Recovery PIN</p>' +
-              '<p style="color: #7c2d12; font-size: 13px; line-height: 1.6; margin: 0;">You created a 4-digit recovery PIN during signup. Store it somewhere safe. If you ever forget your login email visit <a href="https://humzones.com/business-recover" style="color: #c2410c; font-weight: bold;">humzones.com/business-recover</a>, enter your PIN and your full login email will be displayed instantly. If you lose your PIN we cannot recover your account.</p>' +
+              '<p style="color: #c2410c; font-size: 14px; font-weight: bold; margin: 0 0 6px 0;">Account Recovery</p>' +
+              '<p style="color: #7c2d12; font-size: 13px; line-height: 1.6; margin: 0;">Your account is protected by your 4-digit PIN and security question. If you ever forget your login email visit <a href="https://humzones.com/business-recover" style="color: #c2410c; font-weight: bold;">humzones.com/business-recover</a>. You will need your PIN and the answer to your security question.</p>' +
             '</div>' +
             '<p style="color: #94a3b8; font-size: 13px;">This login link expires in 24 hours. You can always request a new one at <a href="https://humzones.com/business-login" style="color: #f97316;">humzones.com/business-login</a>.</p>' +
             '<h3 style="color: #0f172a; font-size: 16px; margin-top: 28px;">What you can do:</h3>' +
