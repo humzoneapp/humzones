@@ -872,6 +872,13 @@ const ReportLandingPage = ({ onBack, onNavigate }) => {
   const fmtNum = (n) => Number(n).toLocaleString();
   const fmtPower = (mw) => mw >= 1000 ? `${(mw/1000).toFixed(1)} GW` : `${fmtNum(mw)} MW`;
 
+  // Detect an active business session so we can swap the Stripe CTA for an
+  // in-app "Generate Report" button that bills a credit instead of a card.
+  const businessAccount = readBusinessAccount();
+  const isBusinessActive = !!(businessAccount && businessAccount.status === "Active" &&
+    (businessAccount.creditsMonthly >= 999999 || businessAccount.creditsRemaining > 0));
+  const businessIsUnlimited = !!(businessAccount && businessAccount.creditsMonthly >= 999999);
+
   // Buy CTA: redirects straight to the Stripe-hosted Payment Link. No
   // serverless function is involved; the post-payment redirect is configured
   // on the Payment Link in the Stripe dashboard to land on
@@ -879,7 +886,7 @@ const ReportLandingPage = ({ onBack, onNavigate }) => {
   // localStorage on the line right above so /report-success can personalize
   // the PDF when the buyer comes back.
   const STRIPE_PAYMENT_LINK = "https://buy.stripe.com/test_3cI6oJ3DA2bv8Gd3uIgMw00";
-  const handleBuyReport = () => {
+  const persistSearchContext = () => {
     try {
       localStorage.setItem("searchAddress",   get("searchAddress"));
       localStorage.setItem("searchLat",       get("searchLat"));
@@ -890,8 +897,20 @@ const ReportLandingPage = ({ onBack, onNavigate }) => {
       localStorage.setItem("selectedRadius",  get("selectedRadius"));
       localStorage.setItem("hz_report_purchase_intent", new Date().toISOString());
     } catch {}
+  };
+  const handleBuyReport = () => {
+    persistSearchContext();
+    if (isBusinessActive) {
+      // Bypass Stripe. /report-success will see the business session in
+      // localStorage and deduct one credit before generating the PDF.
+      onNavigate("/report-success");
+      return;
+    }
     window.location.href = STRIPE_PAYMENT_LINK;
   };
+  const businessCtaLabel = businessIsUnlimited
+    ? "Generate Report (Unlimited)"
+    : (businessAccount ? `Generate Report (${businessAccount.creditsRemaining} credits remaining)` : "");
 
   const numbersUnknown = facilities100km === 0;
 
@@ -996,10 +1015,10 @@ const ReportLandingPage = ({ onBack, onNavigate }) => {
             You only searched {selectedRadius || "a smaller radius"}{selectedRadius?"km":""} and found {facilitiesFound} {facilitiesFound===1?"facility":"facilities"}. Here is what else is near you that you do not know about yet.
           </p>
           <button onClick={handleBuyReport} className="cta-pulse" style={primaryBtn()}>
-            Get My Full Report
+            {isBusinessActive ? businessCtaLabel : "Get My Full Report"}
           </button>
           <p style={{fontSize:13,color:"rgba(255,255,255,.55)",marginTop:12,lineHeight:1.6}}>
-            Instant PDF. Personalized to your exact location.
+            {isBusinessActive ? "Instant PDF. No additional charge - billed to your business plan." : "Instant PDF. Personalized to your exact location."}
           </p>
         </div>
       </section>
@@ -1160,7 +1179,7 @@ const ReportLandingPage = ({ onBack, onNavigate }) => {
 
           <div style={{marginTop:8,marginBottom:18}}>
             <button onClick={handleBuyReport} className="cta-pulse" style={{...primaryBtn(),padding:"20px 40px",fontSize:18}}>
-              Yes, Get My Full Report for $14.99
+              {isBusinessActive ? businessCtaLabel : "Yes, Get My Full Report for $14.99"}
             </button>
           </div>
 
@@ -1218,11 +1237,12 @@ const ReportLandingPage = ({ onBack, onNavigate }) => {
 // coordinates, generates a multi-page PDF with jsPDF, triggers download, and
 // silently records the purchase in the Emails capture table.
 const ReportSuccessPage = ({ onBack, onNavigate }) => {
-  // status: loading -> generating -> ready / error
+  // status: loading -> generating -> ready / error / no_credits
   const [status, setStatus] = useState("loading");
   const [stepMsg, setStepMsg] = useState("Fetching your facility data...");
   const [progress, setProgress] = useState(10);
   const [errMsg, setErrMsg] = useState("");
+  const [noCreditsInfo, setNoCreditsInfo] = useState(null); // { renewalDate }
 
   // Guard against React 18 StrictMode double-invocation in dev: the PDF
   // generator must run exactly once so the buyer is not served two downloads.
@@ -1275,8 +1295,71 @@ const ReportSuccessPage = ({ onBack, onNavigate }) => {
         // the buy flow redirects directly to a Stripe Payment Link, so the
         // buyer email is not available client-side after the redirect back.
         // The PDF and the Airtable Emails capture leave the Email field
-        // blank when we cannot derive it.
-        const buyerEmail = "";
+        // blank when we cannot derive it. Business users override this with
+        // their account email (set below) so the capture row links back.
+        let buyerEmail = "";
+
+        // ─── 1a. Business-user credit check (skip Stripe billing) ─────────
+        // If a business session is in localStorage, refresh it from Airtable
+        // (so a previous-tab generation is reflected), enforce credits, and
+        // deduct one before doing any of the heavy report work.
+        const sessionAccount = readBusinessAccount();
+        let businessAccountId = null;
+        let businessIsUnlimited = false;
+        if (sessionAccount && sessionAccount.email) {
+          setStepMsg("Checking your business plan...");
+          setProgress(15);
+          let fresh = null;
+          try {
+            const rec = await fetchBusinessAccountByEmail(sessionAccount.email);
+            if (rec) fresh = normalizeBusinessAccount(rec);
+          } catch (e) {
+            console.warn("[HumZones] Business account refresh failed, falling back to localStorage:", e);
+            fresh = sessionAccount;
+          }
+          if (!fresh) {
+            throw new Error("We could not find your business account. Please sign in again.");
+          }
+          if (fresh.status && fresh.status !== "Active") {
+            throw new Error("Your business account is not active. Please contact support.");
+          }
+          businessAccountId = fresh.id;
+          businessIsUnlimited = fresh.creditsMonthly >= 999999;
+          buyerEmail = fresh.email || "";
+
+          if (!businessIsUnlimited && fresh.creditsRemaining <= 0) {
+            setNoCreditsInfo({ renewalDate: fresh.renewalDate || "" });
+            setStatus("no_credits");
+            writeBusinessAccount(fresh);
+            return;
+          }
+
+          const newRemaining = businessIsUnlimited
+            ? fresh.creditsRemaining
+            : Math.max(0, fresh.creditsRemaining - 1);
+          const newGenerated = (fresh.reportsGenerated || 0) + 1;
+          try {
+            await patchBusinessAccount(businessAccountId, {
+              [BIZ_FIELD.Credits_Remaining]: newRemaining,
+              [BIZ_FIELD.Reports_Generated]: newGenerated,
+            });
+          } catch (e) {
+            console.error("[HumZones] Credit deduction failed:", e);
+            throw new Error("We could not record your report against your plan. Please refresh and try again.");
+          }
+          writeBusinessAccount({ ...fresh, creditsRemaining: newRemaining, reportsGenerated: newGenerated });
+
+          // Persist a short recent-reports list for the dashboard.
+          try {
+            const existing = JSON.parse(localStorage.getItem(BIZ_REPORTS_KEY) || "[]");
+            const entry = {
+              address: localStorage.getItem("searchAddress") || "Report",
+              date: new Date().toISOString().slice(0,10),
+            };
+            const next = [entry, ...existing].slice(0, 20);
+            localStorage.setItem(BIZ_REPORTS_KEY, JSON.stringify(next));
+          } catch {}
+        }
 
         // ─── 2. Fetch every facility from Airtable ──────────────────────────
         setStepMsg("Fetching your facility data...");
@@ -1927,6 +2010,32 @@ const ReportSuccessPage = ({ onBack, onNavigate }) => {
           </>
         )}
 
+        {status === "no_credits" && (
+          <>
+            <div style={{width:84,height:84,borderRadius:"50%",background:"linear-gradient(135deg,#f59e0b,#f97316)",margin:"24px auto 22px",display:"flex",alignItems:"center",justifyContent:"center",boxShadow:"0 18px 50px rgba(249,115,22,.4)"}}>
+              <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <circle cx="12" cy="12" r="9"/>
+                <line x1="12" y1="8"  x2="12" y2="12"/>
+                <line x1="12" y1="16" x2="12.01" y2="16"/>
+              </svg>
+            </div>
+            <h1 style={{fontSize:26,fontWeight:900,marginBottom:12,color:"#fff"}}>No Credits Remaining</h1>
+            <p style={{fontSize:15,color:"rgba(255,255,255,.78)",lineHeight:1.65,marginBottom:24,maxWidth:520,marginLeft:"auto",marginRight:"auto"}}>
+              You have used all your report credits for this month.
+              {noCreditsInfo && noCreditsInfo.renewalDate ? ` Credits reset on ${noCreditsInfo.renewalDate}.` : ""}
+              {" "}Upgrade your plan for more reports.
+            </p>
+            <div style={{display:"flex",gap:12,justifyContent:"center",flexWrap:"wrap"}}>
+              <button onClick={()=>onNavigate("/business")} className="cta-pulse" style={{padding:"16px 30px",borderRadius:14,border:"none",background:"linear-gradient(135deg,#ef4444,#f97316)",color:"#fff",fontSize:16,fontWeight:900,letterSpacing:".02em",cursor:"pointer",fontFamily:"inherit"}}>
+                Upgrade Plan
+              </button>
+              <button onClick={()=>onNavigate("/business-dashboard")} style={{padding:"16px 24px",borderRadius:14,border:"1px solid rgba(255,255,255,.22)",background:"rgba(255,255,255,.06)",color:"#fff",fontSize:14,fontWeight:800,letterSpacing:".04em",cursor:"pointer",fontFamily:"inherit"}}>
+                Back to Dashboard
+              </button>
+            </div>
+          </>
+        )}
+
         {status === "error" && (
           <>
             <div style={{width:84,height:84,borderRadius:"50%",background:"linear-gradient(135deg,#ef4444,#dc2626)",margin:"24px auto 22px",display:"flex",alignItems:"center",justifyContent:"center",boxShadow:"0 18px 50px rgba(239,68,68,.4)"}}>
@@ -2089,6 +2198,648 @@ const VerifyReportPage = ({ onNavigate }) => {
             </button>
           </>
         )}
+      </main>
+    </div>
+  );
+};
+
+// ─── BUSINESS SUBSCRIPTIONS ──────────────────────────────────────────────────
+// Self-serve B2B flow: Stripe Payment Links -> /business-success collects
+// account details -> magic-link email -> /business-login sets a localStorage
+// session -> /business-dashboard shows credits and lets the user run reports
+// without going back through Stripe.
+
+const BUSINESS_TABLE = "tblHcjycUMDiz6iur";
+const BIZ_FIELD = {
+  Email:              "fldxOkzq4F6IbKkHH",
+  First_Name:         "fldHTSwebBvMcTRr3",
+  Last_Name:          "fldtAkjE0Wonu6zuF",
+  Company:            "fldNZhwTFpaHcBSJt",
+  Plan:               "fldjt5Ti94M1RTZQN",
+  Credits_Remaining:  "fld8aey7U37nCHAoR",
+  Credits_Monthly:    "fldfQCiHwuKQdOKkY",
+  Subscription_ID:    "fldMWdZzuips9yphK",
+  Status:             "fldU2MWb01DTMONhQ",
+  Renewal_Date:       "fldHKXCTypDhQglSt",
+  Date_Joined:        "fldxzk788bSwUWYVt",
+  Reports_Generated:  "fldHnMniIko6IwuM9",
+  Login_Token:        "fldWIBRNN4MFc30B3",
+  Token_Expiry:       "fldlRsSLLbrURuVb1",
+};
+
+const PLAN_INFO = {
+  starter:                { label:"Starter",      credits:10,     pricePer:"$9.90" },
+  "starter-annual":       { label:"Starter Annual",      credits:10,     pricePer:"$9.90" },
+  professional:           { label:"Professional", credits:30,     pricePer:"$8.30" },
+  "professional-annual":  { label:"Professional Annual", credits:30,     pricePer:"$8.30" },
+  unlimited:              { label:"Unlimited",    credits:999999, pricePer:"-" },
+  "unlimited-annual":     { label:"Unlimited Annual",    credits:999999, pricePer:"-" },
+};
+
+const PLAN_LINKS = {
+  starter:               "https://buy.stripe.com/test_28E9AVgqm9DX9Kh0iwgMw06",
+  professional:          "https://buy.stripe.com/test_4gMaEZa1Y9DX1dL6GUgMw05",
+  unlimited:             "https://buy.stripe.com/test_14AeVf5LI8zT9KhghugMw04",
+  "starter-annual":      "https://buy.stripe.com/test_8x228ta1Y3fzf4BghugMw03",
+  "professional-annual": "https://buy.stripe.com/test_9B6eVf2zw4jD6y5c1egMw02",
+  "unlimited-annual":    "https://buy.stripe.com/test_14AeVffmi5nH4pX2qEgMw01",
+};
+
+const BIZ_STORE_KEY = "humzones_business_account";
+const BIZ_REPORTS_KEY = "humzones_business_recent_reports";
+
+const readBusinessAccount = () => {
+  try {
+    const raw = localStorage.getItem(BIZ_STORE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    return parsed && parsed.email ? parsed : null;
+  } catch { return null; }
+};
+
+const writeBusinessAccount = (acct) => {
+  try { localStorage.setItem(BIZ_STORE_KEY, JSON.stringify(acct)); } catch {}
+};
+
+const clearBusinessAccount = () => {
+  try { localStorage.removeItem(BIZ_STORE_KEY); } catch {}
+};
+
+const generateToken = () => {
+  const bytes = new Uint8Array(32);
+  (window.crypto || window.msCrypto).getRandomValues(bytes);
+  return Array.from(bytes).map(b => b.toString(16).padStart(2, "0")).join("");
+};
+
+const todayIso = () => new Date().toISOString().slice(0, 10);
+
+// Add months/years cleanly: lock to the same day-of-month and roll over to
+// the last day if the target month is shorter (Jan 31 + 1mo -> Feb 28/29).
+const addMonths = (months) => {
+  const d = new Date();
+  const day = d.getDate();
+  d.setDate(1);
+  d.setMonth(d.getMonth() + months);
+  const last = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
+  d.setDate(Math.min(day, last));
+  return d.toISOString().slice(0, 10);
+};
+
+// Fetch a single business account row by email. Lower-cased compare so
+// signups that vary capitalisation still resolve. Returns the raw Airtable
+// record (id + fields keyed by field ID) or null.
+async function fetchBusinessAccountByEmail(email) {
+  const e = String(email || "").trim().toLowerCase();
+  if (!e) return null;
+  const formula = encodeURIComponent("LOWER({Email}) = '" + e.replace(/'/g, "\\'") + "'");
+  const url = `${APIURL}/${BUSINESS_TABLE}?filterByFormula=${formula}&maxRecords=1&returnFieldsByFieldId=true`;
+  const r = await fetch(url, { headers: HDR });
+  if (!r.ok) throw new Error("Airtable lookup failed: " + r.status);
+  const d = await r.json();
+  const rec = (d.records || [])[0];
+  return rec ? { id: rec.id, fields: rec.fields } : null;
+}
+
+async function createBusinessAccount(fields) {
+  const r = await fetch(`${APIURL}/${BUSINESS_TABLE}?returnFieldsByFieldId=true`, {
+    method: "POST",
+    headers: HDR,
+    body: JSON.stringify({ fields }),
+  });
+  if (!r.ok) {
+    const err = await r.json().catch(() => ({}));
+    console.error("createBusinessAccount failed:", err);
+    throw new Error("Could not create your account. Please contact support.");
+  }
+  return r.json();
+}
+
+async function patchBusinessAccount(id, fields) {
+  const r = await fetch(`${APIURL}/${BUSINESS_TABLE}/${id}?returnFieldsByFieldId=true`, {
+    method: "PATCH",
+    headers: HDR,
+    body: JSON.stringify({ fields }),
+  });
+  if (!r.ok) {
+    const err = await r.json().catch(() => ({}));
+    console.error("patchBusinessAccount failed:", err);
+    throw new Error("Could not update your account.");
+  }
+  return r.json();
+}
+
+// Pull a clean app-side view out of a raw Airtable record so the UI never
+// has to deal with field-ID keys directly.
+function normalizeBusinessAccount(rec) {
+  if (!rec) return null;
+  const f = rec.fields || {};
+  return {
+    id:               rec.id,
+    email:            f[BIZ_FIELD.Email] || "",
+    firstName:        f[BIZ_FIELD.First_Name] || "",
+    lastName:         f[BIZ_FIELD.Last_Name] || "",
+    company:          f[BIZ_FIELD.Company] || "",
+    plan:             f[BIZ_FIELD.Plan] || "",
+    creditsRemaining: Number(f[BIZ_FIELD.Credits_Remaining] || 0),
+    creditsMonthly:   Number(f[BIZ_FIELD.Credits_Monthly] || 0),
+    status:           f[BIZ_FIELD.Status] || "",
+    renewalDate:      f[BIZ_FIELD.Renewal_Date] || "",
+    reportsGenerated: Number(f[BIZ_FIELD.Reports_Generated] || 0),
+  };
+}
+
+// ─── /business: PRICING PAGE ─────────────────────────────────────────────────
+const BusinessPlansPage = ({ onNavigate }) => {
+  const [annual, setAnnual] = useState(false);
+
+  const plans = [
+    {
+      key: "starter",
+      title: "Starter",
+      monthly: 99,  annual: 990,
+      credits: "10 reports per month",
+      perReport: "$9.90 per report",
+      popular: false,
+      features: [
+        "10 report credits per month",
+        "Credits reset monthly",
+        "Instant PDF download",
+        "Full 100km radius coverage",
+        "Email support",
+      ],
+    },
+    {
+      key: "professional",
+      title: "Professional",
+      monthly: 249, annual: 2490,
+      credits: "30 reports per month",
+      perReport: "$8.30 per report",
+      popular: true,
+      features: [
+        "30 report credits per month",
+        "Credits reset monthly",
+        "Instant PDF download",
+        "Full 100km radius coverage",
+        "Priority email support",
+        "Team sharing coming soon",
+      ],
+    },
+    {
+      key: "unlimited",
+      title: "Unlimited",
+      monthly: 599, annual: 5990,
+      credits: "Unlimited reports",
+      perReport: "",
+      popular: false,
+      features: [
+        "Unlimited reports",
+        "Instant PDF download",
+        "Full 100km radius coverage",
+        "Priority email support",
+        "Bulk export coming soon",
+      ],
+    },
+  ];
+
+  const handleSubscribe = (planKey) => {
+    const key = annual ? `${planKey}-annual` : planKey;
+    try { localStorage.setItem("hz_pending_plan", key); } catch {}
+    window.location.href = PLAN_LINKS[key];
+  };
+
+  return (
+    <div style={{minHeight:"100vh",background:"linear-gradient(150deg,#020c1b 0%,#0f172a 50%,#1e0535 100%)",color:"#fff",width:"100%",maxWidth:"100vw",overflowX:"hidden"}}>
+      <div style={{padding:"22px 24px",display:"flex",alignItems:"center",justifyContent:"space-between",maxWidth:1200,margin:"0 auto"}}>
+        <a href="/" onClick={e=>{e.preventDefault();onNavigate("/");}} style={{textDecoration:"none"}}>
+          <span style={{fontSize:22,fontWeight:900,letterSpacing:".08em",background:"linear-gradient(90deg,#ef4444,#f97316)",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent"}}>HumZones</span>
+          <sup style={{fontSize:12,color:"#f97316",fontWeight:700,verticalAlign:"super",marginLeft:2}}>TM</sup>
+        </a>
+        <a href="/business-login" onClick={e=>{e.preventDefault();onNavigate("/business-login");}} style={{fontSize:14,color:"rgba(255,255,255,.7)",fontWeight:700,textDecoration:"none"}}>
+          Sign in
+        </a>
+      </div>
+
+      <section style={{maxWidth:880,margin:"0 auto",padding:"48px 24px 28px",textAlign:"center"}}>
+        <div style={{display:"inline-block",fontSize:12,color:"#f97316",letterSpacing:".18em",textTransform:"uppercase",fontWeight:800,marginBottom:14,padding:"6px 14px",borderRadius:30,background:"rgba(249,115,22,.12)",border:"1px solid rgba(249,115,22,.3)"}}>For Business</div>
+        <h1 style={{fontSize:"clamp(36px,6vw,56px)",fontWeight:900,letterSpacing:"-.02em",marginBottom:18,lineHeight:1.1}}>HumZones for Business</h1>
+        <p style={{fontSize:19,color:"rgba(255,255,255,.78)",lineHeight:1.6,marginBottom:14,maxWidth:680,marginLeft:"auto",marginRight:"auto"}}>
+          Bulk reports for real estate professionals, environmental consultants and legal teams.
+        </p>
+        <p style={{fontSize:14,color:"rgba(255,255,255,.55)",lineHeight:1.6}}>
+          Fully automated. Instant PDF delivery. No contracts on monthly plans.
+        </p>
+      </section>
+
+      <section style={{maxWidth:1100,margin:"0 auto",padding:"12px 24px 24px",textAlign:"center"}}>
+        <div style={{display:"inline-flex",background:"rgba(255,255,255,.06)",border:"1px solid rgba(255,255,255,.14)",borderRadius:40,padding:4,gap:4}}>
+          <button onClick={()=>setAnnual(false)} style={{padding:"10px 22px",borderRadius:30,border:"none",cursor:"pointer",fontFamily:"inherit",fontSize:14,fontWeight:800,letterSpacing:".04em",background:!annual?"linear-gradient(135deg,#ef4444,#f97316)":"transparent",color:!annual?"#fff":"rgba(255,255,255,.7)"}}>Monthly</button>
+          <button onClick={()=>setAnnual(true)} style={{padding:"10px 22px",borderRadius:30,border:"none",cursor:"pointer",fontFamily:"inherit",fontSize:14,fontWeight:800,letterSpacing:".04em",background:annual?"linear-gradient(135deg,#ef4444,#f97316)":"transparent",color:annual?"#fff":"rgba(255,255,255,.7)"}}>
+            Annual <span style={{fontSize:11,opacity:.8,marginLeft:6}}>save 2 months</span>
+          </button>
+        </div>
+      </section>
+
+      <section style={{maxWidth:1180,margin:"0 auto",padding:"24px 24px 48px"}}>
+        <div className="biz-grid" style={{display:"grid",gridTemplateColumns:"repeat(3, 1fr)",gap:22,alignItems:"stretch"}}>
+          {plans.map(p => {
+            const price = annual ? p.annual : p.monthly;
+            const cadence = annual ? "/year" : "/month";
+            return (
+              <div key={p.key} style={{position:"relative",background:p.popular?"linear-gradient(160deg,rgba(249,115,22,.12),rgba(15,23,42,.6))":"rgba(15,23,42,.55)",border:p.popular?"1.5px solid rgba(249,115,22,.6)":"1px solid rgba(255,255,255,.1)",borderRadius:18,padding:"30px 26px",display:"flex",flexDirection:"column",boxShadow:p.popular?"0 24px 60px rgba(249,115,22,.22)":"0 12px 40px rgba(0,0,0,.25)"}}>
+                {p.popular && (
+                  <div style={{position:"absolute",top:-14,left:"50%",transform:"translateX(-50%)",background:"linear-gradient(135deg,#ef4444,#f97316)",color:"#fff",padding:"6px 16px",borderRadius:30,fontSize:11,fontWeight:900,letterSpacing:".14em"}}>MOST POPULAR</div>
+                )}
+                <div style={{fontSize:13,color:"#f97316",letterSpacing:".18em",textTransform:"uppercase",fontWeight:800,marginBottom:10}}>{p.title}</div>
+                <div style={{display:"flex",alignItems:"baseline",gap:8,marginBottom:6}}>
+                  <span style={{fontSize:48,fontWeight:900,letterSpacing:"-.02em",color:"#fff"}}>${price}</span>
+                  <span style={{fontSize:15,color:"rgba(255,255,255,.6)",fontWeight:600}}>{cadence}</span>
+                </div>
+                <div style={{fontSize:14,color:"rgba(255,255,255,.65)",marginBottom:18}}>
+                  {p.credits}{p.perReport ? ` - ${p.perReport}` : ""}
+                </div>
+                <ul style={{listStyle:"none",padding:0,margin:"0 0 24px 0",display:"flex",flexDirection:"column",gap:10}}>
+                  {p.features.map(f => (
+                    <li key={f} style={{display:"flex",alignItems:"flex-start",gap:10,fontSize:14,color:"rgba(255,255,255,.85)",lineHeight:1.55}}>
+                      <span style={{flexShrink:0,display:"inline-flex",width:20,height:20,borderRadius:"50%",background:"rgba(249,115,22,.18)",alignItems:"center",justifyContent:"center",marginTop:2,border:"1px solid rgba(249,115,22,.45)"}}>
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#f97316" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>
+                      </span>
+                      <span>{f}</span>
+                    </li>
+                  ))}
+                </ul>
+                <button onClick={()=>handleSubscribe(p.key)} style={{marginTop:"auto",padding:"14px 22px",borderRadius:12,border:p.popular?"none":"1px solid rgba(255,255,255,.18)",cursor:"pointer",fontFamily:"inherit",fontSize:15,fontWeight:900,letterSpacing:".04em",background:p.popular?"linear-gradient(135deg,#ef4444,#f97316)":"rgba(255,255,255,.1)",color:"#fff",boxShadow:p.popular?"0 10px 28px rgba(249,115,22,.4)":"none"}}>
+                  Get Started
+                </button>
+              </div>
+            );
+          })}
+        </div>
+        <style>{`@media (max-width:880px){.biz-grid{grid-template-columns:1fr !important}}`}</style>
+      </section>
+
+      <section style={{maxWidth:780,margin:"0 auto",padding:"12px 24px 60px",textAlign:"center"}}>
+        <p style={{fontSize:15,color:"rgba(255,255,255,.72)",lineHeight:1.7,marginBottom:14}}>
+          All plans include instant PDF delivery, 100km coverage and the full HumZones facility database.
+        </p>
+        <p style={{fontSize:14,color:"rgba(255,255,255,.55)"}}>
+          Already a member? <a href="/business-login" onClick={e=>{e.preventDefault();onNavigate("/business-login");}} style={{color:"#f97316",fontWeight:700,textDecoration:"none"}}>Sign in</a>
+        </p>
+      </section>
+    </div>
+  );
+};
+
+// ─── /business-success: ACCOUNT FORM + AIRTABLE CREATE ───────────────────────
+const BusinessSuccessPage = ({ onNavigate }) => {
+  const params = new URLSearchParams(window.location.search);
+  const planKey = (params.get("plan") || (typeof localStorage!=="undefined"?localStorage.getItem("hz_pending_plan"):"") || "starter").toLowerCase();
+  const planInfo = PLAN_INFO[planKey] || PLAN_INFO.starter;
+  const isAnnual = planKey.endsWith("-annual");
+
+  const [firstName, setFirstName] = useState("");
+  const [lastName,  setLastName]  = useState("");
+  const [company,   setCompany]   = useState("");
+  const [email,     setEmail]     = useState("");
+  const [status,    setStatus]    = useState("form"); // form | submitting | done | error
+  const [errMsg,    setErrMsg]    = useState("");
+  const [created,   setCreated]   = useState(null);
+
+  const canSubmit = firstName.trim() && company.trim() && email.trim() && status === "form";
+
+  const submit = async () => {
+    if (!canSubmit) return;
+    setStatus("submitting");
+    setErrMsg("");
+    try {
+      const credits      = planInfo.credits;
+      const renewalDate  = isAnnual ? addMonths(12) : addMonths(1);
+      const token        = generateToken();
+      const tokenExpiry  = new Date(Date.now() + 24*60*60*1000).toISOString();
+
+      const fields = {
+        [BIZ_FIELD.Email]:             email.trim(),
+        [BIZ_FIELD.First_Name]:        firstName.trim(),
+        [BIZ_FIELD.Last_Name]:         lastName.trim(),
+        [BIZ_FIELD.Company]:           company.trim(),
+        [BIZ_FIELD.Plan]:              planInfo.label,
+        [BIZ_FIELD.Credits_Remaining]: credits,
+        [BIZ_FIELD.Credits_Monthly]:   credits,
+        [BIZ_FIELD.Status]:            "Active",
+        [BIZ_FIELD.Renewal_Date]:      renewalDate,
+        [BIZ_FIELD.Date_Joined]:       todayIso(),
+        [BIZ_FIELD.Reports_Generated]: 0,
+        [BIZ_FIELD.Login_Token]:       token,
+        [BIZ_FIELD.Token_Expiry]:      tokenExpiry,
+      };
+
+      const rec = await createBusinessAccount(fields);
+
+      try {
+        await fetch("/api/send-business-welcome", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            email: email.trim(),
+            firstName: firstName.trim(),
+            plan: planKey,
+            credits,
+            token,
+          }),
+        });
+      } catch (e) {
+        console.warn("Welcome email send failed (account still created):", e);
+      }
+
+      try { localStorage.removeItem("hz_pending_plan"); } catch {}
+
+      setCreated({ id: rec.id, firstName: firstName.trim(), credits });
+      setStatus("done");
+    } catch (e) {
+      console.error("Business signup failed:", e);
+      setErrMsg(e.message || "Something went wrong creating your account.");
+      setStatus("error");
+    }
+  };
+
+  const inputStyle = (val) => ({
+    width:"100%",padding:"13px 16px",borderRadius:10,
+    border:`1.5px solid ${val.trim()?"#f97316":"rgba(255,255,255,.18)"}`,
+    fontSize:15,boxSizing:"border-box",outline:"none",fontFamily:"inherit",
+    color:"#fff",background:"rgba(255,255,255,.06)",transition:"border-color .2s",
+  });
+
+  return (
+    <div style={{minHeight:"100vh",background:"linear-gradient(150deg,#020c1b 0%,#0f172a 50%,#1e0535 100%)",color:"#fff"}}>
+      <div style={{padding:"22px 24px",textAlign:"center"}}>
+        <a href="/" onClick={e=>{e.preventDefault();onNavigate("/");}} style={{textDecoration:"none"}}>
+          <span style={{fontSize:22,fontWeight:900,letterSpacing:".08em",background:"linear-gradient(90deg,#ef4444,#f97316)",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent"}}>HumZones</span>
+          <sup style={{fontSize:12,color:"#f97316",fontWeight:700,verticalAlign:"super",marginLeft:2}}>TM</sup>
+        </a>
+      </div>
+
+      <main style={{maxWidth:540,margin:"0 auto",padding:"24px 24px 80px"}}>
+        {status !== "done" && (
+          <>
+            <div style={{textAlign:"center",marginBottom:30}}>
+              <div style={{display:"inline-block",fontSize:12,color:"#22c55e",letterSpacing:".18em",textTransform:"uppercase",fontWeight:800,marginBottom:14,padding:"6px 14px",borderRadius:30,background:"rgba(34,197,94,.12)",border:"1px solid rgba(34,197,94,.3)"}}>Payment confirmed</div>
+              <h1 style={{fontSize:30,fontWeight:900,letterSpacing:"-.01em",marginBottom:10}}>Welcome to {planInfo.label}!</h1>
+              <p style={{fontSize:15,color:"rgba(255,255,255,.72)",lineHeight:1.65}}>Tell us a bit about you so we can set up your account and send your dashboard login link.</p>
+            </div>
+
+            <div style={{background:"rgba(15,23,42,.55)",border:"1px solid rgba(255,255,255,.1)",borderRadius:16,padding:"26px"}}>
+              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:14}}>
+                <div>
+                  <label style={{fontSize:13,fontWeight:700,color:"rgba(255,255,255,.85)",display:"block",marginBottom:6}}>First Name *</label>
+                  <input value={firstName} onChange={e=>setFirstName(e.target.value)} placeholder="Your first name" style={inputStyle(firstName)}/>
+                </div>
+                <div>
+                  <label style={{fontSize:13,fontWeight:700,color:"rgba(255,255,255,.85)",display:"block",marginBottom:6}}>Last Name</label>
+                  <input value={lastName} onChange={e=>setLastName(e.target.value)} placeholder="Optional" style={inputStyle(lastName)}/>
+                </div>
+              </div>
+              <div style={{marginBottom:14}}>
+                <label style={{fontSize:13,fontWeight:700,color:"rgba(255,255,255,.85)",display:"block",marginBottom:6}}>Company Name *</label>
+                <input value={company} onChange={e=>setCompany(e.target.value)} placeholder="Your company" style={inputStyle(company)}/>
+              </div>
+              <div style={{marginBottom:18}}>
+                <label style={{fontSize:13,fontWeight:700,color:"rgba(255,255,255,.85)",display:"block",marginBottom:6}}>Email Address *</label>
+                <input type="email" value={email} onChange={e=>setEmail(e.target.value)} placeholder="Your login email" style={inputStyle(email)}/>
+                <div style={{fontSize:12,color:"rgba(255,255,255,.5)",marginTop:6}}>This is your login email and where your magic link will be sent.</div>
+              </div>
+
+              {status === "error" && (
+                <div style={{padding:"12px 14px",borderRadius:10,background:"rgba(239,68,68,.12)",border:"1px solid rgba(239,68,68,.4)",color:"#fecaca",fontSize:14,marginBottom:14}}>{errMsg}</div>
+              )}
+
+              <button onClick={submit} disabled={!canSubmit} style={{width:"100%",padding:"16px 22px",borderRadius:12,border:"none",cursor:canSubmit?"pointer":"not-allowed",fontFamily:"inherit",fontSize:15,fontWeight:900,letterSpacing:".04em",background:canSubmit?"linear-gradient(135deg,#ef4444,#f97316)":"rgba(255,255,255,.1)",color:"#fff",boxShadow:canSubmit?"0 10px 28px rgba(249,115,22,.4)":"none"}}>
+                {status === "submitting" ? "Setting up your account..." : "Create My Account"}
+              </button>
+            </div>
+          </>
+        )}
+
+        {status === "done" && created && (
+          <div style={{textAlign:"center"}}>
+            <div className="slow-pulse" style={{width:84,height:84,borderRadius:"50%",background:"linear-gradient(135deg,#10b981,#059669)",margin:"24px auto 22px",display:"flex",alignItems:"center",justifyContent:"center",boxShadow:"0 18px 50px rgba(16,185,129,.4)"}}>
+              <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>
+            </div>
+            <h1 style={{fontSize:28,fontWeight:900,marginBottom:14}}>Welcome to HumZones {created.firstName}!</h1>
+            <p style={{fontSize:17,color:"rgba(255,255,255,.85)",lineHeight:1.65,marginBottom:10}}>
+              You have <strong style={{color:"#f97316"}}>{created.credits >= 999999 ? "unlimited" : created.credits}</strong> report credits ready to use.
+            </p>
+            <p style={{fontSize:15,color:"rgba(255,255,255,.72)",lineHeight:1.65,marginBottom:28}}>
+              Check your email for your login link to access your dashboard.
+            </p>
+            <div style={{display:"flex",gap:12,justifyContent:"center",flexWrap:"wrap"}}>
+              <button onClick={()=>onNavigate("/business-login")} style={{padding:"14px 26px",borderRadius:12,border:"none",cursor:"pointer",fontFamily:"inherit",fontSize:15,fontWeight:900,background:"linear-gradient(135deg,#ef4444,#f97316)",color:"#fff",boxShadow:"0 10px 28px rgba(249,115,22,.4)"}}>Go to Sign In</button>
+              <button onClick={()=>onNavigate("/")} style={{padding:"14px 22px",borderRadius:12,border:"1px solid rgba(255,255,255,.22)",cursor:"pointer",fontFamily:"inherit",fontSize:14,fontWeight:800,background:"rgba(255,255,255,.06)",color:"#fff"}}>Back to HumZones</button>
+            </div>
+          </div>
+        )}
+      </main>
+    </div>
+  );
+};
+
+// ─── /business-login: MAGIC LINK ─────────────────────────────────────────────
+const BusinessLoginPage = ({ onNavigate }) => {
+  const initialParams = new URLSearchParams(window.location.search);
+  const initialToken = initialParams.get("token") || "";
+  const initialEmail = initialParams.get("email") || "";
+
+  const [mode, setMode] = useState(initialToken ? "verifying" : "request"); // verifying | request | sent | error
+  const [errMsg, setErrMsg] = useState("");
+  const [emailInput, setEmailInput] = useState(initialEmail);
+  const [sending, setSending] = useState(false);
+  const startedRef = useRef(false);
+
+  useEffect(() => {
+    if (mode !== "verifying" || startedRef.current) return;
+    startedRef.current = true;
+    (async () => {
+      try {
+        const rec = await fetchBusinessAccountByEmail(initialEmail);
+        if (!rec) throw new Error("This link has expired. Request a new one below.");
+        const f = rec.fields || {};
+        const tokenOnFile = f[BIZ_FIELD.Login_Token];
+        const expiry      = f[BIZ_FIELD.Token_Expiry];
+        if (!tokenOnFile || tokenOnFile !== initialToken) {
+          throw new Error("This link has expired. Request a new one below.");
+        }
+        if (!expiry || new Date(expiry).getTime() < Date.now()) {
+          throw new Error("This link has expired. Request a new one below.");
+        }
+        const account = normalizeBusinessAccount(rec);
+        writeBusinessAccount(account);
+        onNavigate("/business-dashboard");
+      } catch (e) {
+        console.error("Login verify failed:", e);
+        setErrMsg(e.message || "This link has expired. Request a new one below.");
+        setMode("error");
+      }
+    })();
+  }, [mode]);
+
+  const requestLink = async () => {
+    if (!emailInput.trim() || sending) return;
+    setSending(true);
+    setErrMsg("");
+    try {
+      const r = await fetch("/api/send-login-link", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: emailInput.trim() }),
+      });
+      if (!r.ok) {
+        const err = await r.json().catch(() => ({}));
+        throw new Error(err.error || "Could not send login link.");
+      }
+      setMode("sent");
+    } catch (e) {
+      setErrMsg(e.message);
+    } finally {
+      setSending(false);
+    }
+  };
+
+  return (
+    <div style={{minHeight:"100vh",background:"linear-gradient(150deg,#020c1b 0%,#0f172a 50%,#1e0535 100%)",color:"#fff"}}>
+      <div style={{padding:"22px 24px",textAlign:"center"}}>
+        <a href="/" onClick={e=>{e.preventDefault();onNavigate("/");}} style={{textDecoration:"none"}}>
+          <span style={{fontSize:22,fontWeight:900,letterSpacing:".08em",background:"linear-gradient(90deg,#ef4444,#f97316)",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent"}}>HumZones</span>
+          <sup style={{fontSize:12,color:"#f97316",fontWeight:700,verticalAlign:"super",marginLeft:2}}>TM</sup>
+        </a>
+      </div>
+
+      <main style={{maxWidth:480,margin:"0 auto",padding:"24px 24px 80px"}}>
+        <div style={{textAlign:"center",marginBottom:24}}>
+          <h1 style={{fontSize:30,fontWeight:900,letterSpacing:"-.01em",marginBottom:10}}>Sign In</h1>
+          <p style={{fontSize:15,color:"rgba(255,255,255,.7)",lineHeight:1.65}}>Enter your account email and we will send you a one-time login link.</p>
+        </div>
+
+        {mode === "verifying" && (
+          <div style={{background:"rgba(15,23,42,.55)",border:"1px solid rgba(255,255,255,.1)",borderRadius:16,padding:"30px",textAlign:"center"}}>
+            <div className="spinning" style={{width:36,height:36,border:"3px solid rgba(255,255,255,.18)",borderTop:"3px solid #f97316",borderRadius:"50%",margin:"0 auto 16px"}}/>
+            <div style={{fontSize:15,color:"rgba(255,255,255,.85)"}}>Signing you in...</div>
+          </div>
+        )}
+
+        {mode === "sent" && (
+          <div style={{background:"rgba(34,197,94,.08)",border:"1px solid rgba(34,197,94,.3)",borderRadius:16,padding:"24px",textAlign:"center"}}>
+            <div style={{fontSize:18,fontWeight:800,color:"#86efac",marginBottom:8}}>Check your email!</div>
+            <p style={{fontSize:14,color:"rgba(255,255,255,.78)",lineHeight:1.65}}>We sent a login link to <strong>{emailInput}</strong>. Click the link in the email to sign in. The link is valid for 24 hours.</p>
+          </div>
+        )}
+
+        {(mode === "request" || mode === "error") && (
+          <div style={{background:"rgba(15,23,42,.55)",border:"1px solid rgba(255,255,255,.1)",borderRadius:16,padding:"26px"}}>
+            {mode === "error" && (
+              <div style={{padding:"12px 14px",borderRadius:10,background:"rgba(239,68,68,.12)",border:"1px solid rgba(239,68,68,.4)",color:"#fecaca",fontSize:14,marginBottom:14}}>{errMsg}</div>
+            )}
+            <label style={{fontSize:13,fontWeight:700,color:"rgba(255,255,255,.85)",display:"block",marginBottom:6}}>Email Address</label>
+            <input type="email" value={emailInput} onChange={e=>setEmailInput(e.target.value)} placeholder="you@company.com" style={{width:"100%",padding:"13px 16px",borderRadius:10,border:`1.5px solid ${emailInput.trim()?"#f97316":"rgba(255,255,255,.18)"}`,fontSize:15,boxSizing:"border-box",outline:"none",fontFamily:"inherit",color:"#fff",background:"rgba(255,255,255,.06)",marginBottom:14}}/>
+            {errMsg && mode !== "error" && (
+              <div style={{fontSize:13,color:"#fca5a5",marginBottom:10}}>{errMsg}</div>
+            )}
+            <button onClick={requestLink} disabled={!emailInput.trim() || sending} style={{width:"100%",padding:"14px 22px",borderRadius:12,border:"none",cursor:(!emailInput.trim()||sending)?"not-allowed":"pointer",fontFamily:"inherit",fontSize:15,fontWeight:900,background:emailInput.trim()?"linear-gradient(135deg,#ef4444,#f97316)":"rgba(255,255,255,.1)",color:"#fff",boxShadow:emailInput.trim()?"0 10px 28px rgba(249,115,22,.4)":"none"}}>
+              {sending ? "Sending..." : "Send Me a Login Link"}
+            </button>
+            <p style={{fontSize:13,color:"rgba(255,255,255,.55)",textAlign:"center",marginTop:14}}>
+              Need a plan? <a href="/business" onClick={e=>{e.preventDefault();onNavigate("/business");}} style={{color:"#f97316",fontWeight:700,textDecoration:"none"}}>See plans</a>
+            </p>
+          </div>
+        )}
+      </main>
+    </div>
+  );
+};
+
+// ─── /business-dashboard: ACCOUNT + CREDITS ──────────────────────────────────
+const BusinessDashboardPage = ({ onNavigate }) => {
+  const [account, setAccount] = useState(() => readBusinessAccount());
+  const [loading, setLoading] = useState(false);
+  const [recent, setRecent]   = useState(() => {
+    try { return JSON.parse(localStorage.getItem(BIZ_REPORTS_KEY) || "[]"); }
+    catch { return []; }
+  });
+
+  useEffect(() => {
+    if (!account) { onNavigate("/business-login"); return; }
+    // Refresh credits from Airtable on load so the displayed balance is
+    // current after a report was generated in another tab.
+    let cancelled = false;
+    setLoading(true);
+    fetchBusinessAccountByEmail(account.email)
+      .then(rec => {
+        if (cancelled || !rec) return;
+        const fresh = normalizeBusinessAccount(rec);
+        writeBusinessAccount(fresh);
+        setAccount(fresh);
+      })
+      .catch(e => console.warn("Dashboard refresh failed:", e))
+      .finally(() => { if (!cancelled) setLoading(false); });
+    return () => { cancelled = true; };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  if (!account) return null;
+
+  const isUnlimited = account.creditsMonthly >= 999999;
+  const creditsLabel = isUnlimited ? "Unlimited" : String(account.creditsRemaining);
+
+  const signOut = () => {
+    clearBusinessAccount();
+    onNavigate("/business-login");
+  };
+
+  return (
+    <div style={{minHeight:"100vh",background:"linear-gradient(150deg,#020c1b 0%,#0f172a 50%,#1e0535 100%)",color:"#fff"}}>
+      <div style={{padding:"22px 24px",display:"flex",alignItems:"center",justifyContent:"space-between",maxWidth:1100,margin:"0 auto"}}>
+        <a href="/" onClick={e=>{e.preventDefault();onNavigate("/");}} style={{textDecoration:"none"}}>
+          <span style={{fontSize:22,fontWeight:900,letterSpacing:".08em",background:"linear-gradient(90deg,#ef4444,#f97316)",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent"}}>HumZones</span>
+          <sup style={{fontSize:12,color:"#f97316",fontWeight:700,verticalAlign:"super",marginLeft:2}}>TM</sup>
+        </a>
+        <button onClick={signOut} style={{padding:"8px 16px",borderRadius:10,border:"1px solid rgba(255,255,255,.18)",background:"rgba(255,255,255,.06)",color:"rgba(255,255,255,.85)",cursor:"pointer",fontFamily:"inherit",fontSize:13,fontWeight:700}}>Sign Out</button>
+      </div>
+
+      <main style={{maxWidth:880,margin:"0 auto",padding:"24px 24px 80px"}}>
+        <h1 style={{fontSize:30,fontWeight:900,letterSpacing:"-.01em",marginBottom:6}}>Welcome back {account.firstName || ""}</h1>
+        <p style={{fontSize:14,color:"rgba(255,255,255,.6)",marginBottom:28}}>
+          {account.company ? `${account.company} - ` : ""}{account.email}
+        </p>
+
+        <div style={{background:"linear-gradient(160deg,rgba(249,115,22,.16),rgba(15,23,42,.6))",border:"1.5px solid rgba(249,115,22,.4)",borderRadius:18,padding:"30px",marginBottom:24,boxShadow:"0 20px 50px rgba(249,115,22,.18)"}}>
+          <div style={{fontSize:13,color:"#f97316",letterSpacing:".18em",textTransform:"uppercase",fontWeight:800,marginBottom:10}}>Credits</div>
+          <div style={{display:"flex",alignItems:"baseline",gap:14,marginBottom:8}}>
+            <span style={{fontSize:72,fontWeight:900,letterSpacing:"-.02em",color:"#f97316",lineHeight:1,textShadow:"0 0 28px rgba(249,115,22,.45)"}}>{creditsLabel}</span>
+            <span style={{fontSize:17,color:"rgba(255,255,255,.7)",fontWeight:600}}>Reports Remaining</span>
+          </div>
+          <div style={{fontSize:14,color:"rgba(255,255,255,.65)",marginBottom:20}}>
+            {account.plan ? `${account.plan} plan` : "Active plan"}
+            {account.renewalDate ? ` - Renews ${account.renewalDate}` : ""}
+            {loading ? " - refreshing..." : ""}
+          </div>
+          <div style={{display:"flex",gap:12,flexWrap:"wrap"}}>
+            <button onClick={()=>onNavigate("/")} style={{padding:"14px 26px",borderRadius:12,border:"none",cursor:"pointer",fontFamily:"inherit",fontSize:15,fontWeight:900,background:"linear-gradient(135deg,#ef4444,#f97316)",color:"#fff",boxShadow:"0 10px 28px rgba(249,115,22,.4)"}}>Generate a Report</button>
+            <a href="/business" onClick={e=>{e.preventDefault();onNavigate("/business");}} style={{padding:"14px 22px",borderRadius:12,border:"1px solid rgba(255,255,255,.22)",fontFamily:"inherit",fontSize:14,fontWeight:800,background:"rgba(255,255,255,.06)",color:"#fff",textDecoration:"none",display:"inline-flex",alignItems:"center"}}>Need more reports?</a>
+          </div>
+        </div>
+
+        <div style={{background:"rgba(15,23,42,.55)",border:"1px solid rgba(255,255,255,.1)",borderRadius:16,padding:"24px"}}>
+          <div style={{fontSize:18,fontWeight:800,marginBottom:14}}>Recent Reports</div>
+          {recent.length === 0 ? (
+            <p style={{fontSize:14,color:"rgba(255,255,255,.55)",margin:0}}>No reports generated yet. Click "Generate a Report" to run your first one.</p>
+          ) : (
+            <ul style={{listStyle:"none",padding:0,margin:0,display:"flex",flexDirection:"column",gap:10}}>
+              {recent.slice(0, 5).map((r,i)=>(
+                <li key={i} style={{display:"flex",justifyContent:"space-between",gap:12,padding:"12px 14px",borderRadius:10,background:"rgba(255,255,255,.04)",border:"1px solid rgba(255,255,255,.06)",fontSize:14}}>
+                  <span style={{color:"rgba(255,255,255,.85)",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{r.address || "Report"}</span>
+                  <span style={{color:"rgba(255,255,255,.55)",flexShrink:0}}>{r.date}</span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
       </main>
     </div>
   );
@@ -2706,11 +3457,23 @@ export default function App() {
         <ReportSuccessPage onBack={()=>navigate("/")} onNavigate={navigate}/>
       ) : path === "/verify-report" ? (
         <VerifyReportPage onNavigate={navigate}/>
+      ) : path === "/business" ? (
+        <BusinessPlansPage onNavigate={navigate}/>
+      ) : path === "/business-success" ? (
+        <BusinessSuccessPage onNavigate={navigate}/>
+      ) : path === "/business-login" ? (
+        <BusinessLoginPage onNavigate={navigate}/>
+      ) : path === "/business-dashboard" ? (
+        <BusinessDashboardPage onNavigate={navigate}/>
       ) : (
       <div style={{minHeight:"100vh",background:"#f1f5f9",width:"100%",maxWidth:"100vw",overflowX:"hidden"}}>
 
         {/* HERO */}
         <section className="hero" style={{position:"relative",overflow:"visible",minHeight:"100vh",background:"linear-gradient(150deg,#020c1b 0%,#0f172a 35%,#1e0535 65%,#0a1628 100%)",backgroundSize:"400% 400%",animation:"gradShift 14s ease infinite",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:"80px 24px",textAlign:"center"}}>
+          {/* Top-right nav: For Business + Sign-in shortcut once a session exists. */}
+          <div style={{position:"absolute",top:18,right:22,zIndex:5,display:"flex",alignItems:"center",gap:14}}>
+            <a href="/business" onClick={e=>{e.preventDefault();navigate("/business");}} style={{fontSize:13,fontWeight:800,letterSpacing:".08em",color:"rgba(255,255,255,.85)",textDecoration:"none",padding:"8px 14px",borderRadius:30,border:"1px solid rgba(249,115,22,.45)",background:"rgba(249,115,22,.1)"}}>For Business</a>
+          </div>
           <div className="rings" style={{position:"absolute",left:"50%",top:"50%",pointerEvents:"none",zIndex:0,overflow:"hidden"}}>
             {[1,2,3,4,5].map(i=>(<div key={i} style={{position:"absolute",width:i*200,height:i*200,borderRadius:"50%",border:"1px solid rgba(239,68,68,0.09)",left:"50%",top:"50%",animation:`ring ${2+i*.7}s cubic-bezier(.4,0,.6,1) ${i*.5}s infinite`}}/>))}
           </div>
@@ -3701,6 +4464,9 @@ export default function App() {
           <div style={{display:"flex",justifyContent:"center",gap:18,flexWrap:"wrap",marginBottom:22}}>
             <a href="/methodology" onClick={e=>{e.preventDefault();navigate("/methodology");}} className="ext-link" style={{color:"#f97316",fontSize:14,fontWeight:700,textDecoration:"none",letterSpacing:".02em"}}>
               Methodology
+            </a>
+            <a href="/business" onClick={e=>{e.preventDefault();navigate("/business");}} className="ext-link" style={{color:"#f97316",fontSize:14,fontWeight:700,textDecoration:"none",letterSpacing:".02em"}}>
+              Business Plans
             </a>
             <a href="https://humzones.com" className="ext-link" style={{color:"#94a3b8",fontSize:14,fontWeight:600,textDecoration:"none",letterSpacing:".02em"}}>
               humzones.com
