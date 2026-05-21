@@ -2056,6 +2056,7 @@ const BIZ_FIELD = {
   Reports_Generated:  "fldHnMniIko6IwuM9",
   Login_Token:        "fldWIBRNN4MFc30B3",
   Token_Expiry:       "fldlRsSLLbrURuVb1",
+  Recovery_PIN:       "fldNCDrm8FTAde1yI",
 };
 
 const BUSINESS_REPORTS_TABLE = "tblFPqxXwxgcuTZhM";
@@ -2114,6 +2115,31 @@ const generateToken = () => {
   (window.crypto || window.msCrypto).getRandomValues(bytes);
   return Array.from(bytes).map(b => b.toString(16).padStart(2, "0")).join("");
 };
+
+// SHA-256 a string to a lowercase hex digest. Used to hash the recovery PIN
+// so the raw 4-digit value is never written to or read from Airtable.
+async function sha256Hex(str) {
+  const hashBuffer = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(str));
+  return Array.from(new Uint8Array(hashBuffer)).map(b => b.toString(16).padStart(2, "0")).join("");
+}
+
+// Fetch every Business_Accounts record (paginated), keyed by field ID. Used
+// by /business-recover to scan for a matching hashed PIN.
+async function fetchAllBusinessAccounts() {
+  let all = [], offset = null;
+  do {
+    const url = new URL(`${APIURL}/${BUSINESS_TABLE}`);
+    url.searchParams.set("pageSize", "100");
+    url.searchParams.set("returnFieldsByFieldId", "true");
+    if (offset) url.searchParams.set("offset", offset);
+    const r = await fetch(url.toString(), { headers: HDR });
+    if (!r.ok) throw new Error("Airtable lookup failed: " + r.status);
+    const d = await r.json();
+    all = all.concat(d.records || []);
+    offset = d.offset || null;
+  } while (offset);
+  return all;
+}
 
 const todayIso = () => new Date().toISOString().slice(0, 10);
 
@@ -2396,6 +2422,9 @@ const BusinessPlansPage = ({ onNavigate }) => {
         <p style={{fontSize:14,color:"rgba(255,255,255,.55)"}}>
           Already a member? <a href="/business-login" onClick={e=>{e.preventDefault();onNavigate("/business-login");}} style={{color:"#f97316",fontWeight:700,textDecoration:"none"}}>Sign in</a>
         </p>
+        <p style={{fontSize:13,color:"rgba(255,255,255,.45)",marginTop:8}}>
+          Forgot your email? <a href="/business-recover" onClick={e=>{e.preventDefault();onNavigate("/business-recover");}} style={{color:"rgba(255,255,255,.65)",fontWeight:700,textDecoration:"underline"}}>Recover your account</a>
+        </p>
       </section>
 
       <BusinessFooter onNavigate={onNavigate}/>
@@ -2414,11 +2443,17 @@ const BusinessSuccessPage = ({ onNavigate }) => {
   const [lastName,  setLastName]  = useState("");
   const [company,   setCompany]   = useState("");
   const [email,     setEmail]     = useState("");
+  const [pin,       setPin]       = useState("");
+  const [pinConfirm,setPinConfirm]= useState("");
   const [status,    setStatus]    = useState("form"); // form | submitting | done | error
   const [errMsg,    setErrMsg]    = useState("");
   const [created,   setCreated]   = useState(null);
 
-  const canSubmit = firstName.trim() && company.trim() && email.trim() && status === "form";
+  // A valid recovery PIN is exactly 4 digits in the 1000-9999 range.
+  const pinValid    = /^[0-9]{4}$/.test(pin);
+  const pinMismatch = pin && pinConfirm && pin !== pinConfirm;
+  const canSubmit = firstName.trim() && company.trim() && email.trim() &&
+    pinValid && pin === pinConfirm && status === "form";
 
   const submit = async () => {
     if (!canSubmit) return;
@@ -2429,6 +2464,9 @@ const BusinessSuccessPage = ({ onNavigate }) => {
       const renewalDate  = isAnnual ? addMonths(12) : addMonths(1);
       const token        = generateToken();
       const tokenExpiry  = new Date(Date.now() + 24*60*60*1000).toISOString();
+      // Hash the PIN before it ever leaves the browser; the raw value is
+      // never written to Airtable.
+      const pinHash      = await sha256Hex(pin.trim());
 
       const fields = {
         [BIZ_FIELD.Email]:             email.trim(),
@@ -2444,6 +2482,7 @@ const BusinessSuccessPage = ({ onNavigate }) => {
         [BIZ_FIELD.Reports_Generated]: 0,
         [BIZ_FIELD.Login_Token]:       token,
         [BIZ_FIELD.Token_Expiry]:      tokenExpiry,
+        [BIZ_FIELD.Recovery_PIN]:      pinHash,
       };
 
       const rec = await createBusinessAccount(fields);
@@ -2515,10 +2554,33 @@ const BusinessSuccessPage = ({ onNavigate }) => {
                 <label style={{fontSize:13,fontWeight:700,color:"rgba(255,255,255,.85)",display:"block",marginBottom:6}}>Company Name *</label>
                 <input value={company} onChange={e=>setCompany(e.target.value)} placeholder="Your company" style={inputStyle(company)}/>
               </div>
-              <div style={{marginBottom:18}}>
+              <div style={{marginBottom:14}}>
                 <label style={{fontSize:13,fontWeight:700,color:"rgba(255,255,255,.85)",display:"block",marginBottom:6}}>Email Address *</label>
                 <input type="email" value={email} onChange={e=>setEmail(e.target.value)} placeholder="Your login email" style={inputStyle(email)}/>
                 <div style={{fontSize:12,color:"rgba(255,255,255,.5)",marginTop:6}}>This is your login email and where your magic link will be sent.</div>
+              </div>
+
+              <div style={{marginBottom:14}}>
+                <label style={{fontSize:13,fontWeight:700,color:"rgba(255,255,255,.85)",display:"block",marginBottom:6}}>Create Your 4-Digit Recovery PIN *</label>
+                <input type="number" min="1000" max="9999" value={pin} onChange={e=>setPin(e.target.value)} placeholder="Enter 4 digits" style={inputStyle(pin)}/>
+              </div>
+              <div style={{marginBottom:14}}>
+                <label style={{fontSize:13,fontWeight:700,color:"rgba(255,255,255,.85)",display:"block",marginBottom:6}}>Confirm Your Recovery PIN *</label>
+                <input type="number" min="1000" max="9999" value={pinConfirm} onChange={e=>setPinConfirm(e.target.value)} placeholder="Re-enter your 4 digits" style={inputStyle(pinConfirm)}/>
+                {pinMismatch && (
+                  <div style={{fontSize:13,color:"#fca5a5",marginTop:6}}>PINs do not match. Please try again.</div>
+                )}
+              </div>
+
+              <div style={{display:"flex",gap:12,alignItems:"flex-start",padding:"14px 16px",borderRadius:12,background:"rgba(249,115,22,.1)",border:"1.5px solid rgba(249,115,22,.55)",marginBottom:18}}>
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#f97316" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={{flexShrink:0,marginTop:1}}>
+                  <path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+                  <line x1="12" y1="9" x2="12" y2="13"/>
+                  <line x1="12" y1="17" x2="12.01" y2="17"/>
+                </svg>
+                <p style={{fontSize:13,color:"rgba(255,255,255,.85)",lineHeight:1.6,margin:0}}>
+                  <strong style={{color:"#f97316"}}>Important:</strong> Your 4-digit PIN is the only way to recover your login email if you forget it. Store it somewhere safe such as a password manager or written note. If you lose your PIN we have no way to verify your identity or recover your account.
+                </p>
               </div>
 
               {status === "error" && (
@@ -2835,6 +2897,112 @@ const BusinessGeneratePage = ({ onNavigate }) => {
   );
 };
 
+// ─── /business-recover: PIN-BASED EMAIL RECOVERY ─────────────────────────────
+// A subscriber who forgot which email they signed up with enters their
+// 4-digit recovery PIN; we hash it and scan Business_Accounts for a match,
+// then reveal the full login email. Three wrong attempts lock the form.
+const RECOVER_ATTEMPTS_KEY = "humzones_recover_attempts";
+
+const BusinessRecoverPage = ({ onNavigate }) => {
+  const [pin, setPin] = useState("");
+  const [status, setStatus] = useState(() => {
+    try {
+      const n = parseInt(localStorage.getItem(RECOVER_ATTEMPTS_KEY) || "0", 10);
+      return n >= 3 ? "locked" : "idle";
+    } catch { return "idle"; }
+  }); // idle | searching | found | error | locked
+  const [foundEmail, setFoundEmail] = useState("");
+
+  const pinValid = /^[0-9]{4}$/.test(pin);
+
+  const registerFailure = () => {
+    let n = 0;
+    try {
+      n = parseInt(localStorage.getItem(RECOVER_ATTEMPTS_KEY) || "0", 10) + 1;
+      localStorage.setItem(RECOVER_ATTEMPTS_KEY, String(n));
+    } catch { n = 3; }
+    setStatus(n >= 3 ? "locked" : "error");
+  };
+
+  const findAccount = async () => {
+    if (!pinValid || status === "searching" || status === "locked") return;
+    setStatus("searching");
+    try {
+      const hash = await sha256Hex(pin.trim());
+      const records = await fetchAllBusinessAccounts();
+      const match = records.find(rec => rec.fields && rec.fields[BIZ_FIELD.Recovery_PIN] === hash);
+      if (match) {
+        setFoundEmail(match.fields[BIZ_FIELD.Email] || "");
+        setStatus("found");
+        try { localStorage.removeItem(RECOVER_ATTEMPTS_KEY); } catch {}
+      } else {
+        registerFailure();
+      }
+    } catch (e) {
+      console.error("Recovery lookup failed:", e);
+      setStatus("error");
+    }
+  };
+
+  return (
+    <div style={{minHeight:"100vh",background:"linear-gradient(150deg,#020c1b 0%,#0f172a 50%,#1e0535 100%)",color:"#fff"}}>
+      <div style={{padding:"22px 24px"}}>
+        <a href="/" onClick={e=>{e.preventDefault();onNavigate("/");}} style={{textDecoration:"none"}}>
+          <span style={{fontSize:22,fontWeight:900,letterSpacing:".08em",background:"linear-gradient(90deg,#ef4444,#f97316)",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent"}}>HumZones</span>
+          <sup style={{fontSize:12,color:"#f97316",fontWeight:700,verticalAlign:"super",marginLeft:2}}>TM</sup>
+        </a>
+      </div>
+
+      <main style={{maxWidth:480,margin:"0 auto",padding:"24px 24px 80px"}}>
+        <div style={{textAlign:"center",marginBottom:24}}>
+          <h1 style={{fontSize:30,fontWeight:900,letterSpacing:"-.01em",marginBottom:10}}>Account Recovery</h1>
+          <p style={{fontSize:15,color:"rgba(255,255,255,.7)",lineHeight:1.65}}>Enter your 4-digit recovery PIN to instantly retrieve your login email.</p>
+        </div>
+
+        {status === "found" ? (
+          <div style={{background:"rgba(34,197,94,.08)",border:"1px solid rgba(34,197,94,.35)",borderRadius:16,padding:"28px",textAlign:"center"}}>
+            <div style={{fontSize:15,color:"#86efac",fontWeight:700,marginBottom:10}}>We found your account. Your login email is:</div>
+            <div style={{fontSize:22,fontWeight:900,color:"#f97316",wordBreak:"break-all",marginBottom:20}}>{foundEmail}</div>
+            <button onClick={()=>onNavigate("/business-login")} style={{padding:"14px 28px",borderRadius:12,border:"none",cursor:"pointer",fontFamily:"inherit",fontSize:15,fontWeight:900,background:"linear-gradient(135deg,#ef4444,#f97316)",color:"#fff",boxShadow:"0 10px 28px rgba(249,115,22,.4)"}}>Go to Login</button>
+            <p style={{fontSize:13,color:"rgba(255,255,255,.55)",marginTop:14,lineHeight:1.55}}>
+              Enter this email at humzones.com/business-login to receive your instant login link.
+            </p>
+          </div>
+        ) : (
+          <div style={{background:"rgba(15,23,42,.55)",border:"1px solid rgba(255,255,255,.1)",borderRadius:16,padding:"26px"}}>
+            {status === "error" && (
+              <div style={{padding:"12px 14px",borderRadius:10,background:"rgba(239,68,68,.12)",border:"1px solid rgba(239,68,68,.4)",color:"#fecaca",fontSize:14,marginBottom:14}}>
+                No account found with that PIN. Please check your PIN and try again.
+              </div>
+            )}
+            {status === "locked" && (
+              <div style={{padding:"12px 14px",borderRadius:10,background:"rgba(239,68,68,.12)",border:"1px solid rgba(239,68,68,.4)",color:"#fecaca",fontSize:14,marginBottom:14}}>
+                Too many failed attempts. Please try again later.
+              </div>
+            )}
+            <label style={{fontSize:13,fontWeight:700,color:"rgba(255,255,255,.85)",display:"block",marginBottom:6}}>Recovery PIN</label>
+            <input
+              type="number" min="1000" max="9999"
+              value={pin}
+              onChange={e=>setPin(e.target.value)}
+              onKeyDown={e=>{ if (e.key === "Enter") findAccount(); }}
+              disabled={status === "locked"}
+              placeholder="Your 4-digit recovery PIN"
+              style={{width:"100%",padding:"14px 16px",borderRadius:10,border:`1.5px solid ${pinValid?"#f97316":"rgba(255,255,255,.18)"}`,fontSize:16,boxSizing:"border-box",outline:"none",fontFamily:"inherit",color:"#fff",background:"rgba(255,255,255,.06)",marginBottom:16,opacity:status==="locked"?.5:1}}
+            />
+            <button onClick={findAccount} disabled={!pinValid || status === "searching" || status === "locked"} style={{width:"100%",padding:"15px 22px",borderRadius:12,border:"none",cursor:(!pinValid||status==="searching"||status==="locked")?"not-allowed":"pointer",fontFamily:"inherit",fontSize:16,fontWeight:900,letterSpacing:".04em",background:(pinValid&&status!=="locked")?"linear-gradient(135deg,#ef4444,#f97316)":"rgba(255,255,255,.1)",color:"#fff",boxShadow:(pinValid&&status!=="locked")?"0 10px 28px rgba(249,115,22,.4)":"none"}}>
+              {status === "searching" ? "Searching..." : "Find My Account"}
+            </button>
+            <p style={{fontSize:13,color:"rgba(255,255,255,.55)",textAlign:"center",marginTop:14,paddingTop:14,borderTop:"1px solid rgba(255,255,255,.08)"}}>
+              Remembered your email? <a href="/business-login" onClick={e=>{e.preventDefault();onNavigate("/business-login");}} style={{color:"#f97316",fontWeight:700,textDecoration:"none"}}>Sign in</a>
+            </p>
+          </div>
+        )}
+      </main>
+    </div>
+  );
+};
+
 // ─── /business-login: MAGIC LINK ─────────────────────────────────────────────
 const BusinessLoginPage = ({ onNavigate }) => {
   const initialParams = new URLSearchParams(window.location.search);
@@ -2940,6 +3108,9 @@ const BusinessLoginPage = ({ onNavigate }) => {
             </button>
             <p style={{fontSize:12,color:"rgba(255,255,255,.5)",textAlign:"center",marginTop:10,lineHeight:1.55}}>
               Check your spam folder if you do not see the email within a few minutes.
+            </p>
+            <p style={{fontSize:13,color:"rgba(255,255,255,.55)",textAlign:"center",marginTop:12}}>
+              Forgot your login email? <a href="/business-recover" onClick={e=>{e.preventDefault();onNavigate("/business-recover");}} style={{color:"rgba(255,255,255,.75)",fontWeight:700,textDecoration:"underline"}}>Recover your account</a>
             </p>
             <p style={{fontSize:13,color:"rgba(255,255,255,.55)",textAlign:"center",marginTop:14,paddingTop:14,borderTop:"1px solid rgba(255,255,255,.08)"}}>
               New to HumZones for Business? Visit <a href="/business" onClick={e=>{e.preventDefault();onNavigate("/business");}} style={{color:"#f97316",fontWeight:700,textDecoration:"none"}}>humzones.com/business</a> to view our plans.
@@ -4059,6 +4230,8 @@ export default function App() {
         <BusinessGeneratePage onNavigate={navigate}/>
       ) : path === "/business-login" ? (
         <BusinessLoginPage onNavigate={navigate}/>
+      ) : path === "/business-recover" ? (
+        <BusinessRecoverPage onNavigate={navigate}/>
       ) : path === "/business-dashboard" ? (
         <BusinessDashboardPage onNavigate={navigate}/>
       ) : path === "/business-profile" ? (
