@@ -2779,11 +2779,14 @@ export default function App() {
               )}
             </div>
           )}
-          {/* PAID REPORT UPSELL: shown immediately after the count headline,
-              regardless of email-gate state, so the Full Report pitch lands
-              alongside the 1-free-card + email gate during the locked phase
-              and continues to render after the user unlocks. */}
-          {nearLoc && !dc && !loading && nearResults.length > 0 && (
+          {/* PAID REPORT UPSELL: only shown AFTER the email gate has been
+              passed. During the locked phase the buyer sees just the count
+              headline, one free facility card and the email overlay; the
+              paid Full Report pitch lands only once they have unlocked.
+              Returning visitors are unlocked on mount via the
+              humzones_email_unlocked localStorage flag, so they see the
+              banner immediately on their next visit. */}
+          {nearLoc && !dc && !loading && nearEmailUnlocked && nearResults.length > 0 && (
             <div className="fade-in" style={{background:"linear-gradient(150deg,#0a1628 0%,#0f172a 50%,#1e0535 100%)",borderRadius:18,padding:"36px 28px 30px",textAlign:"center",border:"1px solid rgba(249,115,22,.32)",boxShadow:"0 18px 50px rgba(0,0,0,.35),inset 0 1px 0 rgba(255,255,255,.05)",marginBottom:28,width:"100%",maxWidth:"100%",boxSizing:"border-box",marginLeft:0,marginRight:0}}>
               <div style={{fontSize:42,marginBottom:12,lineHeight:1}} role="img" aria-label="Fire">🔥</div>
               <h3 style={{fontSize:24,fontWeight:900,color:"#fff",marginBottom:8,letterSpacing:"-.01em",lineHeight:1.25}}>
