@@ -901,9 +901,9 @@ const ReportLandingPage = ({ onBack, onNavigate }) => {
   const handleBuyReport = () => {
     persistSearchContext();
     if (isBusinessActive) {
-      // Bypass Stripe. /report-success will see the business session in
-      // localStorage and deduct one credit before generating the PDF.
-      onNavigate("/report-success");
+      // Business users skip Stripe and use the dedicated /business-generate
+      // page, which handles geocoding, credit deduction and the PDF.
+      onNavigate("/business-generate");
       return;
     }
     window.location.href = STRIPE_PAYMENT_LINK;
@@ -1230,6 +1230,435 @@ const ReportLandingPage = ({ onBack, onNavigate }) => {
   );
 };
 
+// ─── SHARED PDF BUILDER ──────────────────────────────────────────────────────
+// Builds the full multi-page "HumZones Full Area Report" jsPDF document from
+// an already-filtered list of facilities. Used by both the consumer
+// /report-success flow and the business /business-generate flow so the two
+// PDFs stay identical apart from the radius copy and the saved filename.
+// Returns the jsPDF doc plus the rollup numbers the caller may want to
+// persist (totalFound, counts, totalPower, totalWater, totalCO2).
+async function buildAreaReportPdf({ searchAddress, facsNear, radiusKm = 100, facilities100km, highRisk }) {
+  const resolvePower = (f) => {
+    const v = Number(f.Power_MW);
+    if (Number.isFinite(v) && v > 0) return v;
+    const lvl = String(f.Risk_Level || "").toUpperCase();
+    if (lvl === "HIGH") return 50;
+    if (lvl === "MODERATE") return 25;
+    return 10;
+  };
+  const resolveCO2 = (f, mw) => {
+    const v = Number(f.CO2_Tons_Year);
+    if (Number.isFinite(v) && v > 0) return v;
+    return Math.round((mw * 3381) / 1000) * 1000;
+  };
+  const resolveWater = (f, mw) => {
+    const v = Number(f.Water_Gal_Day);
+    if (Number.isFinite(v) && v > 0) return v;
+    const cool = String(f.Cooling || "").toLowerCase();
+    let mult = 750;
+    if (cool.includes("evaporative")) mult = 10000;
+    else if (cool.includes("chilled water")) mult = 750;
+    else if (cool.includes("air")) mult = 250;
+    return mw * mult;
+  };
+  const resolveNoise = (f) => {
+    const v = Number(f.Noise_DB);
+    if (Number.isFinite(v) && v > 0) return v;
+    const lvl = String(f.Risk_Level || "").toUpperCase();
+    if (lvl === "HIGH") return 68;
+    if (lvl === "MODERATE") return 65;
+    return 60;
+  };
+
+  const counts = { HIGH: 0, MODERATE: 0, LOW: 0 };
+  let totalPower = 0, totalWater = 0, totalCO2 = 0;
+  facsNear.forEach(f => {
+    const lvl = String(f.Risk_Level || "").toUpperCase();
+    if (lvl === "HIGH") counts.HIGH++;
+    else if (lvl === "MODERATE") counts.MODERATE++;
+    else counts.LOW++;
+    const mw = resolvePower(f);
+    totalPower += mw;
+    totalWater += resolveWater(f, mw);
+    totalCO2   += resolveCO2(f, mw);
+  });
+
+  const jsPDFModule = await import("jspdf");
+  const { jsPDF } = jsPDFModule;
+  const doc = new jsPDF({ unit: "pt", format: "letter" });
+  const PW = doc.internal.pageSize.getWidth();
+  const PH = doc.internal.pageSize.getHeight();
+  const M  = 56;
+
+  const today    = new Date();
+  const datePart = today.toISOString().slice(0, 10);
+  const dateLong = today.toLocaleDateString("en-US", { year:"numeric", month:"long", day:"numeric" });
+
+  const fmtNum = (n) => Number(n).toLocaleString();
+  const fmtMW  = (mw) => mw >= 1000 ? `${(mw/1000).toFixed(2).replace(/\.?0+$/,"")} GW` : `${fmtNum(mw)} MW`;
+  const setText = (r,g,b) => doc.setTextColor(r,g,b);
+
+  const totalFound = facsNear.length;
+  const safeHigh   = Number.isFinite(highRisk) ? highRisk : counts.HIGH;
+  const safeTotal  = Number.isFinite(facilities100km) ? facilities100km : totalFound;
+  const radiusLbl  = `${radiusKm}km`;
+  const facLabel   = `Facilities within ${radiusLbl}`;
+
+  const drawTopBand = (rightLabel) => {
+    doc.setFillColor(15, 23, 42);
+    doc.rect(0, 0, PW, 32, "F");
+    doc.setFillColor(249, 115, 22);
+    doc.rect(0, 32, PW, 2, "F");
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(11);
+    setText(255, 255, 255);
+    doc.text("HumZones Full Area Report", M, 22);
+    if (rightLabel) {
+      doc.setFont("helvetica", "normal");
+      setText(148, 163, 184);
+      doc.text(rightLabel, PW - M, 22, { align: "right" });
+    }
+  };
+
+  // ═══ PAGE 1: COVER
+  doc.setFillColor(15, 23, 42); doc.rect(0, 0, PW, 6, "F");
+  doc.setFillColor(249, 115, 22); doc.rect(0, 6, PW, 3, "F");
+
+  doc.setFont("helvetica", "bold"); doc.setFontSize(16);
+  setText(15, 23, 42); doc.text("HumZones", M, 48);
+
+  let y = 180;
+  doc.setFont("helvetica", "bold"); doc.setFontSize(30);
+  setText(15, 23, 42); doc.text("HumZones Full Area Report", M, y);
+  y += 30;
+  doc.setFont("helvetica", "normal"); doc.setFontSize(15);
+  setText(100, 116, 139); doc.text("Personalized Data Center Health Analysis", M, y);
+
+  y += 50;
+  doc.setFillColor(241, 245, 249); doc.rect(M, y - 20, PW - M*2, 130, "F");
+  doc.setFillColor(249, 115, 22); doc.rect(M, y - 20, 4, 130, "F");
+
+  doc.setFont("helvetica", "bold"); doc.setFontSize(11);
+  setText(100, 116, 139); doc.text("ADDRESS", M + 20, y);
+  doc.setFont("helvetica", "bold"); doc.setFontSize(13);
+  setText(15, 23, 42);
+  const addrLines = doc.splitTextToSize(searchAddress, PW - M*2 - 40);
+  doc.text(addrLines.slice(0, 2), M + 20, y + 20);
+
+  doc.setFont("helvetica", "bold"); doc.setFontSize(11);
+  setText(100, 116, 139); doc.text("GENERATED", M + 20, y + 60);
+  doc.setFont("helvetica", "bold"); doc.setFontSize(13);
+  setText(15, 23, 42); doc.text(dateLong, M + 20, y + 80);
+
+  y += 150;
+  doc.setFillColor(15, 23, 42); doc.rect(M, y, PW - M*2, 110, "F");
+  doc.setFillColor(249, 115, 22); doc.rect(M, y, 4, 110, "F");
+
+  doc.setFont("helvetica", "bold"); doc.setFontSize(10);
+  setText(249, 115, 22);
+  doc.text(`TOTAL FACILITIES WITHIN ${radiusLbl.toUpperCase()}`, M + 20, y + 28);
+  doc.setFont("helvetica", "bold"); doc.setFontSize(32);
+  setText(255, 255, 255); doc.text(String(safeTotal), M + 20, y + 70);
+
+  doc.setFont("helvetica", "bold"); doc.setFontSize(10);
+  setText(249, 115, 22); doc.text("HIGH RISK FACILITIES", M + 260, y + 28);
+  doc.setFont("helvetica", "bold"); doc.setFontSize(32);
+  setText(255, 255, 255); doc.text(String(safeHigh), M + 260, y + 70);
+
+  doc.setFont("helvetica", "bold"); doc.setFontSize(11);
+  setText(15, 23, 42);
+  doc.text("Prepared by HumZones Technologies Inc.", M, PH - 56);
+  doc.setFont("helvetica", "normal"); doc.setFontSize(10);
+  setText(100, 116, 139);
+  doc.text("Global Data Center Health Registry  |  humzones.com", M, PH - 38);
+
+  // ═══ PAGE 2: EXECUTIVE SUMMARY
+  doc.addPage();
+  drawTopBand("Executive Summary");
+
+  y = 80;
+  doc.setFont("helvetica", "bold"); doc.setFontSize(22);
+  setText(15, 23, 42); doc.text("Executive Summary", M, y);
+
+  y += 36;
+  const rows = [
+    [`Total facilities within ${radiusLbl}`, String(totalFound)],
+    ["HIGH risk facilities",                  String(counts.HIGH)],
+    ["MODERATE risk facilities",              String(counts.MODERATE)],
+    ["LOW risk facilities",                   String(counts.LOW)],
+    ["Combined estimated power draw",         fmtMW(totalPower)],
+    ["Combined daily water consumption",      `${fmtNum(totalWater)} gallons`],
+    ["Combined CO2 per year",                 `${fmtNum(totalCO2)} tons`],
+  ];
+  rows.forEach((r, idx) => {
+    if (idx % 2 === 0) {
+      doc.setFillColor(248, 250, 252);
+      doc.rect(M, y - 14, PW - M*2, 28, "F");
+    }
+    doc.setFont("helvetica", "normal"); doc.setFontSize(12);
+    setText(71, 85, 105); doc.text(r[0], M + 14, y + 4);
+    doc.setFont("helvetica", "bold"); setText(15, 23, 42);
+    doc.text(r[1], PW - M - 14, y + 4, { align: "right" });
+    y += 28;
+  });
+
+  y += 18;
+  const paragraph = `This report identifies ${totalFound} data center ${totalFound === 1 ? "facility" : "facilities"} operating within ${radiusLbl} of your address. Of these, ${counts.HIGH} ${counts.HIGH === 1 ? "is" : "are"} classified as HIGH risk based on power scale, proximity to residential areas and cooling type.`;
+  doc.setFont("helvetica", "normal"); doc.setFontSize(11);
+  setText(71, 85, 105);
+  const pWrap = doc.splitTextToSize(paragraph, PW - M*2);
+  doc.text(pWrap, M, y);
+
+  // ═══ PAGE 3+: PER-FACILITY DETAIL
+  if (facsNear.length > 0) {
+    doc.addPage();
+    drawTopBand(facLabel);
+
+    y = 80;
+    doc.setFont("helvetica", "bold"); doc.setFontSize(22);
+    setText(15, 23, 42); doc.text("Facilities Near You", M, y);
+    y += 22;
+    doc.setFont("helvetica", "normal"); doc.setFontSize(11);
+    setText(100, 116, 139);
+    doc.text(`${facsNear.length} ${facsNear.length === 1 ? "facility" : "facilities"} sorted by distance, closest first.`, M, y);
+    y += 24;
+
+    const bottomLimit = PH - 64;
+    const facBlockHeight = 190;
+
+    facsNear.forEach((f) => {
+      if (y + facBlockHeight > bottomLimit) {
+        doc.addPage();
+        drawTopBand(facLabel);
+        y = 80;
+      }
+
+      doc.setFont("helvetica", "bold"); doc.setFontSize(15);
+      setText(15, 23, 42);
+      const nameLines = doc.splitTextToSize(f.Name || "Unnamed facility", PW - M*2);
+      doc.text(nameLines[0], M, y);
+      y += 18;
+
+      if (f.Company) {
+        doc.setFont("helvetica", "normal"); doc.setFontSize(11);
+        setText(100, 116, 139); doc.text(String(f.Company), M, y);
+        y += 16;
+      }
+
+      doc.setFont("helvetica", "bold"); doc.setFontSize(10);
+      setText(15, 23, 42);
+      doc.text(`Distance: ${Number(f._km).toFixed(1)} km from your address`, M, y);
+      const rc = String(f.Risk_Level).toUpperCase() === "HIGH"
+        ? [239, 68, 68]
+        : String(f.Risk_Level).toUpperCase() === "MODERATE"
+          ? [249, 115, 22]
+          : [59, 130, 246];
+      setText(rc[0], rc[1], rc[2]);
+      doc.text(`Risk Level: ${String(f.Risk_Level || "UNKNOWN").toUpperCase()}`, M + 270, y);
+      y += 16;
+
+      doc.setFont("helvetica", "normal"); doc.setFontSize(10);
+      setText(71, 85, 105);
+      const cityLine = [f.City, f.State_Region].filter(Boolean).join(", ");
+      if (cityLine) { doc.text(cityLine, M, y); y += 14; }
+      if (f.Address) {
+        const aw = doc.splitTextToSize(String(f.Address), PW - M*2);
+        const slice = aw.slice(0, 2);
+        doc.text(slice, M, y);
+        y += slice.length * 14;
+      }
+      y += 4;
+
+      const mw    = resolvePower(f);
+      const co2v  = resolveCO2(f, mw);
+      const waterv= resolveWater(f, mw);
+      const noisev= resolveNoise(f);
+      const stats = [
+        ["Power",         `${fmtNum(mw)} MW`],
+        ["Noise",         `${noisev} dB`],
+        ["CO2",           `${fmtNum(co2v)} tons per year`],
+        ["Water",         `${fmtNum(waterv)} gallons per day`],
+        ["EMF at fence",  f.EMF_Fence_High != null && f.EMF_Fence_High !== "" ? `${f.EMF_Fence_High} mG` : "n/a"],
+        ["EMF at 100m",   f.EMF_100m       != null && f.EMF_100m       !== "" ? `${f.EMF_100m} mG`       : "n/a"],
+        ["Cooling type",  f.Cooling || "n/a"],
+        ["Opened",        f.Opened ? String(f.Opened) : "n/a"],
+      ];
+      const colW = (PW - M*2) / 2;
+      stats.forEach((s, idx) => {
+        const col = idx % 2;
+        if (col === 0 && idx > 0) y += 16;
+        const x = M + col * colW;
+        doc.setFont("helvetica", "bold"); doc.setFontSize(10);
+        setText(100, 116, 139); doc.text(`${s[0]}:`, x, y);
+        doc.setFont("helvetica", "normal"); setText(15, 23, 42);
+        const valLines = doc.splitTextToSize(String(s[1]), colW - 90);
+        doc.text(valLines[0], x + 84, y);
+      });
+      y += 22;
+
+      doc.setDrawColor(226, 232, 240); doc.setLineWidth(0.6);
+      doc.line(M, y, PW - M, y);
+      y += 18;
+    });
+  }
+
+  // ═══ UNDERSTANDING YOUR RESULTS
+  doc.addPage();
+  drawTopBand("Understanding Your Results");
+
+  y = 80;
+  doc.setFont("helvetica", "bold"); doc.setFontSize(22);
+  setText(15, 23, 42); doc.text("Understanding Your Results", M, y);
+  y += 28;
+
+  const writePara = (txt) => {
+    if (y + 80 > PH - 80) { doc.addPage(); drawTopBand("Understanding Your Results"); y = 80; }
+    doc.setFont("helvetica", "normal"); doc.setFontSize(11);
+    setText(71, 85, 105);
+    const lines = doc.splitTextToSize(txt, PW - M*2);
+    doc.text(lines, M, y);
+    y += lines.length * 14 + 12;
+  };
+
+  writePara("EMF exposure. Power-frequency electromagnetic fields from data center substations and feeder lines have been studied in relation to childhood leukemia by the WHO and IARC. Published research has identified elevated risk where homes are exposed to power-frequency fields above roughly 3 to 4 milligauss on a sustained basis. The EMF figures in this report show modeled values both at the facility fence and at 100 meters so you can see how exposure changes with distance.");
+  writePara("Noise impact. Data centers operate around the clock and emit a continuous low-frequency hum from cooling systems and transformers. Low-frequency sound below 200 Hz penetrates walls and windows with far less attenuation than higher frequencies, which is why residents living within a few kilometers of large facilities consistently report sleep disruption, headaches and chronic background stress. Monthly backup generator tests add diesel exhaust on top of the steady noise.");
+  writePara(`Water and CO2. Evaporative cooling at hyperscale facilities removes large volumes of fresh water from the local cycle every single day. Combined with the grid emissions associated with around-the-clock electricity demand, the regional environmental footprint of multiple nearby facilities compounds rapidly. The figures in this report sum the modeled draw across every facility within ${radiusLbl} of your address.`);
+
+  y += 4;
+  if (y + 30 > PH - 80) { doc.addPage(); drawTopBand("Understanding Your Results"); y = 80; }
+  doc.setFont("helvetica", "bold"); doc.setFontSize(16);
+  setText(15, 23, 42); doc.text("What You Can Do", M, y);
+  y += 22;
+
+  const steps = [
+    "Track your sleep quality, headache frequency and any tinnitus over a two to four week window. Patterns that improve when you leave the area are the strongest signal that environmental factors are involved.",
+    "Request the generator test schedule of your nearest facility in writing and keep windows closed on test days. Run a HEPA rated air purifier indoors during and after each test, particularly if children or anyone with asthma lives in the household.",
+    "Ask a qualified electrician or environmental consultant to measure power-frequency EMF at your property boundary if you live within roughly 500 meters of a substation or fence line. Compare the reading against the 3 to 4 milligauss threshold cited in the published research.",
+    "File a formal noise complaint with your county or municipal zoning authority and request the facility's noise monitoring data and the conditions attached to its industrial use permit. Keep every complaint number and follow up in writing.",
+    "Contact your state environmental agency for the facility's emissions records and your county health department if you suspect groundwater impact. Document every conversation by date and reference number.",
+  ];
+  steps.forEach((s, idx) => {
+    if (y + 60 > PH - 80) { doc.addPage(); drawTopBand("Understanding Your Results"); y = 80; }
+    doc.setFont("helvetica", "bold"); doc.setFontSize(11);
+    setText(249, 115, 22); doc.text(`${idx + 1}.`, M, y);
+    doc.setFont("helvetica", "normal"); setText(71, 85, 105);
+    const lines = doc.splitTextToSize(s, PW - M*2 - 20);
+    doc.text(lines, M + 20, y);
+    y += lines.length * 14 + 10;
+  });
+
+  y += 14;
+  if (y + 40 > PH - 60) { doc.addPage(); drawTopBand("Understanding Your Results"); y = 80; }
+  doc.setFont("helvetica", "bold"); doc.setFontSize(11);
+  setText(15, 23, 42);
+  const methPrefix = "For full methodology visit ";
+  doc.text(methPrefix, M, y);
+  setText(249, 115, 22);
+  doc.textWithLink("humzones.com/methodology", M + doc.getTextWidth(methPrefix), y, { url: "https://humzones.com/methodology" });
+  setText(15, 23, 42);
+  y += 16;
+  const qPrefix = "For questions visit ";
+  doc.text(qPrefix, M, y);
+  setText(249, 115, 22);
+  doc.textWithLink("humzones.com", M + doc.getTextWidth(qPrefix), y, { url: "https://humzones.com" });
+  setText(15, 23, 42);
+
+  // ═══ SHARE YOUR EXPERIENCE
+  doc.addPage();
+  drawTopBand("Share Your Experience");
+
+  y = 80;
+  doc.setFont("helvetica", "bold"); doc.setFontSize(22);
+  setText(15, 23, 42); doc.text("Share Your Experience", M, y);
+  y += 28;
+
+  const sharePara = (txt) => {
+    if (y + 80 > PH - 80) { doc.addPage(); drawTopBand("Share Your Experience"); y = 80; }
+    doc.setFont("helvetica", "normal"); doc.setFontSize(11);
+    setText(71, 85, 105);
+    const lines = doc.splitTextToSize(txt, PW - M*2);
+    doc.text(lines, M, y);
+    y += lines.length * 14 + 12;
+  };
+
+  sharePara("Do you live near one of the facilities in this report? Your experience matters. HumZones collects verified resident reports from people living near data centers. Your report helps other residents understand what life is really like near these facilities and adds to our growing community database.");
+
+  if (y + 40 > PH - 80) { doc.addPage(); drawTopBand("Share Your Experience"); y = 80; }
+  doc.setFont("helvetica", "bold"); doc.setFontSize(12);
+  const submitPrefix = "Submit your resident report at: ";
+  setText(15, 23, 42); doc.text(submitPrefix, M, y);
+  setText(249, 115, 22);
+  doc.textWithLink("humzones.com", M + doc.getTextWidth(submitPrefix), y, { url: "https://humzones.com" });
+  setText(71, 85, 105);
+  y += 22;
+
+  sharePara("Click on Submit Your Report in the navigation menu. Reports are reviewed and published with your permission only. Your personal information is never shared.");
+  sharePara("Together we can build the most comprehensive community health database for data center proximity in the world.");
+
+  if (y + 30 > PH - 80) { doc.addPage(); drawTopBand("Share Your Experience"); y = 80; }
+  doc.setFont("helvetica", "bold"); doc.setFontSize(11);
+  const methSharePrefix = "Read the full methodology at ";
+  setText(15, 23, 42); doc.text(methSharePrefix, M, y);
+  setText(249, 115, 22);
+  doc.textWithLink("humzones.com/methodology", M + doc.getTextWidth(methSharePrefix), y, { url: "https://humzones.com/methodology" });
+  setText(71, 85, 105);
+
+  // ═══ LEGAL DISCLAIMER
+  doc.addPage();
+  drawTopBand("Important Disclaimer");
+
+  y = 80;
+  doc.setFont("helvetica", "bold"); doc.setFontSize(22);
+  setText(15, 23, 42); doc.text("Important Disclaimer", M, y);
+  y += 28;
+
+  const disclaimer = [
+    "This HumZones Area Report is provided for informational and public awareness purposes only. All data, figures, estimates and risk assessments contained in this report are based on research compiled from public sources including utility filings, operator announcements, permit records and industry databases.",
+    "All figures including but not limited to power consumption, noise levels, EMF readings, CO2 emissions and water usage are modeled estimates derived using industry standard formulas. They are not certified field measurements and have not been independently verified. Actual values may vary significantly depending on facility design, operating conditions, season and local terrain.",
+    "Risk levels assigned as LOW, MODERATE or HIGH are relative indicators for general public awareness only. They do not constitute a scientific assessment, environmental evaluation or health determination of any kind.",
+    "This report does not constitute medical, legal, scientific or environmental advice. HumZones Technologies Inc. makes no warranties express or implied regarding the accuracy, completeness or fitness for any particular purpose of the information contained herein.",
+    "Residents with health concerns related to nearby infrastructure should consult qualified medical professionals, environmental scientists or legal advisors.",
+    "HumZones Technologies Inc. shall not be liable for any damages, losses or consequences arising from the use of or reliance on information contained in this report.",
+  ];
+  disclaimer.forEach((p) => {
+    if (y + 80 > PH - 80) { doc.addPage(); drawTopBand("Important Disclaimer"); y = 80; }
+    doc.setFont("helvetica", "normal"); doc.setFontSize(10);
+    setText(71, 85, 105);
+    const lines = doc.splitTextToSize(p, PW - M*2);
+    doc.text(lines, M, y);
+    y += lines.length * 13 + 10;
+  });
+
+  y += 6;
+  if (y + 80 > PH - 60) { doc.addPage(); drawTopBand("Important Disclaimer"); y = 80; }
+  doc.setFont("helvetica", "bold"); doc.setFontSize(11);
+  const discPrefix = "For full methodology and data sources visit ";
+  setText(15, 23, 42); doc.text(discPrefix, M, y);
+  setText(249, 115, 22);
+  doc.textWithLink("humzones.com/methodology", M + doc.getTextWidth(discPrefix), y, { url: "https://humzones.com/methodology" });
+  setText(15, 23, 42);
+  y += 22;
+  doc.setFont("helvetica", "normal"); doc.setFontSize(10);
+  setText(100, 116, 139);
+  doc.text("Report generated by HumZones Technologies Inc.", M, y); y += 14;
+  doc.text("Global Data Center Health Registry",              M, y); y += 14;
+  doc.text("humzones.com",                                     M, y); y += 14;
+  doc.text(dateLong,                                           M, y);
+
+  return { doc, datePart, dateLong, totalFound, counts, totalPower, totalWater, totalCO2 };
+}
+
+// Slugify an address for the PDF filename so the saved file is human-readable
+// across operating systems.
+function pdfFilenameSafe(address) {
+  return (address || "report")
+    .replace(/[\s,]+/g, "-")
+    .replace(/[^A-Za-z0-9._-]/g, "")
+    .replace(/-+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 60) || "report";
+}
+
 // ─── REPORT SUCCESS (post-payment PDF generation) ─────────────────────────────
 // Reached after Stripe checkout success. Reads the captured search context out
 // of localStorage, refetches the buyer email from the Stripe session, pulls
@@ -1242,7 +1671,6 @@ const ReportSuccessPage = ({ onBack, onNavigate }) => {
   const [stepMsg, setStepMsg] = useState("Fetching your facility data...");
   const [progress, setProgress] = useState(10);
   const [errMsg, setErrMsg] = useState("");
-  const [noCreditsInfo, setNoCreditsInfo] = useState(null); // { renewalDate }
 
   // Guard against React 18 StrictMode double-invocation in dev: the PDF
   // generator must run exactly once so the buyer is not served two downloads.
@@ -1295,71 +1723,8 @@ const ReportSuccessPage = ({ onBack, onNavigate }) => {
         // the buy flow redirects directly to a Stripe Payment Link, so the
         // buyer email is not available client-side after the redirect back.
         // The PDF and the Airtable Emails capture leave the Email field
-        // blank when we cannot derive it. Business users override this with
-        // their account email (set below) so the capture row links back.
-        let buyerEmail = "";
-
-        // ─── 1a. Business-user credit check (skip Stripe billing) ─────────
-        // If a business session is in localStorage, refresh it from Airtable
-        // (so a previous-tab generation is reflected), enforce credits, and
-        // deduct one before doing any of the heavy report work.
-        const sessionAccount = readBusinessAccount();
-        let businessAccountId = null;
-        let businessIsUnlimited = false;
-        if (sessionAccount && sessionAccount.email) {
-          setStepMsg("Checking your business plan...");
-          setProgress(15);
-          let fresh = null;
-          try {
-            const rec = await fetchBusinessAccountByEmail(sessionAccount.email);
-            if (rec) fresh = normalizeBusinessAccount(rec);
-          } catch (e) {
-            console.warn("[HumZones] Business account refresh failed, falling back to localStorage:", e);
-            fresh = sessionAccount;
-          }
-          if (!fresh) {
-            throw new Error("We could not find your business account. Please sign in again.");
-          }
-          if (fresh.status && fresh.status !== "Active") {
-            throw new Error("Your business account is not active. Please contact support.");
-          }
-          businessAccountId = fresh.id;
-          businessIsUnlimited = fresh.creditsMonthly >= 999999;
-          buyerEmail = fresh.email || "";
-
-          if (!businessIsUnlimited && fresh.creditsRemaining <= 0) {
-            setNoCreditsInfo({ renewalDate: fresh.renewalDate || "" });
-            setStatus("no_credits");
-            writeBusinessAccount(fresh);
-            return;
-          }
-
-          const newRemaining = businessIsUnlimited
-            ? fresh.creditsRemaining
-            : Math.max(0, fresh.creditsRemaining - 1);
-          const newGenerated = (fresh.reportsGenerated || 0) + 1;
-          try {
-            await patchBusinessAccount(businessAccountId, {
-              [BIZ_FIELD.Credits_Remaining]: newRemaining,
-              [BIZ_FIELD.Reports_Generated]: newGenerated,
-            });
-          } catch (e) {
-            console.error("[HumZones] Credit deduction failed:", e);
-            throw new Error("We could not record your report against your plan. Please refresh and try again.");
-          }
-          writeBusinessAccount({ ...fresh, creditsRemaining: newRemaining, reportsGenerated: newGenerated });
-
-          // Persist a short recent-reports list for the dashboard.
-          try {
-            const existing = JSON.parse(localStorage.getItem(BIZ_REPORTS_KEY) || "[]");
-            const entry = {
-              address: localStorage.getItem("searchAddress") || "Report",
-              date: new Date().toISOString().slice(0,10),
-            };
-            const next = [entry, ...existing].slice(0, 20);
-            localStorage.setItem(BIZ_REPORTS_KEY, JSON.stringify(next));
-          } catch {}
-        }
+        // blank when we cannot derive it.
+        const buyerEmail = "";
 
         // ─── 2. Fetch every facility from Airtable ──────────────────────────
         setStepMsg("Fetching your facility data...");
@@ -1400,535 +1765,23 @@ const ReportSuccessPage = ({ onBack, onNavigate }) => {
           : [];
         console.log(`[HumZones] ${facsNear.length} facilities within 100km of (${searchLat}, ${searchLng})`);
 
-        // Resolvers fill in metrics the Airtable row is missing so the PDF
-        // never shows 0 next to a facility. Power_MW is the base figure
-        // every other formula needs; if it is missing we infer it from the
-        // risk band the methodology page already defines (HIGH = 50MW+,
-        // MODERATE = 15-50, LOW = small/rural). CO2 and water use the
-        // industry-standard multipliers supplied by the brief; noise falls
-        // back to the band-level perimeter dB values.
-        const resolvePower = (f) => {
-          const v = Number(f.Power_MW);
-          if (Number.isFinite(v) && v > 0) return v;
-          const lvl = String(f.Risk_Level || "").toUpperCase();
-          if (lvl === "HIGH") return 50;
-          if (lvl === "MODERATE") return 25;
-          return 10;
-        };
-        const resolveCO2 = (f, mw) => {
-          const v = Number(f.CO2_Tons_Year);
-          if (Number.isFinite(v) && v > 0) return v;
-          return Math.round((mw * 3381) / 1000) * 1000;
-        };
-        const resolveWater = (f, mw) => {
-          const v = Number(f.Water_Gal_Day);
-          if (Number.isFinite(v) && v > 0) return v;
-          const cool = String(f.Cooling || "").toLowerCase();
-          let mult = 750; // default
-          if (cool.includes("evaporative")) mult = 10000;
-          else if (cool.includes("chilled water")) mult = 750;
-          else if (cool.includes("air")) mult = 250;
-          return mw * mult;
-        };
-        const resolveNoise = (f) => {
-          const v = Number(f.Noise_DB);
-          if (Number.isFinite(v) && v > 0) return v;
-          const lvl = String(f.Risk_Level || "").toUpperCase();
-          if (lvl === "HIGH") return 68;
-          if (lvl === "MODERATE") return 65;
-          return 60;
-        };
-
-        // Rollups for the executive summary. Sum the resolved values so the
-        // combined totals also never report 0 for a populated database.
-        const counts = { HIGH: 0, MODERATE: 0, LOW: 0 };
-        let totalPower = 0, totalWater = 0, totalCO2 = 0;
-        facsNear.forEach(f => {
-          const lvl = String(f.Risk_Level || "").toUpperCase();
-          if (lvl === "HIGH") counts.HIGH++;
-          else if (lvl === "MODERATE") counts.MODERATE++;
-          else counts.LOW++;
-          const mw = resolvePower(f);
-          totalPower += mw;
-          totalWater += resolveWater(f, mw);
-          totalCO2   += resolveCO2(f, mw);
-        });
-
-        // ─── 4. Generate the PDF ────────────────────────────────────────────
+        // ─── 4. Generate the PDF via the shared builder ─────────────────────
         setStepMsg("Generating your personalized report...");
         setStatus("generating");
         setProgress(72);
 
-        const jsPDFModule = await import("jspdf");
-        const { jsPDF } = jsPDFModule;
-        const doc = new jsPDF({ unit: "pt", format: "letter" });
-        const PW = doc.internal.pageSize.getWidth();   // 612
-        const PH = doc.internal.pageSize.getHeight();  // 792
-        const M  = 56;
-
-        const today    = new Date();
-        const datePart = today.toISOString().slice(0, 10);
-        const dateLong = today.toLocaleDateString("en-US", { year:"numeric", month:"long", day:"numeric" });
-
-        const fmtNum = (n) => Number(n).toLocaleString();
-        const fmtMW  = (mw) => mw >= 1000 ? `${(mw/1000).toFixed(2).replace(/\.?0+$/,"")} GW` : `${fmtNum(mw)} MW`;
-        const setText = (r,g,b) => doc.setTextColor(r,g,b);
-
-        const totalFound = facsNear.length;
-        const safeHigh   = Number.isFinite(highRisk) ? highRisk : counts.HIGH;
-
-        // Repeating top band so every internal page is branded the same way.
-        const drawTopBand = (rightLabel) => {
-          doc.setFillColor(15, 23, 42);
-          doc.rect(0, 0, PW, 32, "F");
-          doc.setFillColor(249, 115, 22);
-          doc.rect(0, 32, PW, 2, "F");
-          doc.setFont("helvetica", "bold");
-          doc.setFontSize(11);
-          setText(255, 255, 255);
-          doc.text("HumZones Full Area Report", M, 22);
-          if (rightLabel) {
-            doc.setFont("helvetica", "normal");
-            setText(148, 163, 184);
-            doc.text(rightLabel, PW - M, 22, { align: "right" });
-          }
-        };
-
-        // ═══ PAGE 1: COVER ═══════════════════════════════════════════════════
-        // Top brand accent bars
-        doc.setFillColor(15, 23, 42);
-        doc.rect(0, 0, PW, 6, "F");
-        doc.setFillColor(249, 115, 22);
-        doc.rect(0, 6, PW, 3, "F");
-
-        // Wordmark
-        doc.setFont("helvetica", "bold");
-        doc.setFontSize(16);
-        setText(15, 23, 42);
-        doc.text("HumZones", M, 48);
-
-        // Title
-        let y = 180;
-        doc.setFont("helvetica", "bold");
-        doc.setFontSize(30);
-        setText(15, 23, 42);
-        doc.text("HumZones Full Area Report", M, y);
-        y += 30;
-        doc.setFont("helvetica", "normal");
-        doc.setFontSize(15);
-        setText(100, 116, 139);
-        doc.text("Personalized Data Center Health Analysis", M, y);
-
-        // Address + date card
-        y += 50;
-        doc.setFillColor(241, 245, 249);
-        doc.rect(M, y - 20, PW - M*2, 130, "F");
-        doc.setFillColor(249, 115, 22);
-        doc.rect(M, y - 20, 4, 130, "F");
-
-        doc.setFont("helvetica", "bold");
-        doc.setFontSize(11);
-        setText(100, 116, 139);
-        doc.text("ADDRESS", M + 20, y);
-        doc.setFont("helvetica", "bold");
-        doc.setFontSize(13);
-        setText(15, 23, 42);
-        const addrLines = doc.splitTextToSize(searchAddress, PW - M*2 - 40);
-        doc.text(addrLines.slice(0, 2), M + 20, y + 20);
-
-        doc.setFont("helvetica", "bold");
-        doc.setFontSize(11);
-        setText(100, 116, 139);
-        doc.text("GENERATED", M + 20, y + 60);
-        doc.setFont("helvetica", "bold");
-        doc.setFontSize(13);
-        setText(15, 23, 42);
-        doc.text(dateLong, M + 20, y + 80);
-
-        // Counts panel
-        y += 150;
-        doc.setFillColor(15, 23, 42);
-        doc.rect(M, y, PW - M*2, 110, "F");
-        doc.setFillColor(249, 115, 22);
-        doc.rect(M, y, 4, 110, "F");
-
-        doc.setFont("helvetica", "bold");
-        doc.setFontSize(10);
-        setText(249, 115, 22);
-        doc.text("TOTAL FACILITIES WITHIN 100KM", M + 20, y + 28);
-        doc.setFont("helvetica", "bold");
-        doc.setFontSize(32);
-        setText(255, 255, 255);
-        doc.text(String(totalFound), M + 20, y + 70);
-
-        doc.setFont("helvetica", "bold");
-        doc.setFontSize(10);
-        setText(249, 115, 22);
-        doc.text("HIGH RISK FACILITIES", M + 260, y + 28);
-        doc.setFont("helvetica", "bold");
-        doc.setFontSize(32);
-        setText(255, 255, 255);
-        doc.text(String(safeHigh), M + 260, y + 70);
-
-        // Footer
-        doc.setFont("helvetica", "bold");
-        doc.setFontSize(11);
-        setText(15, 23, 42);
-        doc.text("Prepared by HumZones Technologies Inc.", M, PH - 56);
-        doc.setFont("helvetica", "normal");
-        doc.setFontSize(10);
-        setText(100, 116, 139);
-        doc.text("Global Data Center Health Registry  |  humzones.com", M, PH - 38);
-
-        // ═══ PAGE 2: EXECUTIVE SUMMARY ═══════════════════════════════════════
-        doc.addPage();
-        drawTopBand("Executive Summary");
-
-        y = 80;
-        doc.setFont("helvetica", "bold");
-        doc.setFontSize(22);
-        setText(15, 23, 42);
-        doc.text("Executive Summary", M, y);
-
-        y += 36;
-        const rows = [
-          ["Total facilities within 100km",       String(totalFound)],
-          ["HIGH risk facilities",                 String(counts.HIGH)],
-          ["MODERATE risk facilities",             String(counts.MODERATE)],
-          ["LOW risk facilities",                  String(counts.LOW)],
-          ["Combined estimated power draw",        fmtMW(totalPower)],
-          ["Combined daily water consumption",     `${fmtNum(totalWater)} gallons`],
-          ["Combined CO2 per year",                `${fmtNum(totalCO2)} tons`],
-        ];
-        rows.forEach((r, idx) => {
-          if (idx % 2 === 0) {
-            doc.setFillColor(248, 250, 252);
-            doc.rect(M, y - 14, PW - M*2, 28, "F");
-          }
-          doc.setFont("helvetica", "normal");
-          doc.setFontSize(12);
-          setText(71, 85, 105);
-          doc.text(r[0], M + 14, y + 4);
-          doc.setFont("helvetica", "bold");
-          setText(15, 23, 42);
-          doc.text(r[1], PW - M - 14, y + 4, { align: "right" });
-          y += 28;
+        const { doc, datePart, totalFound, counts } = await buildAreaReportPdf({
+          searchAddress,
+          facsNear,
+          radiusKm: 100,
+          facilities100km: facilities100,
+          highRisk,
         });
-
-        y += 18;
-        const paragraph = `This report identifies ${totalFound} data center ${totalFound === 1 ? "facility" : "facilities"} operating within 100km of your address. Of these, ${counts.HIGH} ${counts.HIGH === 1 ? "is" : "are"} classified as HIGH risk based on power scale, proximity to residential areas and cooling type.`;
-        doc.setFont("helvetica", "normal");
-        doc.setFontSize(11);
-        setText(71, 85, 105);
-        const pWrap = doc.splitTextToSize(paragraph, PW - M*2);
-        doc.text(pWrap, M, y);
-
-        // ═══ PAGE 3+: PER-FACILITY DETAIL ═══════════════════════════════════
-        if (facsNear.length > 0) {
-          doc.addPage();
-          drawTopBand("Facilities within 100km");
-
-          y = 80;
-          doc.setFont("helvetica", "bold");
-          doc.setFontSize(22);
-          setText(15, 23, 42);
-          doc.text("Facilities Near You", M, y);
-          y += 22;
-          doc.setFont("helvetica", "normal");
-          doc.setFontSize(11);
-          setText(100, 116, 139);
-          doc.text(`${facsNear.length} ${facsNear.length === 1 ? "facility" : "facilities"} sorted by distance, closest first.`, M, y);
-          y += 24;
-
-          const bottomLimit = PH - 64;
-          const facBlockHeight = 190;
-
-          facsNear.forEach((f) => {
-            if (y + facBlockHeight > bottomLimit) {
-              doc.addPage();
-              drawTopBand("Facilities within 100km");
-              y = 80;
-            }
-
-            // Facility name
-            doc.setFont("helvetica", "bold");
-            doc.setFontSize(15);
-            setText(15, 23, 42);
-            const nameLines = doc.splitTextToSize(f.Name || "Unnamed facility", PW - M*2);
-            doc.text(nameLines[0], M, y);
-            y += 18;
-
-            // Company
-            if (f.Company) {
-              doc.setFont("helvetica", "normal");
-              doc.setFontSize(11);
-              setText(100, 116, 139);
-              doc.text(String(f.Company), M, y);
-              y += 16;
-            }
-
-            // Distance + risk on one row
-            doc.setFont("helvetica", "bold");
-            doc.setFontSize(10);
-            setText(15, 23, 42);
-            doc.text(`Distance: ${Number(f._km).toFixed(1)} km from your address`, M, y);
-            const rc = String(f.Risk_Level).toUpperCase() === "HIGH"
-              ? [239, 68, 68]
-              : String(f.Risk_Level).toUpperCase() === "MODERATE"
-                ? [249, 115, 22]
-                : [59, 130, 246];
-            setText(rc[0], rc[1], rc[2]);
-            doc.text(`Risk Level: ${String(f.Risk_Level || "UNKNOWN").toUpperCase()}`, M + 270, y);
-            y += 16;
-
-            // City / state
-            doc.setFont("helvetica", "normal");
-            doc.setFontSize(10);
-            setText(71, 85, 105);
-            const cityLine = [f.City, f.State_Region].filter(Boolean).join(", ");
-            if (cityLine) {
-              doc.text(cityLine, M, y);
-              y += 14;
-            }
-            if (f.Address) {
-              const aw = doc.splitTextToSize(String(f.Address), PW - M*2);
-              const slice = aw.slice(0, 2);
-              doc.text(slice, M, y);
-              y += slice.length * 14;
-            }
-            y += 4;
-
-            // Stats grid (two columns). Each metric routes through a
-            // resolver so a missing/zero Airtable value falls back to the
-            // formula or band-level value documented in the methodology;
-            // the PDF never renders a literal 0 for power, noise, CO2 or
-            // water.
-            const mw    = resolvePower(f);
-            const co2v  = resolveCO2(f, mw);
-            const waterv= resolveWater(f, mw);
-            const noisev= resolveNoise(f);
-            const stats = [
-              ["Power",         `${fmtNum(mw)} MW`],
-              ["Noise",         `${noisev} dB`],
-              ["CO2",           `${fmtNum(co2v)} tons per year`],
-              ["Water",         `${fmtNum(waterv)} gallons per day`],
-              ["EMF at fence",  f.EMF_Fence_High != null && f.EMF_Fence_High !== "" ? `${f.EMF_Fence_High} mG` : "n/a"],
-              ["EMF at 100m",   f.EMF_100m       != null && f.EMF_100m       !== "" ? `${f.EMF_100m} mG`       : "n/a"],
-              ["Cooling type",  f.Cooling || "n/a"],
-              ["Opened",        f.Opened ? String(f.Opened) : "n/a"],
-            ];
-            const colW = (PW - M*2) / 2;
-            stats.forEach((s, idx) => {
-              const col = idx % 2;
-              if (col === 0 && idx > 0) y += 16;
-              const x = M + col * colW;
-              doc.setFont("helvetica", "bold");
-              doc.setFontSize(10);
-              setText(100, 116, 139);
-              doc.text(`${s[0]}:`, x, y);
-              doc.setFont("helvetica", "normal");
-              setText(15, 23, 42);
-              const valLines = doc.splitTextToSize(String(s[1]), colW - 90);
-              doc.text(valLines[0], x + 84, y);
-            });
-            y += 22;
-
-            // Horizontal divider
-            doc.setDrawColor(226, 232, 240);
-            doc.setLineWidth(0.6);
-            doc.line(M, y, PW - M, y);
-            y += 18;
-          });
-        }
-
-        // ═══ SECOND-TO-LAST: UNDERSTANDING YOUR RESULTS ═════════════════════
-        doc.addPage();
-        drawTopBand("Understanding Your Results");
-
-        y = 80;
-        doc.setFont("helvetica", "bold");
-        doc.setFontSize(22);
-        setText(15, 23, 42);
-        doc.text("Understanding Your Results", M, y);
-        y += 28;
-
-        const writePara = (txt) => {
-          if (y + 80 > PH - 80) {
-            doc.addPage();
-            drawTopBand("Understanding Your Results");
-            y = 80;
-          }
-          doc.setFont("helvetica", "normal");
-          doc.setFontSize(11);
-          setText(71, 85, 105);
-          const lines = doc.splitTextToSize(txt, PW - M*2);
-          doc.text(lines, M, y);
-          y += lines.length * 14 + 12;
-        };
-
-        writePara("EMF exposure. Power-frequency electromagnetic fields from data center substations and feeder lines have been studied in relation to childhood leukemia by the WHO and IARC. Published research has identified elevated risk where homes are exposed to power-frequency fields above roughly 3 to 4 milligauss on a sustained basis. The EMF figures in this report show modeled values both at the facility fence and at 100 meters so you can see how exposure changes with distance.");
-        writePara("Noise impact. Data centers operate around the clock and emit a continuous low-frequency hum from cooling systems and transformers. Low-frequency sound below 200 Hz penetrates walls and windows with far less attenuation than higher frequencies, which is why residents living within a few kilometers of large facilities consistently report sleep disruption, headaches and chronic background stress. Monthly backup generator tests add diesel exhaust on top of the steady noise.");
-        writePara("Water and CO2. Evaporative cooling at hyperscale facilities removes large volumes of fresh water from the local cycle every single day. Combined with the grid emissions associated with around-the-clock electricity demand, the regional environmental footprint of multiple nearby facilities compounds rapidly. The figures in this report sum the modeled draw across every facility within 100km of your address.");
-
-        y += 4;
-        if (y + 30 > PH - 80) { doc.addPage(); drawTopBand("Understanding Your Results"); y = 80; }
-        doc.setFont("helvetica", "bold");
-        doc.setFontSize(16);
-        setText(15, 23, 42);
-        doc.text("What You Can Do", M, y);
-        y += 22;
-
-        const steps = [
-          "Track your sleep quality, headache frequency and any tinnitus over a two to four week window. Patterns that improve when you leave the area are the strongest signal that environmental factors are involved.",
-          "Request the generator test schedule of your nearest facility in writing and keep windows closed on test days. Run a HEPA rated air purifier indoors during and after each test, particularly if children or anyone with asthma lives in the household.",
-          "Ask a qualified electrician or environmental consultant to measure power-frequency EMF at your property boundary if you live within roughly 500 meters of a substation or fence line. Compare the reading against the 3 to 4 milligauss threshold cited in the published research.",
-          "File a formal noise complaint with your county or municipal zoning authority and request the facility's noise monitoring data and the conditions attached to its industrial use permit. Keep every complaint number and follow up in writing.",
-          "Contact your state environmental agency for the facility's emissions records and your county health department if you suspect groundwater impact. Document every conversation by date and reference number.",
-        ];
-        steps.forEach((s, idx) => {
-          if (y + 60 > PH - 80) { doc.addPage(); drawTopBand("Understanding Your Results"); y = 80; }
-          doc.setFont("helvetica", "bold");
-          doc.setFontSize(11);
-          setText(249, 115, 22);
-          doc.text(`${idx + 1}.`, M, y);
-          doc.setFont("helvetica", "normal");
-          setText(71, 85, 105);
-          const lines = doc.splitTextToSize(s, PW - M*2 - 20);
-          doc.text(lines, M + 20, y);
-          y += lines.length * 14 + 10;
-        });
-
-        y += 14;
-        if (y + 40 > PH - 60) { doc.addPage(); drawTopBand("Understanding Your Results"); y = 80; }
-        doc.setFont("helvetica", "bold");
-        doc.setFontSize(11);
-        // "For full methodology visit humzones.com/methodology"
-        // The URL portion is rendered with jsPDF.textWithLink so it is a real
-        // clickable hyperlink in the exported PDF; orange visually flags it.
-        setText(15, 23, 42);
-        const methPrefix = "For full methodology visit ";
-        doc.text(methPrefix, M, y);
-        setText(249, 115, 22);
-        doc.textWithLink("humzones.com/methodology", M + doc.getTextWidth(methPrefix), y, { url: "https://humzones.com/methodology" });
-        setText(15, 23, 42);
-        y += 16;
-        const qPrefix = "For questions visit ";
-        doc.text(qPrefix, M, y);
-        setText(249, 115, 22);
-        doc.textWithLink("humzones.com", M + doc.getTextWidth(qPrefix), y, { url: "https://humzones.com" });
-        setText(15, 23, 42);
-
-        // ═══ SHARE YOUR EXPERIENCE ══════════════════════════════════════════
-        doc.addPage();
-        drawTopBand("Share Your Experience");
-
-        y = 80;
-        doc.setFont("helvetica", "bold");
-        doc.setFontSize(22);
-        setText(15, 23, 42);
-        doc.text("Share Your Experience", M, y);
-        y += 28;
-
-        const sharePara = (txt) => {
-          if (y + 80 > PH - 80) { doc.addPage(); drawTopBand("Share Your Experience"); y = 80; }
-          doc.setFont("helvetica", "normal");
-          doc.setFontSize(11);
-          setText(71, 85, 105);
-          const lines = doc.splitTextToSize(txt, PW - M*2);
-          doc.text(lines, M, y);
-          y += lines.length * 14 + 12;
-        };
-
-        sharePara("Do you live near one of the facilities in this report? Your experience matters. HumZones collects verified resident reports from people living near data centers. Your report helps other residents understand what life is really like near these facilities and adds to our growing community database.");
-
-        // Highlighted submit line with humzones.com as a real clickable
-        // hyperlink. We split the line so the URL portion can be drawn with
-        // doc.textWithLink while the leading copy stays in dark navy.
-        if (y + 40 > PH - 80) { doc.addPage(); drawTopBand("Share Your Experience"); y = 80; }
-        doc.setFont("helvetica", "bold");
-        doc.setFontSize(12);
-        const submitPrefix = "Submit your resident report at: ";
-        setText(15, 23, 42);
-        doc.text(submitPrefix, M, y);
-        setText(249, 115, 22);
-        doc.textWithLink("humzones.com", M + doc.getTextWidth(submitPrefix), y, { url: "https://humzones.com" });
-        setText(71, 85, 105);
-        y += 22;
-
-        sharePara("Click on Submit Your Report in the navigation menu. Reports are reviewed and published with your permission only. Your personal information is never shared.");
-        sharePara("Together we can build the most comprehensive community health database for data center proximity in the world.");
-
-        // Methodology link callout: separate clickable orange hyperlink the
-        // buyer can tap straight from the PDF.
-        if (y + 30 > PH - 80) { doc.addPage(); drawTopBand("Share Your Experience"); y = 80; }
-        doc.setFont("helvetica", "bold");
-        doc.setFontSize(11);
-        const methSharePrefix = "Read the full methodology at ";
-        setText(15, 23, 42);
-        doc.text(methSharePrefix, M, y);
-        setText(249, 115, 22);
-        doc.textWithLink("humzones.com/methodology", M + doc.getTextWidth(methSharePrefix), y, { url: "https://humzones.com/methodology" });
-        setText(71, 85, 105);
-
-        // ═══ LAST PAGE: LEGAL DISCLAIMER ════════════════════════════════════
-        doc.addPage();
-        drawTopBand("Important Disclaimer");
-
-        y = 80;
-        doc.setFont("helvetica", "bold");
-        doc.setFontSize(22);
-        setText(15, 23, 42);
-        doc.text("Important Disclaimer", M, y);
-        y += 28;
-
-        const disclaimer = [
-          "This HumZones Area Report is provided for informational and public awareness purposes only. All data, figures, estimates and risk assessments contained in this report are based on research compiled from public sources including utility filings, operator announcements, permit records and industry databases.",
-          "All figures including but not limited to power consumption, noise levels, EMF readings, CO2 emissions and water usage are modeled estimates derived using industry standard formulas. They are not certified field measurements and have not been independently verified. Actual values may vary significantly depending on facility design, operating conditions, season and local terrain.",
-          "Risk levels assigned as LOW, MODERATE or HIGH are relative indicators for general public awareness only. They do not constitute a scientific assessment, environmental evaluation or health determination of any kind.",
-          "This report does not constitute medical, legal, scientific or environmental advice. HumZones Technologies Inc. makes no warranties express or implied regarding the accuracy, completeness or fitness for any particular purpose of the information contained herein.",
-          "Residents with health concerns related to nearby infrastructure should consult qualified medical professionals, environmental scientists or legal advisors.",
-          "HumZones Technologies Inc. shall not be liable for any damages, losses or consequences arising from the use of or reliance on information contained in this report.",
-        ];
-        disclaimer.forEach((p) => {
-          if (y + 80 > PH - 80) { doc.addPage(); drawTopBand("Important Disclaimer"); y = 80; }
-          doc.setFont("helvetica", "normal");
-          doc.setFontSize(10);
-          setText(71, 85, 105);
-          const lines = doc.splitTextToSize(p, PW - M*2);
-          doc.text(lines, M, y);
-          y += lines.length * 13 + 10;
-        });
-
-        y += 6;
-        if (y + 80 > PH - 60) { doc.addPage(); drawTopBand("Important Disclaimer"); y = 80; }
-        doc.setFont("helvetica", "bold");
-        doc.setFontSize(11);
-        // Methodology line on the disclaimer page is also clickable.
-        const discPrefix = "For full methodology and data sources visit ";
-        setText(15, 23, 42);
-        doc.text(discPrefix, M, y);
-        setText(249, 115, 22);
-        doc.textWithLink("humzones.com/methodology", M + doc.getTextWidth(discPrefix), y, { url: "https://humzones.com/methodology" });
-        setText(15, 23, 42);
-        y += 22;
-        doc.setFont("helvetica", "normal");
-        doc.setFontSize(10);
-        setText(100, 116, 139);
-        doc.text("Report generated by HumZones Technologies Inc.", M, y); y += 14;
-        doc.text("Global Data Center Health Registry",              M, y); y += 14;
-        doc.text("humzones.com",                                     M, y); y += 14;
-        doc.text(dateLong,                                           M, y);
 
         // ─── 5. Trigger the download ────────────────────────────────────────
         setStepMsg("Downloading your report...");
         setProgress(95);
-        const safeAddr = (searchAddress || "report")
-          .replace(/[\s,]+/g, "-")
-          .replace(/[^A-Za-z0-9._-]/g, "")
-          .replace(/-+/g, "-")
-          .replace(/^-+|-+$/g, "")
-          .slice(0, 60) || "report";
-        const filename = `HumZones-Report-${safeAddr}-${datePart}.pdf`;
+        const filename = `HumZones-Report-${pdfFilenameSafe(searchAddress)}-${datePart}.pdf`;
         doc.save(filename);
 
         // ─── 6. Silently record the purchase in Airtable Emails ─────────────
@@ -2010,31 +1863,6 @@ const ReportSuccessPage = ({ onBack, onNavigate }) => {
           </>
         )}
 
-        {status === "no_credits" && (
-          <>
-            <div style={{width:84,height:84,borderRadius:"50%",background:"linear-gradient(135deg,#f59e0b,#f97316)",margin:"24px auto 22px",display:"flex",alignItems:"center",justifyContent:"center",boxShadow:"0 18px 50px rgba(249,115,22,.4)"}}>
-              <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                <circle cx="12" cy="12" r="9"/>
-                <line x1="12" y1="8"  x2="12" y2="12"/>
-                <line x1="12" y1="16" x2="12.01" y2="16"/>
-              </svg>
-            </div>
-            <h1 style={{fontSize:26,fontWeight:900,marginBottom:12,color:"#fff"}}>No Credits Remaining</h1>
-            <p style={{fontSize:15,color:"rgba(255,255,255,.78)",lineHeight:1.65,marginBottom:24,maxWidth:520,marginLeft:"auto",marginRight:"auto"}}>
-              You have used all your report credits for this month.
-              {noCreditsInfo && noCreditsInfo.renewalDate ? ` Credits reset on ${noCreditsInfo.renewalDate}.` : ""}
-              {" "}Upgrade your plan for more reports.
-            </p>
-            <div style={{display:"flex",gap:12,justifyContent:"center",flexWrap:"wrap"}}>
-              <button onClick={()=>onNavigate("/business")} className="cta-pulse" style={{padding:"16px 30px",borderRadius:14,border:"none",background:"linear-gradient(135deg,#ef4444,#f97316)",color:"#fff",fontSize:16,fontWeight:900,letterSpacing:".02em",cursor:"pointer",fontFamily:"inherit"}}>
-                Upgrade Plan
-              </button>
-              <button onClick={()=>onNavigate("/business-dashboard")} style={{padding:"16px 24px",borderRadius:14,border:"1px solid rgba(255,255,255,.22)",background:"rgba(255,255,255,.06)",color:"#fff",fontSize:14,fontWeight:800,letterSpacing:".04em",cursor:"pointer",fontFamily:"inherit"}}>
-                Back to Dashboard
-              </button>
-            </div>
-          </>
-        )}
 
         {status === "error" && (
           <>
@@ -2227,6 +2055,20 @@ const BIZ_FIELD = {
   Token_Expiry:       "fldlRsSLLbrURuVb1",
 };
 
+const BUSINESS_REPORTS_TABLE = "tblFPqxXwxgcuTZhM";
+const BIZ_REP_FIELD = {
+  Email:            "fldubch2UB05WMTdB",
+  Address:          "fldctFXYPbHd6W7Rs",
+  Date_Generated:   "fldJkngB5XzHQzvYu",
+  Facilities_Count: "fldePGi2V2mtTsqa3",
+  High_Risk_Count:  "fldTUqaPihiOgPQ6j",
+  Radius_KM:        "fldbccTgbfknNuZT4",
+  Latitude:         "flddEQRzWCWwOwQL3",
+  Longitude:        "fld8CNu73mNipqVTw",
+  Plan:             "fldAfYZVkvTFiBeDw",
+  Report_Name:      "fldXeqbdbf3d9hRvq",
+};
+
 const PLAN_INFO = {
   starter:                { label:"Starter",      credits:10,     pricePer:"$9.90" },
   "starter-annual":       { label:"Starter Annual",      credits:10,     pricePer:"$9.90" },
@@ -2246,7 +2088,6 @@ const PLAN_LINKS = {
 };
 
 const BIZ_STORE_KEY = "humzones_business_account";
-const BIZ_REPORTS_KEY = "humzones_business_recent_reports";
 
 const readBusinessAccount = () => {
   try {
@@ -2347,6 +2188,58 @@ function normalizeBusinessAccount(rec) {
     reportsGenerated: Number(f[BIZ_FIELD.Reports_Generated] || 0),
   };
 }
+
+// Shared bullet list rendered on every business pricing card. Kept module-
+// scoped so the same copy reaches both /business cards and any future surface
+// (e.g. a comparison block) without drifting.
+const REPORT_INCLUDES = [
+  "Complete list of all data centers within 100km of any address",
+  "Distance from address to each facility",
+  "Risk level assessment (LOW, MODERATE, HIGH)",
+  "Power draw in megawatts",
+  "Estimated noise levels in decibels",
+  "EMF readings at fence line and 100 meters",
+  "CO2 emissions per year",
+  "Daily water consumption estimate",
+  "Cooling system type",
+  "Year facility opened",
+  "Practical health and safety recommendations",
+  "Legal disclaimer and methodology reference",
+  "Instant PDF download professionally formatted",
+];
+
+// Reusable footer for the business-side pages. Mirrors the main-site footer
+// (links + disclaimer + copyright) so the business surface does not feel
+// detached from the rest of HumZones.
+const BusinessFooter = ({ onNavigate }) => (
+  <>
+    <div style={{borderTop:"1px solid rgba(255,255,255,.08)",padding:"28px 24px",textAlign:"center"}}>
+      <p style={{fontSize:12,color:"rgba(255,255,255,.55)",lineHeight:1.7,maxWidth:760,margin:"0 auto"}}>
+        Data Disclaimer: All figures shown including noise levels, EMF readings, power consumption, CO2 estimates, and water usage are research-based estimates compiled from public sources, permit filings, and industry standards. They are not certified measurements. Actual readings may vary by facility design, operating conditions, and season. HumZones is an informational resource only and does not constitute medical, legal, or environmental advice.
+        {" "}
+        <a href="/methodology" onClick={e=>{e.preventDefault();onNavigate("/methodology");}} className="ext-link" style={{color:"#f97316",fontWeight:700,textDecoration:"none"}}>Methodology</a>
+      </p>
+    </div>
+    <footer style={{background:"#0a0f1e",padding:"40px 24px 32px",textAlign:"center",borderTop:"1px solid rgba(255,255,255,.06)"}}>
+      <div style={{marginBottom:6}}>
+        <span style={{fontSize:24,fontWeight:900,letterSpacing:".08em",background:"linear-gradient(90deg,#ef4444,#f97316)",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent"}}>HumZones</span>
+        <sup style={{fontSize:13,color:"#f97316",fontWeight:700,verticalAlign:"super",marginLeft:2}}>TM</sup>
+      </div>
+      <div style={{fontSize:14,color:"#cbd5e1",fontWeight:700,marginBottom:6,letterSpacing:".02em"}}>HumZones Technologies Inc.</div>
+      <div style={{fontSize:14,color:"#64748b",marginBottom:20}}>Global Data Center Health Registry</div>
+      <div style={{display:"flex",justifyContent:"center",gap:18,flexWrap:"wrap",marginBottom:22}}>
+        <a href="/" onClick={e=>{e.preventDefault();onNavigate("/");}} className="ext-link" style={{color:"#f97316",fontSize:14,fontWeight:700,textDecoration:"none",letterSpacing:".02em"}}>Home</a>
+        <a href="/methodology" onClick={e=>{e.preventDefault();onNavigate("/methodology");}} className="ext-link" style={{color:"#f97316",fontSize:14,fontWeight:700,textDecoration:"none",letterSpacing:".02em"}}>Methodology</a>
+        <a href="/" onClick={e=>{e.preventDefault();onNavigate("/");}} className="ext-link" style={{color:"#f97316",fontSize:14,fontWeight:700,textDecoration:"none",letterSpacing:".02em"}}>Submit Your Report</a>
+        <a href="/business" onClick={e=>{e.preventDefault();onNavigate("/business");}} className="ext-link" style={{color:"#f97316",fontSize:14,fontWeight:700,textDecoration:"none",letterSpacing:".02em"}}>Business Plans</a>
+      </div>
+      <div style={{fontSize:13,color:"#94a3b8",borderTop:"1px solid #1e293b",paddingTop:18,lineHeight:1.8}}>
+        <div>HumZones<sup style={{fontSize:".55em",color:"#f97316",fontWeight:700,verticalAlign:"super",marginLeft:1,marginRight:4}}>TM</sup>Technologies Inc.</div>
+        <div>&copy; 2026 All Rights Reserved</div>
+      </div>
+    </footer>
+  </>
+);
 
 // ─── /business: PRICING PAGE ─────────────────────────────────────────────────
 const BusinessPlansPage = ({ onNavigate }) => {
@@ -2457,7 +2350,7 @@ const BusinessPlansPage = ({ onNavigate }) => {
                 <div style={{fontSize:14,color:"rgba(255,255,255,.65)",marginBottom:18}}>
                   {p.credits}{p.perReport ? ` - ${p.perReport}` : ""}
                 </div>
-                <ul style={{listStyle:"none",padding:0,margin:"0 0 24px 0",display:"flex",flexDirection:"column",gap:10}}>
+                <ul style={{listStyle:"none",padding:0,margin:"0 0 22px 0",display:"flex",flexDirection:"column",gap:10}}>
                   {p.features.map(f => (
                     <li key={f} style={{display:"flex",alignItems:"flex-start",gap:10,fontSize:14,color:"rgba(255,255,255,.85)",lineHeight:1.55}}>
                       <span style={{flexShrink:0,display:"inline-flex",width:20,height:20,borderRadius:"50%",background:"rgba(249,115,22,.18)",alignItems:"center",justifyContent:"center",marginTop:2,border:"1px solid rgba(249,115,22,.45)"}}>
@@ -2467,6 +2360,21 @@ const BusinessPlansPage = ({ onNavigate }) => {
                     </li>
                   ))}
                 </ul>
+
+                <div style={{margin:"4px 0 22px 0",padding:"16px 16px 14px",borderRadius:12,background:"rgba(255,255,255,.04)",border:"1px solid rgba(255,255,255,.08)"}}>
+                  <div style={{fontSize:12,fontWeight:800,letterSpacing:".14em",textTransform:"uppercase",color:"#f97316",marginBottom:10}}>Each Report Includes</div>
+                  <ul style={{listStyle:"none",padding:0,margin:0,display:"flex",flexDirection:"column",gap:7}}>
+                    {REPORT_INCLUDES.map(item => (
+                      <li key={item} style={{display:"flex",alignItems:"flex-start",gap:8,fontSize:13,color:"rgba(255,255,255,.78)",lineHeight:1.5}}>
+                        <span style={{flexShrink:0,display:"inline-flex",width:14,height:14,borderRadius:"50%",background:"rgba(148,163,184,.18)",alignItems:"center",justifyContent:"center",marginTop:3}}>
+                          <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>
+                        </span>
+                        <span>{item}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+
                 <button onClick={()=>handleSubscribe(p.key)} style={{marginTop:"auto",padding:"14px 22px",borderRadius:12,border:p.popular?"none":"1px solid rgba(255,255,255,.18)",cursor:"pointer",fontFamily:"inherit",fontSize:15,fontWeight:900,letterSpacing:".04em",background:p.popular?"linear-gradient(135deg,#ef4444,#f97316)":"rgba(255,255,255,.1)",color:"#fff",boxShadow:p.popular?"0 10px 28px rgba(249,115,22,.4)":"none"}}>
                   Get Started
                 </button>
@@ -2485,6 +2393,8 @@ const BusinessPlansPage = ({ onNavigate }) => {
           Already a member? <a href="/business-login" onClick={e=>{e.preventDefault();onNavigate("/business-login");}} style={{color:"#f97316",fontWeight:700,textDecoration:"none"}}>Sign in</a>
         </p>
       </section>
+
+      <BusinessFooter onNavigate={onNavigate}/>
     </div>
   );
 };
@@ -2641,6 +2551,286 @@ const BusinessSuccessPage = ({ onNavigate }) => {
   );
 };
 
+// ─── /business-generate: BUSINESS-ONLY REPORT GENERATOR ──────────────────────
+// Distinct from the consumer /report-landing -> Stripe -> /report-success
+// flow. Logged-in business users land here directly to search any address,
+// preview the facilities in range, then download a PDF that costs a credit
+// (or no credit on the Unlimited plan). Each generated report is written
+// to the Business_Reports table so the dashboard can list and re-download
+// them later.
+const BusinessGeneratePage = ({ onNavigate }) => {
+  const [account, setAccount] = useState(() => readBusinessAccount());
+  const [radius, setRadius] = useState(50);
+  const [address, setAddress] = useState("");
+  const [searching, setSearching] = useState(false);
+  const [searchErr, setSearchErr] = useState("");
+  const [results, setResults] = useState(null); // { address, lat, lng, facilities }
+  const [downloading, setDownloading] = useState(false);
+  const [toast, setToast] = useState("");
+  const refreshedRef = useRef(false);
+
+  // Redirect unauthenticated users + refresh the account from Airtable once
+  // so the credits badge is current even if a download happened in another
+  // tab. We deliberately do NOT block the page on this refresh.
+  useEffect(() => {
+    if (!account) { onNavigate("/business-login"); return; }
+    if (refreshedRef.current) return;
+    refreshedRef.current = true;
+    fetchBusinessAccountByEmail(account.email)
+      .then(rec => {
+        if (!rec) return;
+        const fresh = normalizeBusinessAccount(rec);
+        writeBusinessAccount(fresh);
+        setAccount(fresh);
+      })
+      .catch(e => console.warn("Account refresh failed:", e));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  if (!account) return null;
+
+  const isUnlimited = account.creditsMonthly >= 999999;
+  const creditsLabel = isUnlimited ? "Unlimited" : `${account.creditsRemaining} reports remaining`;
+  const ctaCreditsLabel = isUnlimited ? "Unlimited" : `${account.creditsRemaining} credits remaining`;
+
+  const showToast = (msg) => {
+    setToast(msg);
+    setTimeout(() => setToast(""), 4000);
+  };
+
+  const search = async () => {
+    if (!address.trim()) return;
+    setSearching(true);
+    setSearchErr("");
+    setResults(null);
+    try {
+      // Geocode via Nominatim. Public endpoint, no key required; their usage
+      // policy asks for a descriptive UA, which Vite-bundled fetch sends by
+      // default for the deployed origin.
+      const geoUrl = `https://nominatim.openstreetmap.org/search?format=json&limit=1&q=${encodeURIComponent(address.trim())}`;
+      const geoRes = await fetch(geoUrl, { headers: { "Accept-Language": "en" } });
+      if (!geoRes.ok) throw new Error("Address lookup failed. Please try again.");
+      const geoArr = await geoRes.json();
+      if (!Array.isArray(geoArr) || geoArr.length === 0) {
+        throw new Error("We could not find that address. Try a more specific query.");
+      }
+      const lat = parseFloat(geoArr[0].lat);
+      const lng = parseFloat(geoArr[0].lon);
+      const displayName = geoArr[0].display_name || address.trim();
+
+      const reportFields = [
+        "Name","Company","City","State_Region","Country","Address","Facility_Status",
+        "Risk_Level","Power_MW","Noise_DB","CO2_Tons_Year","Water_Gal_Day",
+        "EMF_Fence_High","EMF_100m","Cooling","Opened","Latitude","Longitude",
+      ];
+      const allFacs = await apiFetch("Facilities", { "fields[]": reportFields });
+      const facsNear = allFacs
+        .map(f => {
+          const flat = parseFloat(f.Latitude), flng = parseFloat(f.Longitude);
+          if (!Number.isFinite(flat) || !Number.isFinite(flng)) return null;
+          return { ...f, _km: distanceKm(lat, lng, flat, flng) };
+        })
+        .filter(f => f && f._km <= radius)
+        .sort((a, b) => a._km - b._km);
+
+      setResults({ address: displayName, lat, lng, facilities: facsNear });
+    } catch (e) {
+      setSearchErr(e.message || "Search failed. Please try again.");
+    } finally {
+      setSearching(false);
+    }
+  };
+
+  const download = async () => {
+    if (!results || downloading) return;
+    // Out-of-credits guard. Unlimited plans skip the check entirely.
+    if (!isUnlimited && account.creditsRemaining <= 0) {
+      const when = account.renewalDate ? ` Credits reset on ${account.renewalDate}.` : "";
+      window.alert(`You have no credits remaining.${when} Visit humzones.com/business to upgrade your plan.`);
+      return;
+    }
+    setDownloading(true);
+    try {
+      const highRiskCount = results.facilities.filter(f => String(f.Risk_Level || "").toUpperCase() === "HIGH").length;
+
+      const { doc, datePart } = await buildAreaReportPdf({
+        searchAddress: results.address,
+        facsNear: results.facilities,
+        radiusKm: radius,
+        facilities100km: results.facilities.length,
+        highRisk: highRiskCount,
+      });
+      const filename = `HumZones-Business-Report-${pdfFilenameSafe(results.address)}-${datePart}.pdf`;
+      doc.save(filename);
+
+      // Write the report to Business_Reports. Field IDs only so the row goes
+      // to the right columns regardless of display-name drift.
+      const reportName = `HumZones-Business-Report-${pdfFilenameSafe(results.address)}-${datePart}`;
+      try {
+        await fetch(`${APIURL}/${BUSINESS_REPORTS_TABLE}?returnFieldsByFieldId=true`, {
+          method: "POST",
+          headers: HDR,
+          body: JSON.stringify({
+            fields: {
+              [BIZ_REP_FIELD.Email]:            account.email,
+              [BIZ_REP_FIELD.Address]:          results.address,
+              [BIZ_REP_FIELD.Date_Generated]:   datePart,
+              [BIZ_REP_FIELD.Facilities_Count]: results.facilities.length,
+              [BIZ_REP_FIELD.High_Risk_Count]:  highRiskCount,
+              [BIZ_REP_FIELD.Radius_KM]:        radius,
+              [BIZ_REP_FIELD.Latitude]:         results.lat,
+              [BIZ_REP_FIELD.Longitude]:        results.lng,
+              [BIZ_REP_FIELD.Plan]:             account.plan || "",
+              [BIZ_REP_FIELD.Report_Name]:      reportName,
+            },
+          }),
+        });
+      } catch (e) {
+        console.warn("Business_Reports write failed:", e);
+      }
+
+      // Deduct one credit on metered plans. Unlimited only increments the
+      // generated counter; credits are never debited.
+      const newRemaining = isUnlimited
+        ? account.creditsRemaining
+        : Math.max(0, account.creditsRemaining - 1);
+      const newGenerated = (account.reportsGenerated || 0) + 1;
+      try {
+        await patchBusinessAccount(account.id, {
+          [BIZ_FIELD.Credits_Remaining]: newRemaining,
+          [BIZ_FIELD.Reports_Generated]: newGenerated,
+        });
+      } catch (e) {
+        console.error("Credit deduction failed:", e);
+      }
+
+      const next = { ...account, creditsRemaining: newRemaining, reportsGenerated: newGenerated };
+      writeBusinessAccount(next);
+      setAccount(next);
+
+      const remainingLabel = isUnlimited ? "Unlimited" : `${newRemaining}`;
+      showToast(`Report downloaded. ${remainingLabel} credits remaining.`);
+    } catch (e) {
+      console.error("Business report download failed:", e);
+      window.alert("Something went wrong generating your report. Please try again.");
+    } finally {
+      setDownloading(false);
+    }
+  };
+
+  const riskColor = (lvl) => {
+    const u = String(lvl || "").toUpperCase();
+    if (u === "HIGH")     return "#ef4444";
+    if (u === "MODERATE") return "#f97316";
+    return "#3b82f6";
+  };
+
+  return (
+    <div style={{minHeight:"100vh",background:"linear-gradient(150deg,#020c1b 0%,#0f172a 50%,#1e0535 100%)",color:"#fff",paddingBottom:results ? 110 : 40}}>
+      <div style={{padding:"22px 24px",display:"flex",alignItems:"center",justifyContent:"space-between",maxWidth:1100,margin:"0 auto"}}>
+        <a href="/" onClick={e=>{e.preventDefault();onNavigate("/");}} style={{textDecoration:"none"}}>
+          <span style={{fontSize:22,fontWeight:900,letterSpacing:".08em",background:"linear-gradient(90deg,#ef4444,#f97316)",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent"}}>HumZones</span>
+          <sup style={{fontSize:12,color:"#f97316",fontWeight:700,verticalAlign:"super",marginLeft:2}}>TM</sup>
+        </a>
+        <div style={{display:"flex",alignItems:"center",gap:12}}>
+          <a href="/business-dashboard" onClick={e=>{e.preventDefault();onNavigate("/business-dashboard");}} style={{fontSize:13,color:"rgba(255,255,255,.7)",fontWeight:700,textDecoration:"none"}}>Dashboard</a>
+        </div>
+      </div>
+
+      <main style={{maxWidth:880,margin:"0 auto",padding:"16px 24px 48px"}}>
+        <div style={{background:"rgba(15,23,42,.6)",border:"1px solid rgba(255,255,255,.1)",borderRadius:18,padding:"28px",marginBottom:24}}>
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",gap:14,marginBottom:16,flexWrap:"wrap"}}>
+            <h1 style={{fontSize:28,fontWeight:900,letterSpacing:"-.01em",margin:0}}>Generate Your Report</h1>
+            <span style={{display:"inline-flex",alignItems:"center",gap:6,padding:"8px 14px",borderRadius:30,background:"rgba(249,115,22,.14)",border:"1px solid rgba(249,115,22,.45)",color:"#f97316",fontSize:13,fontWeight:800,letterSpacing:".04em"}}>
+              {creditsLabel}
+            </span>
+          </div>
+
+          <label style={{fontSize:13,fontWeight:700,color:"rgba(255,255,255,.85)",display:"block",marginBottom:6}}>Address</label>
+          <input
+            value={address}
+            onChange={e=>setAddress(e.target.value)}
+            onKeyDown={e=>{ if (e.key === "Enter") search(); }}
+            placeholder="Enter any address to analyze"
+            style={{width:"100%",padding:"15px 18px",borderRadius:12,border:`1.5px solid ${address.trim()?"#f97316":"rgba(255,255,255,.2)"}`,fontSize:16,boxSizing:"border-box",outline:"none",fontFamily:"inherit",color:"#fff",background:"rgba(255,255,255,.06)",marginBottom:14}}
+          />
+
+          <label style={{fontSize:13,fontWeight:700,color:"rgba(255,255,255,.85)",display:"block",marginBottom:6}}>Radius</label>
+          <div style={{display:"flex",gap:8,flexWrap:"wrap",marginBottom:18}}>
+            {[5,10,25,50,100].map(r => (
+              <button key={r} onClick={()=>setRadius(r)} style={{padding:"10px 16px",borderRadius:10,border:"1px solid rgba(255,255,255,.16)",background:radius===r?"linear-gradient(135deg,#ef4444,#f97316)":"rgba(255,255,255,.06)",color:"#fff",cursor:"pointer",fontFamily:"inherit",fontSize:14,fontWeight:800}}>{r}km</button>
+            ))}
+          </div>
+
+          <button onClick={search} disabled={!address.trim() || searching} style={{width:"100%",padding:"16px 22px",borderRadius:12,border:"none",cursor:(!address.trim()||searching)?"not-allowed":"pointer",fontFamily:"inherit",fontSize:16,fontWeight:900,letterSpacing:".04em",background:address.trim()?"linear-gradient(135deg,#ef4444,#f97316)":"rgba(255,255,255,.1)",color:"#fff",boxShadow:address.trim()?"0 10px 28px rgba(249,115,22,.4)":"none"}}>
+            {searching ? "Searching..." : "Search"}
+          </button>
+
+          {searchErr && (
+            <div style={{marginTop:14,padding:"12px 14px",borderRadius:10,background:"rgba(239,68,68,.12)",border:"1px solid rgba(239,68,68,.4)",color:"#fecaca",fontSize:14}}>{searchErr}</div>
+          )}
+        </div>
+
+        {results && (
+          <div>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"baseline",marginBottom:14,gap:10,flexWrap:"wrap"}}>
+              <h2 style={{fontSize:18,fontWeight:800,margin:0}}>
+                {results.facilities.length} {results.facilities.length === 1 ? "facility" : "facilities"} found within {radius}km
+              </h2>
+              <div style={{fontSize:13,color:"rgba(255,255,255,.55)"}}>{results.address}</div>
+            </div>
+
+            {results.facilities.length === 0 ? (
+              <div style={{padding:"30px 24px",borderRadius:14,background:"rgba(15,23,42,.55)",border:"1px solid rgba(255,255,255,.1)",textAlign:"center",color:"rgba(255,255,255,.7)"}}>
+                No facilities found within {radius}km of this address. Try a larger radius.
+              </div>
+            ) : (
+              <div style={{display:"flex",flexDirection:"column",gap:12}}>
+                {results.facilities.map((f, i) => (
+                  <div key={f.id || i} style={{background:"rgba(15,23,42,.55)",border:"1px solid rgba(255,255,255,.08)",borderRadius:14,padding:"18px 20px"}}>
+                    <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",gap:12,marginBottom:8,flexWrap:"wrap"}}>
+                      <div>
+                        <div style={{fontSize:16,fontWeight:800,color:"#fff"}}>{f.Name || "Unnamed facility"}</div>
+                        {f.Company && <div style={{fontSize:13,color:"rgba(255,255,255,.6)"}}>{f.Company}</div>}
+                      </div>
+                      <span style={{padding:"4px 12px",borderRadius:20,background:`${riskColor(f.Risk_Level)}22`,border:`1px solid ${riskColor(f.Risk_Level)}66`,color:riskColor(f.Risk_Level),fontSize:11,fontWeight:900,letterSpacing:".10em"}}>
+                        {String(f.Risk_Level || "UNKNOWN").toUpperCase()}
+                      </span>
+                    </div>
+                    <div style={{fontSize:13,color:"#f97316",fontWeight:700,marginBottom:10}}>{Number(f._km).toFixed(1)} km away</div>
+                    <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill, minmax(160px, 1fr))",gap:10,fontSize:13,color:"rgba(255,255,255,.78)"}}>
+                      <div><span style={{color:"rgba(255,255,255,.5)"}}>Power: </span>{f.Power_MW != null && f.Power_MW !== "" ? `${f.Power_MW} MW` : "n/a"}</div>
+                      <div><span style={{color:"rgba(255,255,255,.5)"}}>Noise: </span>{f.Noise_DB != null && f.Noise_DB !== "" ? `${f.Noise_DB} dB` : "n/a"}</div>
+                      <div><span style={{color:"rgba(255,255,255,.5)"}}>EMF fence: </span>{f.EMF_Fence_High != null && f.EMF_Fence_High !== "" ? `${f.EMF_Fence_High} mG` : "n/a"}</div>
+                      <div><span style={{color:"rgba(255,255,255,.5)"}}>EMF 100m: </span>{f.EMF_100m != null && f.EMF_100m !== "" ? `${f.EMF_100m} mG` : "n/a"}</div>
+                      <div><span style={{color:"rgba(255,255,255,.5)"}}>Cooling: </span>{f.Cooling || "n/a"}</div>
+                      <div><span style={{color:"rgba(255,255,255,.5)"}}>Opened: </span>{f.Opened || "n/a"}</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+      </main>
+
+      {results && results.facilities.length > 0 && (
+        <div style={{position:"fixed",bottom:0,left:0,right:0,padding:"14px 18px",background:"rgba(2,12,27,.92)",borderTop:"1px solid rgba(249,115,22,.4)",backdropFilter:"blur(12px)",zIndex:50,display:"flex",justifyContent:"center"}}>
+          <button onClick={download} disabled={downloading} style={{maxWidth:560,width:"100%",padding:"16px 22px",borderRadius:12,border:"none",cursor:downloading?"not-allowed":"pointer",fontFamily:"inherit",fontSize:16,fontWeight:900,letterSpacing:".04em",background:"linear-gradient(135deg,#ef4444,#f97316)",color:"#fff",boxShadow:"0 14px 32px rgba(249,115,22,.42)"}}>
+            {downloading ? "Generating PDF..." : `Download Report (${ctaCreditsLabel})`}
+          </button>
+        </div>
+      )}
+
+      {toast && (
+        <div role="status" style={{position:"fixed",top:24,left:"50%",transform:"translateX(-50%)",padding:"12px 22px",borderRadius:30,background:"#0f172a",border:"1px solid rgba(249,115,22,.5)",color:"#fff",fontWeight:700,fontSize:14,zIndex:100,boxShadow:"0 18px 50px rgba(0,0,0,.45)"}}>
+          {toast}
+        </div>
+      )}
+    </div>
+  );
+};
+
 // ─── /business-login: MAGIC LINK ─────────────────────────────────────────────
 const BusinessLoginPage = ({ onNavigate }) => {
   const initialParams = new URLSearchParams(window.location.search);
@@ -2758,16 +2948,25 @@ const BusinessLoginPage = ({ onNavigate }) => {
 const BusinessDashboardPage = ({ onNavigate }) => {
   const [account, setAccount] = useState(() => readBusinessAccount());
   const [loading, setLoading] = useState(false);
-  const [recent, setRecent]   = useState(() => {
-    try { return JSON.parse(localStorage.getItem(BIZ_REPORTS_KEY) || "[]"); }
-    catch { return []; }
-  });
+
+  // My Reports state: source list comes from Airtable Business_Reports for
+  // the logged-in email; filter/search/date narrow it; pagination slices
+  // the narrowed list.
+  const [reports, setReports]       = useState([]);
+  const [reportsLoading, setReportsLoading] = useState(false);
+  const [reportsErr, setReportsErr] = useState("");
+  const [search, setSearch]         = useState("");
+  const [dateFilter, setDateFilter] = useState("all"); // all | month | three
+  const [page, setPage]             = useState(1);
+  const [downloadingId, setDownloadingId] = useState(null);
+  const [toast, setToast]           = useState("");
+  const PER_PAGE = 20;
 
   useEffect(() => {
     if (!account) { onNavigate("/business-login"); return; }
-    // Refresh credits from Airtable on load so the displayed balance is
-    // current after a report was generated in another tab.
     let cancelled = false;
+
+    // Refresh credits.
     setLoading(true);
     fetchBusinessAccountByEmail(account.email)
       .then(rec => {
@@ -2778,9 +2977,40 @@ const BusinessDashboardPage = ({ onNavigate }) => {
       })
       .catch(e => console.warn("Dashboard refresh failed:", e))
       .finally(() => { if (!cancelled) setLoading(false); });
+
+    // Fetch this account's report history, newest first.
+    setReportsLoading(true);
+    const formula = encodeURIComponent("LOWER({Email}) = '" + String(account.email).toLowerCase().replace(/'/g, "\\'") + "'");
+    const url = `${APIURL}/${BUSINESS_REPORTS_TABLE}?filterByFormula=${formula}&pageSize=100&returnFieldsByFieldId=true`;
+    fetch(url, { headers: HDR })
+      .then(r => r.ok ? r.json() : Promise.reject(new Error("Failed to load reports")))
+      .then(d => {
+        if (cancelled) return;
+        const rows = (d.records || []).map(rec => ({
+          id:        rec.id,
+          email:     rec.fields[BIZ_REP_FIELD.Email] || "",
+          address:   rec.fields[BIZ_REP_FIELD.Address] || "",
+          date:      rec.fields[BIZ_REP_FIELD.Date_Generated] || "",
+          facilities:Number(rec.fields[BIZ_REP_FIELD.Facilities_Count] || 0),
+          highRisk:  Number(rec.fields[BIZ_REP_FIELD.High_Risk_Count] || 0),
+          radius:    Number(rec.fields[BIZ_REP_FIELD.Radius_KM] || 0),
+          lat:       Number(rec.fields[BIZ_REP_FIELD.Latitude]),
+          lng:       Number(rec.fields[BIZ_REP_FIELD.Longitude]),
+          plan:      rec.fields[BIZ_REP_FIELD.Plan] || "",
+          name:      rec.fields[BIZ_REP_FIELD.Report_Name] || "",
+        }));
+        rows.sort((a, b) => (a.date < b.date ? 1 : -1));
+        setReports(rows);
+      })
+      .catch(e => { if (!cancelled) setReportsErr(e.message); })
+      .finally(() => { if (!cancelled) setReportsLoading(false); });
+
     return () => { cancelled = true; };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Reset to page 1 whenever the active filter changes.
+  useEffect(() => { setPage(1); }, [search, dateFilter]);
 
   if (!account) return null;
 
@@ -2792,6 +3022,84 @@ const BusinessDashboardPage = ({ onNavigate }) => {
     onNavigate("/business-login");
   };
 
+  const showToast = (msg) => {
+    setToast(msg);
+    setTimeout(() => setToast(""), 4000);
+  };
+
+  // Apply date filter then search, both case-insensitive. Date math uses
+  // ISO YYYY-MM-DD strings so the comparison is purely lexicographic.
+  const now = new Date();
+  const startOfMonth = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,"0")}-01`;
+  const threeMonthsAgo = (() => {
+    const d = new Date(now); d.setMonth(d.getMonth() - 3); return d.toISOString().slice(0,10);
+  })();
+  const filtered = reports.filter(r => {
+    if (dateFilter === "month" && r.date && r.date < startOfMonth) return false;
+    if (dateFilter === "three" && r.date && r.date < threeMonthsAgo) return false;
+    if (search.trim()) {
+      const q = search.trim().toLowerCase();
+      if (!String(r.address).toLowerCase().includes(q)) return false;
+    }
+    return true;
+  });
+  const total = filtered.length;
+  const pageCount = Math.max(1, Math.ceil(total / PER_PAGE));
+  const safePage = Math.min(page, pageCount);
+  const startIdx = (safePage - 1) * PER_PAGE;
+  const endIdx = Math.min(startIdx + PER_PAGE, total);
+  const pageRows = filtered.slice(startIdx, endIdx);
+
+  // Re-download: regenerate the PDF from the saved coordinates and radius
+  // using fresh facility data. Never deducts a credit.
+  const redownload = async (row) => {
+    if (downloadingId) return;
+    if (!Number.isFinite(row.lat) || !Number.isFinite(row.lng) || !row.radius) {
+      window.alert("This report is missing the coordinates needed to regenerate. Please generate a new report.");
+      return;
+    }
+    setDownloadingId(row.id);
+    try {
+      const reportFields = [
+        "Name","Company","City","State_Region","Country","Address","Facility_Status",
+        "Risk_Level","Power_MW","Noise_DB","CO2_Tons_Year","Water_Gal_Day",
+        "EMF_Fence_High","EMF_100m","Cooling","Opened","Latitude","Longitude",
+      ];
+      const allFacs = await apiFetch("Facilities", { "fields[]": reportFields });
+      const facsNear = allFacs
+        .map(f => {
+          const flat = parseFloat(f.Latitude), flng = parseFloat(f.Longitude);
+          if (!Number.isFinite(flat) || !Number.isFinite(flng)) return null;
+          return { ...f, _km: distanceKm(row.lat, row.lng, flat, flng) };
+        })
+        .filter(f => f && f._km <= row.radius)
+        .sort((a, b) => a._km - b._km);
+
+      const highRiskCount = facsNear.filter(f => String(f.Risk_Level || "").toUpperCase() === "HIGH").length;
+      const { doc, datePart } = await buildAreaReportPdf({
+        searchAddress: row.address,
+        facsNear,
+        radiusKm: row.radius,
+        facilities100km: facsNear.length,
+        highRisk: highRiskCount,
+      });
+      const filename = `HumZones-Business-Report-${pdfFilenameSafe(row.address)}-${datePart}.pdf`;
+      doc.save(filename);
+      showToast("Report re-downloaded successfully");
+    } catch (e) {
+      console.error("Re-download failed:", e);
+      window.alert("Something went wrong regenerating that report. Please try again.");
+    } finally {
+      setDownloadingId(null);
+    }
+  };
+
+  const inputBase = {
+    padding:"11px 14px",borderRadius:10,border:"1.5px solid rgba(255,255,255,.18)",
+    fontSize:14,boxSizing:"border-box",outline:"none",fontFamily:"inherit",
+    color:"#fff",background:"rgba(255,255,255,.06)",
+  };
+
   return (
     <div style={{minHeight:"100vh",background:"linear-gradient(150deg,#020c1b 0%,#0f172a 50%,#1e0535 100%)",color:"#fff"}}>
       <div style={{padding:"22px 24px",display:"flex",alignItems:"center",justifyContent:"space-between",maxWidth:1100,margin:"0 auto"}}>
@@ -2799,10 +3107,13 @@ const BusinessDashboardPage = ({ onNavigate }) => {
           <span style={{fontSize:22,fontWeight:900,letterSpacing:".08em",background:"linear-gradient(90deg,#ef4444,#f97316)",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent"}}>HumZones</span>
           <sup style={{fontSize:12,color:"#f97316",fontWeight:700,verticalAlign:"super",marginLeft:2}}>TM</sup>
         </a>
-        <button onClick={signOut} style={{padding:"8px 16px",borderRadius:10,border:"1px solid rgba(255,255,255,.18)",background:"rgba(255,255,255,.06)",color:"rgba(255,255,255,.85)",cursor:"pointer",fontFamily:"inherit",fontSize:13,fontWeight:700}}>Sign Out</button>
+        <div style={{display:"flex",alignItems:"center",gap:12,flexWrap:"wrap"}}>
+          <a href="/" onClick={e=>{e.preventDefault();onNavigate("/");}} style={{fontSize:13,color:"rgba(255,255,255,.7)",fontWeight:700,textDecoration:"none",padding:"8px 12px",borderRadius:10,border:"1px solid rgba(255,255,255,.14)"}}>Back to HumZones</a>
+          <button onClick={signOut} style={{padding:"8px 16px",borderRadius:10,border:"1px solid rgba(255,255,255,.18)",background:"rgba(255,255,255,.06)",color:"rgba(255,255,255,.85)",cursor:"pointer",fontFamily:"inherit",fontSize:13,fontWeight:700}}>Sign Out</button>
+        </div>
       </div>
 
-      <main style={{maxWidth:880,margin:"0 auto",padding:"24px 24px 80px"}}>
+      <main style={{maxWidth:880,margin:"0 auto",padding:"24px 24px 60px"}}>
         <h1 style={{fontSize:30,fontWeight:900,letterSpacing:"-.01em",marginBottom:6}}>Welcome back {account.firstName || ""}</h1>
         <p style={{fontSize:14,color:"rgba(255,255,255,.6)",marginBottom:28}}>
           {account.company ? `${account.company} - ` : ""}{account.email}
@@ -2820,27 +3131,91 @@ const BusinessDashboardPage = ({ onNavigate }) => {
             {loading ? " - refreshing..." : ""}
           </div>
           <div style={{display:"flex",gap:12,flexWrap:"wrap"}}>
-            <button onClick={()=>onNavigate("/")} style={{padding:"14px 26px",borderRadius:12,border:"none",cursor:"pointer",fontFamily:"inherit",fontSize:15,fontWeight:900,background:"linear-gradient(135deg,#ef4444,#f97316)",color:"#fff",boxShadow:"0 10px 28px rgba(249,115,22,.4)"}}>Generate a Report</button>
+            <button onClick={()=>onNavigate("/business-generate")} style={{padding:"14px 26px",borderRadius:12,border:"none",cursor:"pointer",fontFamily:"inherit",fontSize:15,fontWeight:900,background:"linear-gradient(135deg,#ef4444,#f97316)",color:"#fff",boxShadow:"0 10px 28px rgba(249,115,22,.4)"}}>Generate Report</button>
             <a href="/business" onClick={e=>{e.preventDefault();onNavigate("/business");}} style={{padding:"14px 22px",borderRadius:12,border:"1px solid rgba(255,255,255,.22)",fontFamily:"inherit",fontSize:14,fontWeight:800,background:"rgba(255,255,255,.06)",color:"#fff",textDecoration:"none",display:"inline-flex",alignItems:"center"}}>Need more reports?</a>
           </div>
         </div>
 
         <div style={{background:"rgba(15,23,42,.55)",border:"1px solid rgba(255,255,255,.1)",borderRadius:16,padding:"24px"}}>
-          <div style={{fontSize:18,fontWeight:800,marginBottom:14}}>Recent Reports</div>
-          {recent.length === 0 ? (
-            <p style={{fontSize:14,color:"rgba(255,255,255,.55)",margin:0}}>No reports generated yet. Click "Generate a Report" to run your first one.</p>
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16,gap:10,flexWrap:"wrap"}}>
+            <div style={{fontSize:18,fontWeight:800}}>My Reports</div>
+            {!reportsLoading && reports.length > 0 && (
+              <div style={{fontSize:13,color:"rgba(255,255,255,.55)"}}>
+                {total === 0 ? "No matches" : `Showing ${startIdx + 1}-${endIdx} of ${total} reports`}
+              </div>
+            )}
+          </div>
+
+          <div style={{display:"grid",gridTemplateColumns:"1fr 180px",gap:10,marginBottom:16}}>
+            <input
+              value={search}
+              onChange={e=>setSearch(e.target.value)}
+              placeholder="Filter by address..."
+              style={inputBase}
+            />
+            <select value={dateFilter} onChange={e=>setDateFilter(e.target.value)} style={{...inputBase, paddingRight:32}}>
+              <option value="all">All Time</option>
+              <option value="month">This Month</option>
+              <option value="three">Last 3 Months</option>
+            </select>
+          </div>
+
+          {reportsErr && (
+            <div style={{padding:"12px 14px",borderRadius:10,background:"rgba(239,68,68,.12)",border:"1px solid rgba(239,68,68,.4)",color:"#fecaca",fontSize:14,marginBottom:14}}>{reportsErr}</div>
+          )}
+
+          {reportsLoading ? (
+            <p style={{fontSize:14,color:"rgba(255,255,255,.55)"}}>Loading your reports...</p>
+          ) : reports.length === 0 ? (
+            <p style={{fontSize:14,color:"rgba(255,255,255,.55)",margin:0}}>No reports generated yet. Click Generate Report to create your first report.</p>
+          ) : total === 0 ? (
+            <p style={{fontSize:14,color:"rgba(255,255,255,.55)",margin:0}}>No reports match these filters.</p>
           ) : (
-            <ul style={{listStyle:"none",padding:0,margin:0,display:"flex",flexDirection:"column",gap:10}}>
-              {recent.slice(0, 5).map((r,i)=>(
-                <li key={i} style={{display:"flex",justifyContent:"space-between",gap:12,padding:"12px 14px",borderRadius:10,background:"rgba(255,255,255,.04)",border:"1px solid rgba(255,255,255,.06)",fontSize:14}}>
-                  <span style={{color:"rgba(255,255,255,.85)",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{r.address || "Report"}</span>
-                  <span style={{color:"rgba(255,255,255,.55)",flexShrink:0}}>{r.date}</span>
-                </li>
-              ))}
-            </ul>
+            <>
+              <ul style={{listStyle:"none",padding:0,margin:0,display:"flex",flexDirection:"column",gap:10}}>
+                {pageRows.map(r => (
+                  <li key={r.id} style={{padding:"16px 18px",borderRadius:12,background:"rgba(255,255,255,.04)",border:"1px solid rgba(255,255,255,.07)"}}>
+                    <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",gap:14,flexWrap:"wrap"}}>
+                      <div style={{minWidth:0,flex:"1 1 280px"}}>
+                        <div style={{fontSize:14,fontWeight:800,color:"#fff",marginBottom:4,overflow:"hidden",textOverflow:"ellipsis"}}>{r.name || r.address || "Report"}</div>
+                        {r.name && r.address && (
+                          <div style={{fontSize:13,color:"rgba(255,255,255,.65)",marginBottom:6,overflow:"hidden",textOverflow:"ellipsis"}}>{r.address}</div>
+                        )}
+                        <div style={{fontSize:12,color:"rgba(255,255,255,.55)",display:"flex",gap:14,flexWrap:"wrap"}}>
+                          <span>{r.date}</span>
+                          <span>{r.facilities} facilities</span>
+                          <span>{r.highRisk} high risk</span>
+                          <span>{r.radius}km radius</span>
+                          {r.plan && <span>{r.plan}</span>}
+                        </div>
+                      </div>
+                      <button onClick={()=>redownload(r)} disabled={downloadingId === r.id} style={{padding:"10px 16px",borderRadius:10,border:"none",cursor:downloadingId === r.id ? "not-allowed" : "pointer",fontFamily:"inherit",fontSize:13,fontWeight:800,background:"linear-gradient(135deg,#ef4444,#f97316)",color:"#fff",boxShadow:"0 6px 16px rgba(249,115,22,.32)",flexShrink:0}}>
+                        {downloadingId === r.id ? "Generating..." : "Re-download"}
+                      </button>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+
+              {pageCount > 1 && (
+                <div style={{display:"flex",justifyContent:"center",alignItems:"center",gap:10,marginTop:18}}>
+                  <button onClick={()=>setPage(p=>Math.max(1, p-1))} disabled={safePage <= 1} style={{padding:"10px 16px",borderRadius:10,border:"1px solid rgba(249,115,22,.4)",background:safePage <= 1 ? "rgba(255,255,255,.04)" : "rgba(249,115,22,.12)",color:safePage <= 1 ? "rgba(255,255,255,.4)" : "#f97316",cursor:safePage <= 1 ? "not-allowed" : "pointer",fontFamily:"inherit",fontSize:13,fontWeight:800}}>Previous</button>
+                  <span style={{fontSize:13,color:"rgba(255,255,255,.7)",padding:"0 8px"}}>Page {safePage} of {pageCount}</span>
+                  <button onClick={()=>setPage(p=>Math.min(pageCount, p+1))} disabled={safePage >= pageCount} style={{padding:"10px 16px",borderRadius:10,border:"1px solid rgba(249,115,22,.4)",background:safePage >= pageCount ? "rgba(255,255,255,.04)" : "rgba(249,115,22,.12)",color:safePage >= pageCount ? "rgba(255,255,255,.4)" : "#f97316",cursor:safePage >= pageCount ? "not-allowed" : "pointer",fontFamily:"inherit",fontSize:13,fontWeight:800}}>Next</button>
+                </div>
+              )}
+            </>
           )}
         </div>
       </main>
+
+      <BusinessFooter onNavigate={onNavigate}/>
+
+      {toast && (
+        <div role="status" style={{position:"fixed",top:24,left:"50%",transform:"translateX(-50%)",padding:"12px 22px",borderRadius:30,background:"#0f172a",border:"1px solid rgba(249,115,22,.5)",color:"#fff",fontWeight:700,fontSize:14,zIndex:100,boxShadow:"0 18px 50px rgba(0,0,0,.45)"}}>
+          {toast}
+        </div>
+      )}
     </div>
   );
 };
@@ -3461,6 +3836,8 @@ export default function App() {
         <BusinessPlansPage onNavigate={navigate}/>
       ) : path === "/business-success" ? (
         <BusinessSuccessPage onNavigate={navigate}/>
+      ) : path === "/business-generate" ? (
+        <BusinessGeneratePage onNavigate={navigate}/>
       ) : path === "/business-login" ? (
         <BusinessLoginPage onNavigate={navigate}/>
       ) : path === "/business-dashboard" ? (
