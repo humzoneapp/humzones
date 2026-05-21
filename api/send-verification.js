@@ -74,6 +74,7 @@ module.exports = async (req, res) => {
               'for submitting your resident report about <strong>' + escapeHtml(facilityName) + '</strong>. Your experience matters and helps others in your community.' +
             '</p>' +
             '<p style="color: #475569;">To publish your report please click the button below to verify your email address. This confirms your report is from a real resident.</p>' +
+            '<p style="color: #475569; font-size: 14px;">Your report will be published with your first name only. Your last name is kept private and never shared.</p>' +
             '<div style="text-align: center; margin: 32px 0;">' +
               '<a href="' + verifyUrl + '" style="background: #f97316; color: white; padding: 16px 32px; border-radius: 8px; text-decoration: none; font-weight: bold; font-size: 16px; display: inline-block;">Verify My Report</a>' +
             '</div>' +

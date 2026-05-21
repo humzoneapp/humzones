@@ -1991,26 +1991,17 @@ const VerifyReportPage = ({ onNavigate }) => {
           throw new Error("This verification link is incomplete or has expired. Please resubmit your report.");
         }
 
-        // Reporter is the Airtable display column. Build it from the names
-        // the submitter actually gave us: "First Last" when both are
-        // present, just "First" when only first is, and "Anonymous" as the
-        // last-resort fallback so the column is never blank.
-        const baseReporterName = firstName && lastName
-          ? `${firstName} ${lastName}`
-          : firstName
-            ? firstName
-            : "Anonymous";
-
-        // Append the facility name to Reporter so it shows in Airtable
-        // without writing to Facility, which is a multipleRecordLinks
-        // field and cannot accept a plain string.
-        const reporterName = facilityName
-          ? `${baseReporterName} (re: ${facilityName})`
-          : baseReporterName;
-
+        // Reporter is the Airtable display column and is shown publicly,
+        // so it gets the first name only. Last name is stored privately in
+        // its own field and never displayed. Facility name now has its
+        // own dedicated text field, separate from the linked-record
+        // Facility column.
+        const reporterFirst = firstName || "Anonymous";
         const todayDate = new Date().toISOString().slice(0, 10);
         const fields = {
-          fldIvUyYCPw150VXi: reporterName,
+          fldIvUyYCPw150VXi: reporterFirst,
+          fldX8UhImeFqEDL3b: lastName,
+          fldLNQyeYF4DyNzkw: facilityName,
           fldvFopZGRsuuhQyc: reportText,
           fldmqFjSvXE3dPMhx: todayDate,
           fldseZCyavu7yQy6a: false,
@@ -3520,6 +3511,9 @@ export default function App() {
                                 placeholder="Your last name (optional)"
                                 style={{width:"100%",padding:"13px 16px",borderRadius:10,border:"1.5px solid #e2e8f0",fontSize:15,boxSizing:"border-box",outline:"none",fontFamily:"inherit",color:"#1e293b",transition:"border-color .2s"}}
                               />
+                            </div>
+                            <div style={{gridColumn:"1 / -1",fontSize:12,color:"#94a3b8",lineHeight:1.5,marginTop:-4}}>
+                              Only your first name will be displayed with your published report. Your last name is kept private.
                             </div>
                           </div>
                           <div style={{marginBottom:16}}>
