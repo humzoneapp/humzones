@@ -101,7 +101,7 @@ module.exports = async (req, res) => {
         '<div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #f1f5f9; padding: 40px 20px;">' +
           '<div style="background: #0f172a; padding: 30px; border-radius: 12px; text-align: center; margin-bottom: 24px;">' +
             '<h1 style="color: white; margin: 0; font-size: 28px;">HumZones<span style="color: #f97316;">&trade;</span></h1>' +
-            '<p style="color: #94a3b8; margin: 8px 0 0 0; font-size: 14px;">Global Data Center Health Registry</p>' +
+            '<p style="color: #94a3b8; margin: 8px 0 0 0; font-size: 14px;">Global Data Center Health &amp; Infrastructure Registry</p>' +
           '</div>' +
           '<div style="background: white; padding: 32px; border-radius: 12px; margin-bottom: 24px;">' +
             '<h2 style="color: #0f172a; margin-top: 0;">' + (firstName ? ('Hi ' + escapeHtml(firstName) + ',') : 'Hi,') + '</h2>' +
@@ -114,7 +114,7 @@ module.exports = async (req, res) => {
             '<p style="color: #f97316; font-size: 12px; word-break: break-all;">' + loginUrl + '</p>' +
           '</div>' +
           '<div style="text-align: center;">' +
-            '<p style="color: #94a3b8; font-size: 12px;">HumZones Technologies Inc. | Global Data Center Health Registry | humzones.com</p>' +
+            '<p style="color: #94a3b8; font-size: 12px;">HumZones Technologies Inc. | Global Data Center Health &amp; Infrastructure Registry | humzones.com</p>' +
           '</div>' +
         '</div>',
     });
