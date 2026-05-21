@@ -862,42 +862,25 @@ const ReportLandingPage = ({ onBack, onNavigate }) => {
   const fmtNum = (n) => Number(n).toLocaleString();
   const fmtPower = (mw) => mw >= 1000 ? `${(mw/1000).toFixed(1)} GW` : `${fmtNum(mw)} MW`;
 
-  // Buy CTA: posts the captured Near Me search context to our Stripe
-  // checkout-session endpoint and forwards the buyer to Stripe.
-  const [buying, setBuying] = useState(false);
-  const [buyError, setBuyError] = useState("");
-  const handleBuyReport = async () => {
-    if (buying) return;
-    setBuyError("");
-    setBuying(true);
+  // Buy CTA: redirects straight to the Stripe-hosted Payment Link. No
+  // serverless function is involved; the post-payment redirect is configured
+  // on the Payment Link in the Stripe dashboard to land on
+  // https://humzones.com/report-success. Search context is written to
+  // localStorage on the line right above so /report-success can personalize
+  // the PDF when the buyer comes back.
+  const STRIPE_PAYMENT_LINK = "https://buy.stripe.com/test_3cI6oJ3DA2bv8Gd3uIgMw00";
+  const handleBuyReport = () => {
     try {
-      try { localStorage.setItem("hz_report_purchase_intent", new Date().toISOString()); } catch {}
-      const payload = {
-        searchAddress:   get("searchAddress"),
-        searchLat:       get("searchLat"),
-        searchLng:       get("searchLng"),
-        facilities100km: get("facilities100km"),
-        highRiskCount:   get("highRiskCount"),
-        facilitiesFound: get("facilitiesFound"),
-        selectedRadius:  get("selectedRadius"),
-      };
-      const r = await fetch("/api/create-checkout-session", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
-      if (!r.ok) {
-        const err = await r.json().catch(() => ({}));
-        throw new Error(err.error || `Checkout failed (${r.status})`);
-      }
-      const data = await r.json();
-      if (!data.url) throw new Error("Checkout session did not return a URL");
-      window.location.href = data.url;
-    } catch (e) {
-      console.error("Checkout error:", e);
-      setBuyError("We could not start checkout. Please try again in a moment.");
-      setBuying(false);
-    }
+      localStorage.setItem("searchAddress",   get("searchAddress"));
+      localStorage.setItem("searchLat",       get("searchLat"));
+      localStorage.setItem("searchLng",       get("searchLng"));
+      localStorage.setItem("facilities100km", get("facilities100km"));
+      localStorage.setItem("highRiskCount",   get("highRiskCount"));
+      localStorage.setItem("facilitiesFound", get("facilitiesFound"));
+      localStorage.setItem("selectedRadius",  get("selectedRadius"));
+      localStorage.setItem("hz_report_purchase_intent", new Date().toISOString());
+    } catch {}
+    window.location.href = STRIPE_PAYMENT_LINK;
   };
 
   const numbersUnknown = facilities100km === 0;
@@ -1002,14 +985,12 @@ const ReportLandingPage = ({ onBack, onNavigate }) => {
           <p style={{fontSize:17,color:"rgba(255,255,255,.78)",lineHeight:1.6,marginBottom:24,maxWidth:640,marginLeft:"auto",marginRight:"auto"}}>
             You only searched {selectedRadius || "a smaller radius"}{selectedRadius?"km":""} and found {facilitiesFound} {facilitiesFound===1?"facility":"facilities"}. Here is what else is near you that you do not know about yet.
           </p>
-          <button onClick={handleBuyReport} disabled={buying} className="cta-pulse" style={{...primaryBtn(),opacity:buying?.85:1,cursor:buying?"wait":"pointer"}}>
-            {buying ? <span className="hz-spinner" aria-hidden="true"/> : null}
-            {buying ? "Starting checkout..." : "Get My Full Report"}
+          <button onClick={handleBuyReport} className="cta-pulse" style={primaryBtn()}>
+            Get My Full Report
           </button>
           <p style={{fontSize:13,color:"rgba(255,255,255,.55)",marginTop:12,lineHeight:1.6}}>
             Instant PDF. Personalized to your exact location.
           </p>
-          {buyError ? <p style={{fontSize:13,color:"#fca5a5",marginTop:10,fontWeight:700}}>{buyError}</p> : null}
         </div>
       </section>
 
@@ -1165,11 +1146,9 @@ const ReportLandingPage = ({ onBack, onNavigate }) => {
           </div>
 
           <div style={{marginTop:8,marginBottom:18}}>
-            <button onClick={handleBuyReport} disabled={buying} className="cta-pulse" style={{...primaryBtn(),padding:"20px 40px",fontSize:18,opacity:buying?.85:1,cursor:buying?"wait":"pointer"}}>
-              {buying ? <span className="hz-spinner" aria-hidden="true"/> : null}
-              {buying ? "Starting checkout..." : "Yes, Get My Full Report for $14.99"}
+            <button onClick={handleBuyReport} className="cta-pulse" style={{...primaryBtn(),padding:"20px 40px",fontSize:18}}>
+              Yes, Get My Full Report for $14.99
             </button>
-            {buyError ? <p style={{fontSize:13,color:"#fca5a5",marginTop:10,fontWeight:700}}>{buyError}</p> : null}
           </div>
 
           {/* Accepted payment methods. Stripe Checkout enables card +
@@ -1234,10 +1213,10 @@ const ReportSuccessPage = ({ onBack, onNavigate }) => {
     const run = async () => {
       try {
         // ─── 1. Pull search context from localStorage with URL-param fallback ─
-        // Safari ITP and some third-party-cookie blockers drop localStorage
-        // across the Stripe checkout redirect, so the create-checkout-session
-        // endpoint also encodes the search context onto the success URL. We
-        // prefer localStorage when present and fall back to the URL params.
+        // The buy flow writes the context to localStorage before redirecting
+        // to the Stripe Payment Link. URL params are kept as a fallback for
+        // browsers (Safari ITP, strict third-party-cookie blockers) that may
+        // wipe localStorage across the Stripe redirect.
         console.log("localStorage dump:", {
           searchLat:       localStorage.getItem("searchLat"),
           searchLng:       localStorage.getItem("searchLng"),
@@ -1268,18 +1247,12 @@ const ReportSuccessPage = ({ onBack, onNavigate }) => {
         const selectedRadius  = parseInt(localStorage.getItem("selectedRadius")  || params.get("radius"), 10);
         console.log("[HumZones] /report-success resolved inputs:", { searchAddress, searchLat, searchLng, facilities100, highRisk, facilitiesFound, selectedRadius });
 
-        // Best-effort buyer email lookup from the Stripe session.
-        const sessionId = params.get("session_id") || "";
-        let buyerEmail = "";
-        if (sessionId) {
-          try {
-            const r = await fetch(`/api/get-checkout-session?session_id=${encodeURIComponent(sessionId)}`);
-            if (r.ok) {
-              const data = await r.json();
-              buyerEmail = data.email || "";
-            }
-          } catch (e) { console.warn("[HumZones] session fetch failed:", e); }
-        }
+        // We no longer hit a serverless function to read the Stripe session;
+        // the buy flow redirects directly to a Stripe Payment Link, so the
+        // buyer email is not available client-side after the redirect back.
+        // The PDF and the Airtable Emails capture leave the Email field
+        // blank when we cannot derive it.
+        const buyerEmail = "";
 
         // ─── 2. Fetch every facility from Airtable ──────────────────────────
         setStepMsg("Fetching your facility data...");
