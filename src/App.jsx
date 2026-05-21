@@ -1953,6 +1953,127 @@ const ReportSuccessPage = ({ onBack, onNavigate }) => {
   );
 };
 
+// ─── VERIFY REPORT (email-link landing) ───────────────────────────────────────
+// Reached from the verification email sent by api/send-verification. Parses
+// the report payload off the URL, writes it to Airtable Reports with
+// Verified=1 / Approved=0, and shows a success card with a Back to HumZones
+// button. Idempotent against React 18 StrictMode via the startedRef guard.
+const VerifyReportPage = ({ onNavigate }) => {
+  const [status, setStatus] = useState("verifying"); // verifying | done | error
+  const [errMsg, setErrMsg] = useState("");
+  const startedRef = useRef(false);
+
+  useEffect(() => {
+    if (startedRef.current) return;
+    startedRef.current = true;
+
+    const run = async () => {
+      try {
+        const params = new URLSearchParams(window.location.search);
+        const token        = params.get("token")    || "";
+        const email        = params.get("email")    || "";
+        const facilityName = params.get("facility") || "";
+        const reportText   = params.get("report")   || "";
+        const address      = params.get("address")  || "";
+        const symptoms     = params.get("symptoms") || "";
+
+        if (!token || !email || !reportText) {
+          throw new Error("This verification link is incomplete or has expired. Please resubmit your report.");
+        }
+
+        const fields = {
+          Email:    email,
+          Facility: facilityName,
+          Report:   reportText,
+          Address:  address,
+          Symptoms: symptoms,
+          Verified: 1,
+          Approved: 0,
+          Date:     new Date().toISOString().slice(0, 10),
+          Source:   "CommunityReport",
+        };
+
+        const r = await fetch(`${APIURL}/Reports`, {
+          method: "POST",
+          headers: HDR,
+          body: JSON.stringify({ fields }),
+        });
+        if (!r.ok) {
+          const err = await r.json().catch(() => ({}));
+          console.error("Airtable verify-report write failed:", err);
+          throw new Error("We could not save your report. Please contact support and we will publish it manually.");
+        }
+
+        setStatus("done");
+      } catch (e) {
+        console.error("[HumZones] /verify-report failed:", e);
+        setErrMsg(e.message || "Something went wrong verifying your report.");
+        setStatus("error");
+      }
+    };
+    run();
+  }, []);
+
+  const goHome = () => onNavigate("/");
+
+  return (
+    <div style={{minHeight:"100vh",background:"linear-gradient(150deg,#020c1b 0%,#0f172a 50%,#1e0535 100%)",width:"100%",maxWidth:"100vw",overflowX:"hidden",color:"#fff"}}>
+      <div style={{padding:"22px 24px",display:"flex",alignItems:"center",justifyContent:"center"}}>
+        <div>
+          <span style={{fontSize:22,fontWeight:900,letterSpacing:".08em",background:"linear-gradient(90deg,#ef4444,#f97316)",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent"}}>HumZones</span>
+          <sup style={{fontSize:12,color:"#f97316",fontWeight:700,verticalAlign:"super",marginLeft:2}}>TM</sup>
+        </div>
+      </div>
+
+      <main style={{maxWidth:640,margin:"0 auto",padding:"24px 24px 80px",textAlign:"center"}}>
+        {status === "verifying" && (
+          <>
+            <div className="slow-pulse" style={{width:84,height:84,borderRadius:"50%",background:"linear-gradient(135deg,#10b981,#059669)",margin:"24px auto 22px",display:"flex",alignItems:"center",justifyContent:"center",boxShadow:"0 18px 50px rgba(16,185,129,.4)"}}>
+              <div className="spinning" style={{width:36,height:36,border:"3px solid rgba(255,255,255,.35)",borderTop:"3px solid #fff",borderRadius:"50%"}}/>
+            </div>
+            <h1 style={{fontSize:28,fontWeight:900,marginBottom:10,color:"#fff"}}>Verifying your report...</h1>
+            <p style={{fontSize:15,color:"rgba(255,255,255,.7)"}}>Saving your verified report to the HumZones registry.</p>
+          </>
+        )}
+
+        {status === "done" && (
+          <>
+            <div style={{width:84,height:84,borderRadius:"50%",background:"linear-gradient(135deg,#10b981,#059669)",margin:"24px auto 22px",display:"flex",alignItems:"center",justifyContent:"center",boxShadow:"0 18px 50px rgba(16,185,129,.4)"}}>
+              <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <polyline points="20 6 9 17 4 12"/>
+              </svg>
+            </div>
+            <h1 style={{fontSize:28,fontWeight:900,marginBottom:14,color:"#fff",letterSpacing:"-.01em"}}>Report Verified</h1>
+            <p style={{fontSize:16,color:"rgba(255,255,255,.78)",lineHeight:1.65,marginBottom:28,maxWidth:520,marginLeft:"auto",marginRight:"auto"}}>
+              Your report has been verified and submitted for review. Thank you for helping your community. We will review and publish your report shortly.
+            </p>
+            <button onClick={goHome} className="cta-pulse" style={{padding:"16px 30px",borderRadius:14,border:"none",background:"linear-gradient(135deg,#ef4444,#f97316)",color:"#fff",fontSize:16,fontWeight:900,letterSpacing:".02em",cursor:"pointer",fontFamily:"inherit",boxShadow:"0 10px 32px rgba(239,68,68,.45)"}}>
+              Back to HumZones
+            </button>
+          </>
+        )}
+
+        {status === "error" && (
+          <>
+            <div style={{width:84,height:84,borderRadius:"50%",background:"linear-gradient(135deg,#ef4444,#dc2626)",margin:"24px auto 22px",display:"flex",alignItems:"center",justifyContent:"center",boxShadow:"0 18px 50px rgba(239,68,68,.4)"}}>
+              <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <line x1="12" y1="9" x2="12" y2="13"/>
+                <line x1="12" y1="17" x2="12.01" y2="17"/>
+                <path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+              </svg>
+            </div>
+            <h1 style={{fontSize:26,fontWeight:900,marginBottom:12,color:"#fff"}}>Verification Failed</h1>
+            <p style={{fontSize:15,color:"rgba(255,255,255,.78)",lineHeight:1.65,marginBottom:24,maxWidth:520,marginLeft:"auto",marginRight:"auto"}}>{errMsg}</p>
+            <button onClick={goHome} style={{padding:"16px 30px",borderRadius:14,border:"none",background:"linear-gradient(135deg,#ef4444,#f97316)",color:"#fff",fontSize:16,fontWeight:900,letterSpacing:".02em",cursor:"pointer",fontFamily:"inherit"}}>
+              Back to HumZones
+            </button>
+          </>
+        )}
+      </main>
+    </div>
+  );
+};
+
 // ─── MAIN APP ─────────────────────────────────────────────────────────────────
 export default function App() {
   // Lightweight client-side routing: track pathname, listen for back/forward,
@@ -1994,9 +2115,13 @@ export default function App() {
   const [repDeclared,setRepDeclared] = useState(false);
   const [expandedRep,setExpandedRep] = useState(null);
   const MAX_REPORT_CHARS = 3000;
-  const [hp,setHp]               = useState(""); // honeypot
+  const [hp,setHp]               = useState(""); // honeypot ("website" field)
   const [sending,setSending]     = useState(false);
   const [sent,setSent]           = useState(false);
+  const [sentEmail,setSentEmail] = useState(""); // email shown on the "check your inbox" screen
+  // Form-load timestamp for the 15-second minimum gate. Any submit that
+  // happens sooner than this is treated as a bot.
+  const formLoadTimeRef          = useRef(Date.now());
   const [xLong,setXLong]         = useState(null);
   const [xKid,setXKid]           = useState(null);
   const [qStep,setQStep]         = useState(0);
@@ -2485,30 +2610,55 @@ export default function App() {
 
   const sendReport = async () => {
     if(!canSubmit||!dc) return;
-    if(hp) return;
-    setSending(true);
-    // Build fields - Facility is a linked record so pass as array of record IDs
-    const reportFields = {
-      Reporter:       repName||"Anonymous",
-      Email:          repEmail.trim(),
-      Report_Text:    draft,
-      Symptoms:       repSymptoms.join(", "),
-      Duration:       repDuration,
-      City:           dc.City || "",
-      Country:        dc.Country || "",
-      Date_Submitted: new Date().toISOString().split("T")[0],
-      Declared:       true,
-      Approved:       false,
-    };
-    if(dc.id) reportFields.Facility = [dc.id];
-    const ok = await postReport(reportFields);
-    if(ok){
+
+    // Honeypot: bots fill in the hidden "website" field. Silently discard
+    // without telling them why so they cannot adapt.
+    if(hp){
       setSent(true);
+      setSentEmail(repEmail.trim());
+      setDraft(""); setRepName(""); setRepEmail("");
+      setRepDuration(""); setRepSymptoms([]); setRepDeclared(false); setHp("");
+      return;
+    }
+
+    // 15-second minimum: a human cannot meaningfully fill the form faster.
+    const elapsedMs = Date.now() - (formLoadTimeRef.current || 0);
+    if(elapsedMs < 15000){
+      setSent(true);
+      setSentEmail(repEmail.trim());
       setDraft(""); setRepName(""); setRepEmail("");
       setRepDuration(""); setRepSymptoms([]); setRepDeclared(false);
-      apiFetch("Reports",{filterByFormula:`AND({Facility} = "${dc.Name}", {Approved} = 1)`}).then(setReps).catch(()=>setReps([]));
+      return;
     }
-    setSending(false);
+
+    setSending(true);
+    const email = repEmail.trim();
+    try {
+      const r = await fetch("/api/send-verification", {
+        method:  "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email,
+          facilityName: dc.Name || "",
+          reportText:   draft,
+          address:      [dc.Address, dc.City, dc.State_Region, dc.Country].filter(Boolean).join(", "),
+          symptoms:     repSymptoms.join(", "),
+        }),
+      });
+      if(!r.ok){
+        const err = await r.json().catch(()=>({}));
+        throw new Error(err.error || `Could not send verification email (${r.status})`);
+      }
+      setSent(true);
+      setSentEmail(email);
+      setDraft(""); setRepName(""); setRepEmail("");
+      setRepDuration(""); setRepSymptoms([]); setRepDeclared(false);
+    } catch(e) {
+      console.error("send-verification failed:", e);
+      window.alert("We could not send the verification email. Please try again, or contact us if it keeps failing.");
+    } finally {
+      setSending(false);
+    }
   };
 
   const STATS=[
@@ -2527,6 +2677,8 @@ export default function App() {
         <ReportLandingPage onBack={()=>navigate("/")} onNavigate={navigate}/>
       ) : path === "/report-success" ? (
         <ReportSuccessPage onBack={()=>navigate("/")} onNavigate={navigate}/>
+      ) : path === "/verify-report" ? (
+        <VerifyReportPage onNavigate={navigate}/>
       ) : (
       <div style={{minHeight:"100vh",background:"#f1f5f9",width:"100%",maxWidth:"100vw",overflowX:"hidden"}}>
 
@@ -3283,12 +3435,30 @@ export default function App() {
                       <div style={{background:rc+"08",border:`1px solid ${rc}20`,borderRadius:12,padding:"14px 18px",marginBottom:24,marginTop:16}}>
                         <p style={{fontSize:14,color:"#374151",lineHeight:1.75,margin:0}}>Reports submitted here are reviewed by HumZones and may be shared with regulatory bodies as part of our verified resident health registry. A verified email address and signed declaration make your report credible to regulators and public health authorities.</p>
                       </div>
-                      <input className="hz-trap" tabIndex="-1" autoComplete="off" value={hp} onChange={e=>setHp(e.target.value)} aria-hidden="true"/>
+                      {/* Honeypot field named "website": hidden from humans
+                          but visible to dumb bots, which fill in every field
+                          they see. Submits with this populated are silently
+                          discarded so the bot does not get feedback. */}
+                      <input
+                        type="text"
+                        name="website"
+                        value={hp}
+                        onChange={e=>setHp(e.target.value)}
+                        tabIndex="-1"
+                        autoComplete="off"
+                        aria-hidden="true"
+                        style={{display:"none"}}
+                      />
                       {sent ? (
                         <div style={{background:"#f0fdf4",border:"2px solid #bbf7d0",borderRadius:16,padding:"24px"}}>
-                          <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:10}}><Icon name="check" size={24} color="#15803d"/><div style={{fontSize:18,fontWeight:800,color:"#15803d"}}>Report submitted successfully.</div></div>
-                          <p style={{fontSize:15,color:"#166534",lineHeight:1.75,marginBottom:20}}>Thank you. Your report has been received and will be reviewed within 48 hours. Once approved it will appear in this community registry.</p>
-                          <button onClick={()=>setSent(false)} style={{fontSize:14,padding:"10px 22px",borderRadius:10,border:"1.5px solid #bbf7d0",background:"transparent",color:"#15803d",cursor:"pointer",fontFamily:"inherit",fontWeight:700}}>Submit another report</button>
+                          <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:10}}>
+                            <Icon name="check" size={24} color="#15803d"/>
+                            <div style={{fontSize:18,fontWeight:800,color:"#15803d"}}>Almost done!</div>
+                          </div>
+                          <p style={{fontSize:15,color:"#166534",lineHeight:1.75,marginBottom:14}}>
+                            We sent a verification email to <strong>{sentEmail || "your inbox"}</strong>. Please click the link in the email to publish your report. Check your spam folder if you do not see it within a few minutes.
+                          </p>
+                          <button onClick={()=>{setSent(false); formLoadTimeRef.current = Date.now();}} style={{fontSize:14,padding:"10px 22px",borderRadius:10,border:"1.5px solid #bbf7d0",background:"transparent",color:"#15803d",cursor:"pointer",fontFamily:"inherit",fontWeight:700}}>Submit another report</button>
                         </div>
                       ) : (
                         <div>
