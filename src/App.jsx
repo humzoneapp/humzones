@@ -1981,6 +1981,12 @@ const VerifyReportPage = ({ onNavigate }) => {
         const symptoms     = params.get("symptoms")  || "";
         const duration     = params.get("duration")  || "";
 
+        console.log("[HumZones] /verify-report params:", {
+          token, email, firstName, lastName, facilityName,
+          reportText, city: cityParam, country: countryParam,
+          symptoms, duration,
+        });
+
         if (!token || !email || !reportText) {
           throw new Error("This verification link is incomplete or has expired. Please resubmit your report.");
         }
@@ -1989,19 +1995,23 @@ const VerifyReportPage = ({ onNavigate }) => {
         // the submitter actually gave us: "First Last" when both are
         // present, just "First" when only first is, and "Anonymous" as the
         // last-resort fallback so the column is never blank.
-        const reporterName = firstName && lastName
+        const baseReporterName = firstName && lastName
           ? `${firstName} ${lastName}`
           : firstName
             ? firstName
             : "Anonymous";
 
-        // Write to the Reports table by ID, using field IDs. The Facility
-        // column is a multipleRecordLinks field and cannot accept a plain
-        // string, so the facility name is prepended to Report_Text instead.
+        // Append the facility name to Reporter so it shows in Airtable
+        // without writing to Facility, which is a multipleRecordLinks
+        // field and cannot accept a plain string.
+        const reporterName = facilityName
+          ? `${baseReporterName} (re: ${facilityName})`
+          : baseReporterName;
+
         const todayDate = new Date().toISOString().slice(0, 10);
         const fields = {
           fldIvUyYCPw150VXi: reporterName,
-          fldvFopZGRsuuhQyc: facilityName + "\n\n" + reportText,
+          fldvFopZGRsuuhQyc: reportText,
           fldmqFjSvXE3dPMhx: todayDate,
           fldseZCyavu7yQy6a: false,
           fldbC786WMhXAXwRw: cityParam,
