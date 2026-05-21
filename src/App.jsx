@@ -1970,26 +1970,37 @@ const VerifyReportPage = ({ onNavigate }) => {
     const run = async () => {
       try {
         const params = new URLSearchParams(window.location.search);
-        const token        = params.get("token")    || "";
-        const email        = params.get("email")    || "";
-        const facilityName = params.get("facility") || "";
-        const reportText   = params.get("report")   || "";
-        const address      = params.get("address")  || "";
-        const cityParam    = params.get("city")     || "";
-        const countryParam = params.get("country")  || "";
-        const symptoms     = params.get("symptoms") || "";
-        const duration     = params.get("duration") || "";
+        const token        = params.get("token")     || "";
+        const email        = params.get("email")     || "";
+        const firstName    = (params.get("firstName") || "").trim();
+        const lastName     = (params.get("lastName")  || "").trim();
+        const facilityName = params.get("facility")  || "";
+        const reportText   = params.get("report")    || "";
+        const address      = params.get("address")   || "";
+        const cityParam    = params.get("city")      || "";
+        const countryParam = params.get("country")   || "";
+        const symptoms     = params.get("symptoms")  || "";
+        const duration     = params.get("duration")  || "";
 
         if (!token || !email || !reportText) {
           throw new Error("This verification link is incomplete or has expired. Please resubmit your report.");
         }
 
+        // Reporter is the Airtable display column. Build it from the names
+        // the submitter actually gave us: "First Last" when both are
+        // present, just "First" when only first is, and "Anonymous" as the
+        // last-resort fallback so the column is never blank.
+        const reporterName = firstName && lastName
+          ? `${firstName} ${lastName}`
+          : firstName
+            ? firstName
+            : "Anonymous";
+
         // Field names match the Airtable Reports table schema exactly.
-        // Reporter and Email are both populated with the buyer email per
-        // table convention (Reporter is the display column). Verified is
-        // intentionally not written; manual review uses Approved=0.
+        // Verified is intentionally not written; manual review uses
+        // Approved=0.
         const fields = {
-          Reporter:       email,
+          Reporter:       reporterName,
           Email:          email,
           Facility:       facilityName,
           Report_Text:    reportText,
@@ -2119,6 +2130,8 @@ export default function App() {
   const [reps,setReps]           = useState([]);
   const [draft,setDraft]         = useState("");
   const [repName,setRepName]     = useState("");
+  const [repFirstName,setRepFirstName] = useState("");
+  const [repLastName,setRepLastName]   = useState("");
   const [repEmail,setRepEmail]   = useState("");
   const [repDuration,setRepDuration] = useState("");
   const [repSymptoms,setRepSymptoms] = useState([]);
@@ -2616,7 +2629,7 @@ export default function App() {
     setRepSymptoms(prev => prev.includes(s) ? prev.filter(x=>x!==s) : [...prev,s]);
   };
 
-  const canSubmit = draft.trim() && repEmail.trim() && repDeclared;
+  const canSubmit = draft.trim() && repEmail.trim() && repFirstName.trim() && repDeclared;
 
   const sendReport = async () => {
     if(!canSubmit||!dc) return;
@@ -2626,7 +2639,7 @@ export default function App() {
     if(hp){
       setSent(true);
       setSentEmail(repEmail.trim());
-      setDraft(""); setRepName(""); setRepEmail("");
+      setDraft(""); setRepName(""); setRepFirstName(""); setRepLastName(""); setRepEmail("");
       setRepDuration(""); setRepSymptoms([]); setRepDeclared(false); setHp("");
       return;
     }
@@ -2636,7 +2649,7 @@ export default function App() {
     if(elapsedMs < 15000){
       setSent(true);
       setSentEmail(repEmail.trim());
-      setDraft(""); setRepName(""); setRepEmail("");
+      setDraft(""); setRepName(""); setRepFirstName(""); setRepLastName(""); setRepEmail("");
       setRepDuration(""); setRepSymptoms([]); setRepDeclared(false);
       return;
     }
@@ -2649,6 +2662,8 @@ export default function App() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           email,
+          firstName:    repFirstName.trim(),
+          lastName:     repLastName.trim(),
           facilityName: dc.Name || "",
           reportText:   draft,
           address:      [dc.Address, dc.City, dc.State_Region, dc.Country].filter(Boolean).join(", "),
@@ -2664,7 +2679,7 @@ export default function App() {
       }
       setSent(true);
       setSentEmail(email);
-      setDraft(""); setRepName(""); setRepEmail("");
+      setDraft(""); setRepName(""); setRepFirstName(""); setRepLastName(""); setRepEmail("");
       setRepDuration(""); setRepSymptoms([]); setRepDeclared(false);
     } catch(e) {
       console.error("send-verification failed:", e);
@@ -3475,16 +3490,34 @@ export default function App() {
                         </div>
                       ) : (
                         <div>
+                          {/* First + Last name sit at the very top of the
+                              form. First Name is required (gates submit via
+                              canSubmit) so the Reporter column in Airtable
+                              always has at least a first name. */}
                           <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:16}}>
                             <div>
-                              <label style={{fontSize:13,fontWeight:700,color:"#374151",display:"block",marginBottom:6}}>Your Name</label>
-                              <input value={repName} onChange={e=>setRepName(e.target.value)} placeholder="First name or Anonymous" style={{width:"100%",padding:"13px 16px",borderRadius:10,border:"1.5px solid #e2e8f0",fontSize:15,boxSizing:"border-box",outline:"none",fontFamily:"inherit",color:"#1e293b"}}/>
+                              <label style={{fontSize:13,fontWeight:700,color:"#374151",display:"block",marginBottom:6}}>First Name *</label>
+                              <input
+                                value={repFirstName}
+                                onChange={e=>setRepFirstName(e.target.value)}
+                                placeholder="Your first name"
+                                style={{width:"100%",padding:"13px 16px",borderRadius:10,border:`1.5px solid ${repFirstName.trim()?"#3b82f6":"#e2e8f0"}`,fontSize:15,boxSizing:"border-box",outline:"none",fontFamily:"inherit",color:"#1e293b",transition:"border-color .2s"}}
+                              />
                             </div>
                             <div>
-                              <label style={{fontSize:13,fontWeight:700,color:"#374151",display:"block",marginBottom:6}}>Email Address *</label>
-                              <input value={repEmail} onChange={e=>setRepEmail(e.target.value)} placeholder="Required to verify your report" type="email" style={{width:"100%",padding:"13px 16px",borderRadius:10,border:`1.5px solid ${repEmail.trim()?"#3b82f6":"#e2e8f0"}`,fontSize:15,boxSizing:"border-box",outline:"none",fontFamily:"inherit",color:"#1e293b",transition:"border-color .2s"}}/>
-                              <div style={{fontSize:11,color:"#94a3b8",marginTop:4}}>Not displayed publicly. Verification only.</div>
+                              <label style={{fontSize:13,fontWeight:700,color:"#374151",display:"block",marginBottom:6}}>Last Name</label>
+                              <input
+                                value={repLastName}
+                                onChange={e=>setRepLastName(e.target.value)}
+                                placeholder="Your last name (optional)"
+                                style={{width:"100%",padding:"13px 16px",borderRadius:10,border:"1.5px solid #e2e8f0",fontSize:15,boxSizing:"border-box",outline:"none",fontFamily:"inherit",color:"#1e293b",transition:"border-color .2s"}}
+                              />
                             </div>
+                          </div>
+                          <div style={{marginBottom:16}}>
+                            <label style={{fontSize:13,fontWeight:700,color:"#374151",display:"block",marginBottom:6}}>Email Address *</label>
+                            <input value={repEmail} onChange={e=>setRepEmail(e.target.value)} placeholder="Required to verify your report" type="email" style={{width:"100%",padding:"13px 16px",borderRadius:10,border:`1.5px solid ${repEmail.trim()?"#3b82f6":"#e2e8f0"}`,fontSize:15,boxSizing:"border-box",outline:"none",fontFamily:"inherit",color:"#1e293b",transition:"border-color .2s"}}/>
+                            <div style={{fontSize:11,color:"#94a3b8",marginTop:4}}>Not displayed publicly. Verification only.</div>
                           </div>
                           <div style={{marginBottom:16}}>
                             <label style={{fontSize:13,fontWeight:700,color:"#374151",display:"block",marginBottom:6}}>How long have you lived or worked near this facility?</label>

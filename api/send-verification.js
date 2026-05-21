@@ -17,6 +17,8 @@ module.exports = async (req, res) => {
     const body = req.body || {};
     const {
       email = "",
+      firstName = "",
+      lastName = "",
       facilityName = "",
       reportText = "",
       address = "",
@@ -33,15 +35,17 @@ module.exports = async (req, res) => {
     const token = crypto.randomBytes(32).toString("hex");
     const verifyUrl =
       "https://humzones.com/verify-report" +
-      "?token="    + token +
-      "&email="    + encodeURIComponent(email) +
-      "&facility=" + encodeURIComponent(facilityName) +
-      "&report="   + encodeURIComponent(reportText) +
-      "&address="  + encodeURIComponent(address) +
-      "&city="     + encodeURIComponent(city) +
-      "&country="  + encodeURIComponent(country) +
-      "&symptoms=" + encodeURIComponent(symptoms) +
-      "&duration=" + encodeURIComponent(duration);
+      "?token="     + token +
+      "&email="     + encodeURIComponent(email) +
+      "&firstName=" + encodeURIComponent(firstName) +
+      "&lastName="  + encodeURIComponent(lastName) +
+      "&facility="  + encodeURIComponent(facilityName) +
+      "&report="    + encodeURIComponent(reportText) +
+      "&address="   + encodeURIComponent(address) +
+      "&city="      + encodeURIComponent(city) +
+      "&country="   + encodeURIComponent(country) +
+      "&symptoms="  + encodeURIComponent(symptoms) +
+      "&duration="  + encodeURIComponent(duration);
 
     const transporter = nodemailer.createTransport({
       host: process.env.EMAIL_HOST,
@@ -65,7 +69,10 @@ module.exports = async (req, res) => {
           '</div>' +
           '<div style="background: white; padding: 32px; border-radius: 12px; margin-bottom: 24px;">' +
             '<h2 style="color: #1e293b; margin-top: 0;">Verify Your Resident Report</h2>' +
-            '<p style="color: #475569;">Thank you for submitting your resident report about <strong>' + escapeHtml(facilityName) + '</strong>. Your experience matters and helps others in your community.</p>' +
+            '<p style="color: #475569;">' +
+              (firstName ? ('Hi ' + escapeHtml(firstName) + ', thank you ') : 'Thank you ') +
+              'for submitting your resident report about <strong>' + escapeHtml(facilityName) + '</strong>. Your experience matters and helps others in your community.' +
+            '</p>' +
             '<p style="color: #475569;">To publish your report please click the button below to verify your email address. This confirms your report is from a real resident.</p>' +
             '<div style="text-align: center; margin: 32px 0;">' +
               '<a href="' + verifyUrl + '" style="background: #f97316; color: white; padding: 16px 32px; border-radius: 8px; text-decoration: none; font-weight: bold; font-size: 16px; display: inline-block;">Verify My Report</a>' +
