@@ -458,6 +458,13 @@ const CSS = `
   /* Submit Your Report tab: only the colors are overridden so the pill keeps
      the same size, padding and border-radius as the other tabs. */
   .tab-btn-submit:hover{background:#ea6c0a!important;border-color:#ea6c0a!important}
+  /* Near Me upsell banner heading: bumped to a hero size with a soft drop
+     shadow so the "There's More You Should Know" prompt reads as a real
+     headline. Scales down on mobile so it does not wrap awkwardly. */
+  .upsell-heading{font-size:28px!important;font-weight:900!important;color:#fff!important;text-shadow:0 2px 4px rgba(0,0,0,0.3)!important;line-height:1.2!important;letter-spacing:-.01em!important;margin:0 0 14px!important;display:block!important}
+  @media(max-width:640px){
+    .upsell-heading{font-size:22px!important;margin:0 0 12px!important}
+  }
   .clear-btn{transition:all .2s;cursor:pointer;font-family:inherit}
   .clear-btn:hover{background:rgba(255,255,255,.18)!important}
   .ext-link{transition:opacity .15s;text-decoration:none}
@@ -2765,7 +2772,8 @@ export default function App() {
           {nearLoc && !dc && !loading && nearEmailUnlocked && nearResults.length > 0 && (
             <div className="fade-in" style={{background:"linear-gradient(150deg,#0a1628 0%,#0f172a 50%,#1e0535 100%)",borderRadius:18,padding:"36px 28px 30px",textAlign:"center",border:"1px solid rgba(249,115,22,.32)",boxShadow:"0 18px 50px rgba(0,0,0,.35),inset 0 1px 0 rgba(255,255,255,.05)",marginBottom:28,width:"100%",maxWidth:"100%",boxSizing:"border-box",marginLeft:0,marginRight:0}}>
               <div style={{fontSize:42,marginBottom:12,lineHeight:1}} role="img" aria-label="Fire">🔥</div>
-              <h3 style={{fontSize:24,fontWeight:900,color:"#fff",marginBottom:8,letterSpacing:"-.01em",lineHeight:1.25}}>
+              <h3 className="upsell-heading">
+                <span role="img" aria-label="Warning" style={{marginRight:10}}>⚠️</span>
                 There&apos;s More You Should Know
               </h3>
               <div style={{fontSize:16,color:"#f97316",fontWeight:700,marginBottom:14,letterSpacing:".01em"}}>
