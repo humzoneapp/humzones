@@ -455,6 +455,10 @@ const CSS = `
   .drop-item:hover{background:#eff6ff!important}
   .tab-btn{transition:all .2s;cursor:pointer;font-family:inherit;white-space:nowrap}
   .tab-btn:hover{transform:translateY(-2px)}
+  /* Submit Your Report tab: solid orange so the submission CTA stands out
+     from the rest of the facility-detail tabs. */
+  .tab-btn-submit{background:#f97316!important;color:#fff!important;border:none!important;border-radius:6px!important;padding:8px 16px!important;font-weight:700!important;box-shadow:none!important}
+  .tab-btn-submit:hover{background:#ea6c0a!important;transform:translateY(-2px)}
   .clear-btn{transition:all .2s;cursor:pointer;font-family:inherit}
   .clear-btn:hover{background:rgba(255,255,255,.18)!important}
   .ext-link{transition:opacity .15s;text-decoration:none}
@@ -2978,13 +2982,20 @@ export default function App() {
 
               <div style={{borderTop:"1px solid #f1f5f9",background:"#fafafa"}}>
                 <div className="tabs-row" style={{display:"flex",gap:8,padding:"18px 24px",overflowX:"auto",flexWrap:"wrap"}}>
-                  {TABS.map(t=>(
-                    <button key={t.id} className="tab-btn" onClick={()=>setTab(t.id)}
-                      style={{display:"flex",alignItems:"center",gap:7,padding:"11px 20px",borderRadius:22,fontSize:14,fontWeight:700,border:`2px solid ${tab===t.id?rc:"#e2e8f0"}`,background:tab===t.id?rc:"#fff",color:tab===t.id?"#fff":"#64748b",boxShadow:tab===t.id?`0 4px 16px ${rc}44`:"none"}}>
-                      <Icon name={t.icon} size={16} color={tab===t.id?"#fff":"#64748b"}/>
-                      {t.label}{t.id==="reports"&&reps.length>0?` (${reps.length})`:""}
-                    </button>
-                  ))}
+                  {TABS.map(t=>{
+                    const isSubmit = t.id === "submit";
+                    return (
+                      <button key={t.id}
+                        className={isSubmit ? "tab-btn tab-btn-submit" : "tab-btn"}
+                        onClick={()=>setTab(t.id)}
+                        style={isSubmit
+                          ? {display:"flex",alignItems:"center",gap:7,fontSize:14}
+                          : {display:"flex",alignItems:"center",gap:7,padding:"11px 20px",borderRadius:22,fontSize:14,fontWeight:700,border:`2px solid ${tab===t.id?rc:"#e2e8f0"}`,background:tab===t.id?rc:"#fff",color:tab===t.id?"#fff":"#64748b",boxShadow:tab===t.id?`0 4px 16px ${rc}44`:"none"}}>
+                        <Icon name={t.icon} size={16} color={isSubmit?"#fff":(tab===t.id?"#fff":"#64748b")}/>
+                        {t.label}{t.id==="reports"&&reps.length>0?` (${reps.length})`:""}
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
 
