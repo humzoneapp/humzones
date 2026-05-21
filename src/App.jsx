@@ -1976,7 +1976,6 @@ const VerifyReportPage = ({ onNavigate }) => {
         const lastName     = (params.get("lastName")  || "").trim();
         const facilityName = params.get("facility")  || "";
         const reportText   = params.get("report")    || "";
-        const address      = params.get("address")   || "";
         const cityParam    = params.get("city")      || "";
         const countryParam = params.get("country")   || "";
         const symptoms     = params.get("symptoms")  || "";
@@ -1996,25 +1995,24 @@ const VerifyReportPage = ({ onNavigate }) => {
             ? firstName
             : "Anonymous";
 
-        // Field names match the Airtable Reports table schema exactly.
-        // Verified is intentionally not written; manual review uses
-        // Approved=0.
+        // Write to the Reports table by ID, using field IDs. The Facility
+        // column is a multipleRecordLinks field and cannot accept a plain
+        // string, so the facility name is prepended to Report_Text instead.
+        const todayDate = new Date().toISOString().slice(0, 10);
         const fields = {
-          Reporter:       reporterName,
-          Email:          email,
-          Facility:       facilityName,
-          Report_Text:    reportText,
-          Address:        address,
-          City:           cityParam,
-          Country:        countryParam,
-          Symptoms:       symptoms,
-          Duration:       duration,
-          Approved:       0,
-          Date_Submitted: new Date().toISOString().slice(0, 10),
-          Source:         "CommunityReport",
+          fldIvUyYCPw150VXi: reporterName,
+          fldvFopZGRsuuhQyc: facilityName + "\n\n" + reportText,
+          fldmqFjSvXE3dPMhx: todayDate,
+          fldseZCyavu7yQy6a: false,
+          fldbC786WMhXAXwRw: cityParam,
+          fldCLoVFsFMnp0OSZ: countryParam,
+          fld8So0zk95HZ4IpR: email,
+          fldtMdp3kL6trwVlm: symptoms,
+          fldZHDl5rMXOTduyo: duration,
+          fldBBHPerVbEJqWQz: false,
         };
 
-        const r = await fetch(`${APIURL}/Reports`, {
+        const r = await fetch(`${APIURL}/tblBBaQ4NFCdaS6Tk?returnFieldsByFieldId=true`, {
           method: "POST",
           headers: HDR,
           body: JSON.stringify({ fields }),
