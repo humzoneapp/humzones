@@ -2689,6 +2689,16 @@ const Footer = ({ onNavigate }) => {
   const [sampleBusy, setSampleBusy] = useState(false);
   const go = (to) => { if (onNavigate) onNavigate(to); };
 
+  // Navigate home, then smoothly scroll to the Find Data Centers Near Me
+  // section once the home page has rendered.
+  const goNearMe = () => {
+    go("/");
+    setTimeout(() => {
+      const el = document.getElementById("near-me");
+      if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 350);
+  };
+
   const handleSample = async () => {
     if (sampleBusy) return;
     setSampleBusy(true);
@@ -2740,8 +2750,8 @@ const Footer = ({ onNavigate }) => {
             <div style={colHead}>Explore</div>
             <div style={colWrap}>
               {navLink("Home","/")}
-              <button onClick={()=>go("/")} className="hz-foot-link" style={linkBase}>Find Data Centers Near Me</button>
-              <button onClick={()=>go("/")} className="hz-foot-link" style={linkBase}>Community Reports</button>
+              <a href="/#near-me" onClick={e=>{e.preventDefault();goNearMe();}} className="hz-foot-link" style={linkBase}>Find Data Centers Near Me</a>
+              {navLink("Community Reports","/submit-report")}
               {navLink("Submit Your Report","/submit-report")}
               {navLink("Methodology","/methodology")}
               {navLink("FAQ","/faq")}
@@ -6248,7 +6258,7 @@ export default function App() {
         <main className="main" ref={topRef} style={{maxWidth:1040,margin:"0 auto",padding:"36px 24px 72px",width:"100%",boxSizing:"border-box",overflowX:"hidden"}}>
 
           {/* FIND DATA CENTERS NEAR ME */}
-          <section className="near-panel" style={{background:"#fff",borderRadius:24,boxShadow:"0 8px 48px rgba(0,0,0,.10)",padding:"26px 26px 22px",marginBottom:28}}>
+          <section id="near-me" className="near-panel" style={{background:"#fff",borderRadius:24,boxShadow:"0 8px 48px rgba(0,0,0,.10)",padding:"26px 26px 22px",marginBottom:28,scrollMarginTop:24}}>
             <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:18,flexWrap:"wrap"}}>
               <span style={{fontSize:26,lineHeight:1}} role="img" aria-label="Pin">📍</span>
               <h2 style={{fontSize:22,fontWeight:900,color:"#0f172a",letterSpacing:"-.01em",margin:0}}>Find Data Centers Near Me</h2>
