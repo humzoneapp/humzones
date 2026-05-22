@@ -2733,16 +2733,7 @@ const Footer = ({ onNavigate }) => {
             </div>
             <div style={{fontSize:13,color:"#94a3b8",marginBottom:3}}>HumZones Technologies Inc.</div>
             <div style={{fontSize:13,color:"#94a3b8",marginBottom:14,lineHeight:1.5}}>Global Data Center Health & Infrastructure Registry</div>
-            <div style={{fontSize:13,color:"#f97316",fontWeight:700,lineHeight:1.6,marginBottom:18}}>Transparency in infrastructure. Awareness for communities.</div>
-            <div style={{display:"flex",gap:10,flexWrap:"wrap"}}>
-              {SHARE_TARGETS.map(s=>(
-                <a key={s.name} href={s.url} aria-label={`Share on ${s.name}`}
-                  {...(s.newTab ? { target:"_blank", rel:"noopener noreferrer" } : {})}
-                  style={{width:32,height:32,borderRadius:"50%",background:s.color,display:"inline-flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
-                  <span style={{display:"inline-flex",transform:"scale(.8)"}}>{s.icon}</span>
-                </a>
-              ))}
-            </div>
+            <div style={{fontSize:13,color:"#f97316",fontWeight:700,lineHeight:1.6}}>Transparency in infrastructure. Awareness for communities.</div>
           </div>
 
           {/* Column 2: Explore */}
