@@ -211,6 +211,16 @@ const buildLocationString = (dc) => {
   return parts.join(", ");
 };
 
+// Format the live facility-database size for marketing copy. Under 1000 shows
+// the exact count; 1000 or more rounds down to the nearest hundred with a
+// trailing plus. Falls back to "1,000+" before the Airtable data has loaded.
+const facilityCountLabel = (n) => {
+  const c = Number(n) || 0;
+  if (c < 1)    return "1,000+";
+  if (c < 1000) return c.toLocaleString("en-US");
+  return (Math.floor(c / 100) * 100).toLocaleString("en-US") + "+";
+};
+
 // ─── ICONS ────────────────────────────────────────────────────────────────────
 const Icon = ({ name, size = 24, color = "currentColor" }) => {
   const s = { width: size, height: size, display: "inline-block", flexShrink: 0, verticalAlign: "middle" };
@@ -3224,7 +3234,7 @@ const Footer = ({ onNavigate }) => {
 };
 
 // ─── /business: PRICING PAGE ─────────────────────────────────────────────────
-const BusinessPlansPage = ({ onNavigate }) => {
+const BusinessPlansPage = ({ onNavigate, facilityCount }) => {
   const [annual, setAnnual] = useState(false);
   const [sampleBusy, setSampleBusy] = useState(false);
 
@@ -3385,7 +3395,7 @@ const BusinessPlansPage = ({ onNavigate }) => {
 
       <section style={{maxWidth:780,margin:"0 auto",padding:"12px 24px 60px",textAlign:"center"}}>
         <p style={{fontSize:15,color:"rgba(255,255,255,.72)",lineHeight:1.7,marginBottom:14}}>
-          All plans include instant PDF delivery, 100km coverage and the full HumZones facility database.
+          All plans include instant PDF delivery, 100km coverage and the full HumZones facility database of {facilityCountLabel(facilityCount)} facilities.
         </p>
         <p style={{fontSize:14,color:"rgba(255,255,255,.55)"}}>
           Already a member? <a href="/business-login" onClick={e=>{e.preventDefault();onNavigate("/business-login");}} style={{color:"#f97316",fontWeight:700,textDecoration:"none"}}>Sign in</a>
@@ -5917,7 +5927,7 @@ const ContactPage = ({ onNavigate }) => {
 };
 
 // ─── /about: ABOUT PAGE ──────────────────────────────────────────────────────
-const AboutPage = ({ onNavigate }) => {
+const AboutPage = ({ onNavigate, facilityCount }) => {
   const h2 = { fontSize:"clamp(26px,4vw,34px)", fontWeight:900, letterSpacing:"-.02em", marginBottom:18, lineHeight:1.2 };
   const para = (color) => ({ fontSize:16, lineHeight:1.8, color, whiteSpace:"pre-line", margin:0 });
   const btn = { padding:"14px 28px", borderRadius:12, border:"none", cursor:"pointer", fontFamily:"inherit", fontSize:15, fontWeight:900, background:"linear-gradient(135deg,#ef4444,#f97316)", color:"#fff", boxShadow:"0 10px 28px rgba(249,115,22,.4)" };
@@ -5960,7 +5970,7 @@ const AboutPage = ({ onNavigate }) => {
       <section style={{background:"#0f172a",padding:"60px 24px"}}>
         <div style={{maxWidth:820,margin:"0 auto"}}>
           <h2 style={{...h2,color:"#fff"}}>Our Data</h2>
-          <p style={{...para("rgba(255,255,255,.78)"),marginBottom:14}}>HumZones currently tracks over 1,000 facilities across the United States and internationally, with new facilities added regularly. Our database is compiled from:</p>
+          <p style={{...para("rgba(255,255,255,.78)"),marginBottom:14}}>HumZones currently tracks {facilityCountLabel(facilityCount)} facilities across the United States and internationally, with new facilities added regularly. Our database is compiled from:</p>
           <ul style={{margin:"0 0 14px 0",padding:"0 0 0 22px",color:"rgba(255,255,255,.78)",fontSize:16,lineHeight:1.9}}>
             <li>Municipal planning and zoning filings</li>
             <li>Utility interconnection applications</li>
@@ -6000,7 +6010,8 @@ const AboutPage = ({ onNavigate }) => {
 };
 
 // ─── /faq: FREQUENTLY ASKED QUESTIONS ────────────────────────────────────────
-const FAQ_DATA = [
+// Built as a function so the database-size answer reflects the live count.
+const buildFaqData = (facilityCountLabelText) => [
   { section:"About HumZones", items:[
     { q:"What is HumZones?", a:"HumZones is the Global Data Center Health & Infrastructure Registry. We compile publicly available information about data center facilities worldwide and make it accessible to residents, researchers, real estate professionals and community advocates." },
     { q:"Who is behind HumZones?", a:"HumZones is operated by HumZones Technologies Inc. We are a technology company focused on infrastructure transparency and community awareness." },
@@ -6009,7 +6020,7 @@ const FAQ_DATA = [
   { section:"Our Data", items:[
     { q:"Where does your data come from?", a:"Our facility data is compiled from publicly available sources including municipal planning filings, utility interconnection applications, operator press releases, sustainability reports, environmental assessment documents and permitting databases." },
     { q:"Are your figures accurate?", a:"All figures including power draw, noise levels, EMF exposure ranges, CO2 estimates and water consumption are modeled estimates derived from publicly available information using documented industry standard formulas. They are not certified field measurements. We are transparent about this on every page and in every report. See our methodology page for full details." },
-    { q:"How often is the database updated?", a:"We add new facilities regularly as we process public records and submissions. The database currently tracks over 1,000 facilities and grows continuously." },
+    { q:"How often is the database updated?", a:`We add new facilities regularly as we process public records and submissions. The database currently tracks ${facilityCountLabelText} facilities and grows continuously.` },
     { q:"Can I submit a correction?", a:"Yes. If you believe any data is materially incorrect please contact us at hello@humzones.com or use our contact form. We review all correction requests promptly." },
   ]},
   { section:"Reports", items:[
@@ -6030,9 +6041,10 @@ const FAQ_DATA = [
   ]},
 ];
 
-const FaqPage = ({ onNavigate }) => {
+const FaqPage = ({ onNavigate, facilityCount }) => {
   const [open, setOpen] = useState({});
   const toggle = (key) => setOpen(prev => ({ ...prev, [key]: !prev[key] }));
+  const faqData = buildFaqData(facilityCountLabel(facilityCount));
 
   return (
     <div style={{minHeight:"100vh",background:"#f1f5f9",width:"100%",maxWidth:"100vw",overflowX:"hidden"}}>
@@ -6041,7 +6053,7 @@ const FaqPage = ({ onNavigate }) => {
 
       <section style={{background:"#fff",padding:"54px 24px"}}>
         <div style={{maxWidth:820,margin:"0 auto"}}>
-          {FAQ_DATA.map((sec,si)=>(
+          {faqData.map((sec,si)=>(
             <div key={sec.section} style={{marginBottom:34}}>
               <h2 style={{fontSize:20,fontWeight:900,color:"#0f172a",letterSpacing:"-.01em",marginBottom:14}}>{sec.section}</h2>
               <div style={{border:"1px solid #e2e8f0",borderRadius:14,overflow:"hidden"}}>
@@ -6648,7 +6660,7 @@ export default function App() {
       ) : path === "/verify-report" ? (
         <VerifyReportPage onNavigate={navigate}/>
       ) : path === "/business" ? (
-        <BusinessPlansPage onNavigate={navigate}/>
+        <BusinessPlansPage onNavigate={navigate} facilityCount={facs.length}/>
       ) : path === "/business-success" ? (
         <BusinessSuccessPage onNavigate={navigate}/>
       ) : path === "/business-generate" ? (
@@ -6672,9 +6684,9 @@ export default function App() {
       ) : path === "/contact" ? (
         <ContactPage onNavigate={navigate}/>
       ) : path === "/about" ? (
-        <AboutPage onNavigate={navigate}/>
+        <AboutPage onNavigate={navigate} facilityCount={facs.length}/>
       ) : path === "/faq" ? (
-        <FaqPage onNavigate={navigate}/>
+        <FaqPage onNavigate={navigate} facilityCount={facs.length}/>
       ) : path === "/terms" ? (
         <TermsPage onNavigate={navigate}/>
       ) : (
