@@ -6045,6 +6045,15 @@ const ContactPage = ({ onNavigate }) => {
 
   return (
     <div style={{minHeight:"100vh",background:"#f1f5f9",width:"100%",maxWidth:"100vw",overflowX:"hidden"}}>
+      {/* Back button: sits in a dark strip above the hero so the standard
+          back-button styling stays visible and blends into the hero. */}
+      <div style={{background:"#020c1b",padding:"18px 24px 0"}}>
+        <div style={{maxWidth:1100,margin:"0 auto"}}>
+          <button onClick={()=>window.history.back()} className="back-btn" aria-label="Go back" style={{display:"inline-flex",alignItems:"center",gap:8,background:"rgba(255,255,255,.08)",border:"1px solid rgba(255,255,255,.20)",color:"#fff",padding:"12px 20px",borderRadius:10,fontSize:14,fontWeight:800,letterSpacing:".05em",cursor:"pointer",fontFamily:"inherit"}}>
+            <span style={{fontSize:17,lineHeight:1}}>&larr;</span> Back
+          </button>
+        </div>
+      </div>
       <PageHero onNavigate={onNavigate} title="Contact Us"
         subtitle="We would love to hear from you. Whether you have a question about our data, a report to discuss, or a media inquiry, we are here to help."/>
 
