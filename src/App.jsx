@@ -480,6 +480,12 @@ const CSS = `
   @media(max-width:640px){
     .upsell-heading{font-size:22px!important;margin:0 0 12px!important}
   }
+  /* /get-report upsell heading: a larger, bolder variant so it reads as the
+     single most dominant element in that banner. */
+  .get-report-upsell-heading{font-size:32px!important;font-weight:900!important;color:#fff!important;text-shadow:0 4px 16px rgba(0,0,0,.5)!important;line-height:1.12!important;letter-spacing:-.025em!important;margin:0 0 16px!important;display:block!important}
+  @media(max-width:640px){
+    .get-report-upsell-heading{font-size:24px!important;margin:0 0 12px!important}
+  }
   .clear-btn{transition:all .2s;cursor:pointer;font-family:inherit}
   .clear-btn:hover{background:rgba(255,255,255,.18)!important}
   .ext-link{transition:opacity .15s;text-decoration:none}
@@ -1569,22 +1575,22 @@ const GetReportPage = ({ onNavigate }) => {
             {/* Upsell banner: shown only once the email gate has been passed. */}
             {emailUnlocked && results.length>0 && (
               <div className="fade-in" style={{background:"linear-gradient(150deg,#0a1628 0%,#0f172a 50%,#1e0535 100%)",borderRadius:18,padding:"36px 28px 30px",textAlign:"center",border:"1px solid rgba(249,115,22,.32)",boxShadow:"0 18px 50px rgba(0,0,0,.35),inset 0 1px 0 rgba(255,255,255,.05)",marginBottom:24}}>
-                <h3 className="upsell-heading">There&apos;s More You Should Know</h3>
-                <div style={{fontSize:16,color:"#f97316",fontWeight:700,marginBottom:14,letterSpacing:".01em"}}>
+                <h3 className="get-report-upsell-heading">There&apos;s More You Should Know</h3>
+                <div style={{fontSize:18,color:"#f97316",fontWeight:700,marginBottom:14,letterSpacing:".01em"}}>
                   Unlock Your Full HumZones Area Report
                 </div>
-                <p style={{fontSize:15,color:"rgba(255,255,255,.78)",marginBottom:20,lineHeight:1.7,maxWidth:560,marginLeft:"auto",marginRight:"auto"}}>
+                <p style={{fontSize:16,color:"rgba(255,255,255,.92)",marginBottom:20,lineHeight:1.7,maxWidth:560,marginLeft:"auto",marginRight:"auto"}}>
                   {radius===100 ? (
                     <>You found {results.length} {results.length===1?"facility":"facilities"} within 100km. Your Full Report includes detailed infrastructure analysis, modeled EMF ranges, noise levels and exposure assessments for every facility near you.</>
                   ) : (
                     <>You found {results.length} {results.length===1?"facility":"facilities"} within {radius}km. Your Full Report reveals all {facilities100kmCount} facilities within 100km including {high100kmCount} HIGH exposure {high100kmCount===1?"site":"sites"} you may not know about.</>
                   )}
                 </p>
-                <div style={{display:"inline-flex",alignItems:"center",gap:6,background:"#f97316",color:"#fff",fontSize:12,fontWeight:800,padding:"6px 14px",borderRadius:999,boxShadow:"0 4px 14px rgba(249,115,22,.45)",letterSpacing:".02em",marginBottom:18}}>
+                <div style={{display:"inline-flex",alignItems:"center",gap:6,background:"#f97316",color:"#fff",fontSize:14,fontWeight:800,padding:"7px 16px",borderRadius:999,boxShadow:"0 4px 14px rgba(249,115,22,.45)",letterSpacing:".02em",marginBottom:18}}>
                   <span role="img" aria-label="Lightning">⚡</span> Instant Download
                 </div>
                 <div>
-                  <button onClick={handleShowEverything} style={{padding:"16px 32px",borderRadius:14,border:"none",background:"linear-gradient(135deg,#ef4444,#f97316)",color:"#fff",fontSize:17,fontWeight:900,letterSpacing:".02em",cursor:"pointer",fontFamily:"inherit",boxShadow:"0 10px 32px rgba(239,68,68,.45)"}}>
+                  <button onClick={handleShowEverything} style={{padding:"16px 40px",borderRadius:14,border:"none",background:"linear-gradient(135deg,#ef4444,#f97316)",color:"#fff",fontSize:18,fontWeight:700,letterSpacing:".02em",cursor:"pointer",fontFamily:"inherit",boxShadow:"0 10px 32px rgba(239,68,68,.45)"}}>
                     Show Me Everything
                   </button>
                 </div>
