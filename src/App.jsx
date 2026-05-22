@@ -601,7 +601,7 @@ const FacilityMapImage = ({ dc, rc }) => {
       {/* Status/risk badges */}
       <div style={{position:"absolute",bottom:18,left:20,display:"flex",gap:8,flexWrap:"wrap"}}>
         <Chip label={STATUS[dc.Facility_Status]?.label || dc.Facility_Status} color={STATUS[dc.Facility_Status]?.color || "#64748b"}/>
-        <Chip label={`${dc.Risk_Level} RISK`} color={rc}/>
+        <Chip label={`${dc.Risk_Level} EXPOSURE`} color={rc}/>
       </div>
     </div>
   );
@@ -3259,7 +3259,7 @@ const BusinessGeneratePage = ({ onNavigate }) => {
                         {f.Company && <div style={{fontSize:13,color:"rgba(255,255,255,.6)"}}>{f.Company}</div>}
                       </div>
                       <span style={{padding:"4px 12px",borderRadius:20,background:`${riskColor(f.Risk_Level)}22`,border:`1px solid ${riskColor(f.Risk_Level)}66`,color:riskColor(f.Risk_Level),fontSize:11,fontWeight:900,letterSpacing:".10em"}}>
-                        {String(f.Risk_Level || "UNKNOWN").toUpperCase()}
+                        {`${String(f.Risk_Level || "UNKNOWN").toUpperCase()} EXPOSURE`}
                       </span>
                     </div>
                     <div style={{fontSize:13,color:"#f97316",fontWeight:700,marginBottom:10}}>{Number(f._km).toFixed(1)} km away</div>
@@ -5375,7 +5375,7 @@ export default function App() {
                           </div>
                           <div style={{display:"flex",flexDirection:"column",gap:4,alignItems:"flex-end",flexShrink:0}}>
                             <Chip label={s2.label} color={s2.color} small/>
-                            <Chip label={f.Risk_Level} color={r2} small/>
+                            <Chip label={`${f.Risk_Level} EXPOSURE`} color={r2} small/>
                           </div>
                         </div>
                       </div>
@@ -5553,7 +5553,7 @@ export default function App() {
                     </div>
                     <div style={{display:"flex",gap:6}}>
                       <Chip label={st.label} color={st.color} small/>
-                      <Chip label={f.Risk_Level} color={rclr} small/>
+                      <Chip label={`${f.Risk_Level} EXPOSURE`} color={rclr} small/>
                     </div>
                   </div>
                 </div>
