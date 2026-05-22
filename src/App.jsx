@@ -560,6 +560,18 @@ const CSS = `
   /* Research source pills: subtle grey resting state, orange on hover. */
   .hz-research-pill{transition:border-color .15s, color .15s, background .15s}
   .hz-research-pill:hover{border-color:#f97316!important;color:#f97316!important;background:#fff7ed!important}
+  /* Live Registry Status: vertical dividers on desktop, dropped on mobile.
+     The pulsing dot signals that the counts are drawn from live data. */
+  .hz-status-item + .hz-status-item{border-left:1px solid #e2e8f0}
+  @media(max-width:560px){
+    .hz-status-item + .hz-status-item{border-left:none}
+  }
+  @keyframes hzLivePulse{
+    0%{box-shadow:0 0 0 0 rgba(34,197,94,.55)}
+    70%{box-shadow:0 0 0 9px rgba(34,197,94,0)}
+    100%{box-shadow:0 0 0 0 rgba(34,197,94,0)}
+  }
+  .hz-live-dot{animation:hzLivePulse 1.8s ease-out infinite}
   .hz-faq-q{transition:background .15s}
   .hz-faq-q:hover{background:#f8fafc}
   @media(max-width:900px){
@@ -1885,7 +1897,7 @@ const GetReportPage = ({ onNavigate }) => {
         )}
       </div>
 
-      <Footer onNavigate={onNavigate}/>
+      <Footer onNavigate={onNavigate} facilities={facs}/>
     </div>
   );
 };
@@ -3292,7 +3304,7 @@ const REPORT_INCLUDES = [
 // ─── SITE FOOTER ──────────────────────────────────────────────────────────────
 // Reusable 4-column footer rendered on every page. The "View Sample Report"
 // link generates the placeholder sample PDF on the fly.
-const Footer = ({ onNavigate }) => {
+const Footer = ({ onNavigate, facilities = [] }) => {
   const [sampleBusy, setSampleBusy] = useState(false);
   const go = (to) => { if (onNavigate) onNavigate(to); };
 
@@ -3327,6 +3339,19 @@ const Footer = ({ onNavigate }) => {
   );
   const colWrap = { display:"flex", flexDirection:"column", gap:11, alignItems:"flex-start" };
 
+  // Live counts of facilities by status, drawn from the already-fetched
+  // Airtable data. Only statuses with at least one facility are shown. The
+  // Proposed bucket accepts either PLANNED or PROPOSED status values.
+  const statusMeta = [
+    { label:"Operating",          color:"#22c55e", match:["OPERATING"],          live:true  },
+    { label:"Under Construction", color:"#f97316", match:["BUILDING"],           live:false },
+    { label:"Proposed",           color:"#3b82f6", match:["PLANNED","PROPOSED"], live:false },
+    { label:"Approved",           color:"#8b5cf6", match:["APPROVED"],           live:false },
+  ];
+  const statusCounts = statusMeta
+    .map(s => ({ ...s, count: facilities.filter(f => s.match.includes(String(f.Facility_Status || "").toUpperCase())).length }))
+    .filter(s => s.count > 0);
+
   // Peer-reviewed and open research the registry draws on. Each badge opens
   // its source in a new tab.
   const researchSources = [
@@ -3360,6 +3385,26 @@ const Footer = ({ onNavigate }) => {
           </div>
         </div>
       </div>
+
+      {/* LIVE REGISTRY STATUS */}
+      {statusCounts.length > 0 && (
+        <div style={{background:"#fff",borderBottom:"1px solid #e2e8f0",padding:"34px 24px"}}>
+          <div style={{maxWidth:900,margin:"0 auto",textAlign:"center"}}>
+            <div style={{fontSize:12,color:"#94a3b8",letterSpacing:".18em",textTransform:"uppercase",fontWeight:800,marginBottom:18}}>Live Registry Status</div>
+            <div style={{display:"flex",flexWrap:"wrap",justifyContent:"center",alignItems:"stretch"}}>
+              {statusCounts.map(s=>(
+                <div key={s.label} className="hz-status-item" style={{display:"flex",flexDirection:"column",alignItems:"center",padding:"6px 30px"}}>
+                  <div style={{display:"flex",alignItems:"center",gap:9}}>
+                    {s.live && <span className="hz-live-dot" style={{width:9,height:9,borderRadius:"50%",background:"#22c55e",display:"inline-block",flexShrink:0}}/>}
+                    <span style={{fontSize:40,fontWeight:900,lineHeight:1,letterSpacing:"-.02em",color:s.color}}>{s.count}</span>
+                  </div>
+                  <div style={{fontSize:13,fontWeight:700,color:"#64748b",marginTop:9}}>{s.label}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* TOP: 4 columns */}
       <div style={{maxWidth:1180,margin:"0 auto",padding:"48px 24px 38px"}}>
@@ -3444,7 +3489,7 @@ const Footer = ({ onNavigate }) => {
 };
 
 // ─── /business: PRICING PAGE ─────────────────────────────────────────────────
-const BusinessPlansPage = ({ onNavigate, facilityCount }) => {
+const BusinessPlansPage = ({ onNavigate, facilityCount, facs = [] }) => {
   const [annual, setAnnual] = useState(false);
   const [sampleBusy, setSampleBusy] = useState(false);
 
@@ -3692,7 +3737,7 @@ const BusinessPlansPage = ({ onNavigate, facilityCount }) => {
         </div>
       </section>
 
-      <Footer onNavigate={onNavigate}/>
+      <Footer onNavigate={onNavigate} facilities={facs}/>
     </div>
   );
 };
@@ -6162,7 +6207,7 @@ const SubmitReportPage = ({ onNavigate }) => {
 
       {/* FOOTER (shared with the business pages, on a dark backdrop) */}
       <div style={{background:"#0a0f1e"}}>
-        <Footer onNavigate={onNavigate}/>
+        <Footer onNavigate={onNavigate} facilities={facs}/>
       </div>
     </div>
   );
@@ -7161,7 +7206,7 @@ export default function App() {
       ) : path === "/verify-report" ? (
         <VerifyReportPage onNavigate={navigate}/>
       ) : path === "/business" ? (
-        <BusinessPlansPage onNavigate={navigate} facilityCount={facs.length}/>
+        <BusinessPlansPage onNavigate={navigate} facilityCount={facs.length} facs={facs}/>
       ) : path === "/business-success" ? (
         <BusinessSuccessPage onNavigate={navigate}/>
       ) : path === "/business-generate" ? (
@@ -8041,7 +8086,7 @@ export default function App() {
           </button>
         )}
 
-        <Footer onNavigate={navigate}/>
+        <Footer onNavigate={navigate} facilities={facs}/>
 
       </div>
       )}
