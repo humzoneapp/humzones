@@ -1888,12 +1888,13 @@ const GetReportPage = ({ onNavigate }) => {
           </>
         )}
 
-        {/* Before a search runs, show the same social share and interactive
-            map cards as the main page. They are hidden once results appear. */}
+        {/* Before a search runs, show the same interactive map and social
+            share cards as the main page. They are hidden once results
+            appear. The map card sits above the share card. */}
         {!loc && (
           <>
-            <ShareSection/>
             <MapSection facilities={facs} loading={loading}/>
+            <ShareSection/>
           </>
         )}
       </div>
