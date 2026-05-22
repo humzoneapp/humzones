@@ -574,6 +574,15 @@ const CSS = `
   }
   .leaflet-container{font-family:inherit}
   .leaflet-popup-content{margin:14px 16px}
+
+  /* AI chat widget: floating button hover and the typing indicator. The
+     bottom transition animates the lift above the cookie banner. */
+  .hz-chat-fab{background:#f97316;transition:transform .15s ease,background .15s ease,bottom .3s ease}
+  .hz-chat-fab:hover{background:#ea580c;transform:scale(1.05)}
+  @keyframes hzChatDot{0%,80%,100%{opacity:.3;transform:translateY(0)}40%{opacity:1;transform:translateY(-3px)}}
+  .hz-typing span{display:inline-block;width:7px;height:7px;border-radius:50%;background:#94a3b8;margin:0 2px;animation:hzChatDot 1.2s infinite}
+  .hz-typing span:nth-child(2){animation-delay:.15s}
+  .hz-typing span:nth-child(3){animation-delay:.3s}
 `;
 
 // ─── COMPONENTS ───────────────────────────────────────────────────────────────
@@ -4926,7 +4935,7 @@ const CookieConsent = ({ onNavigate }) => {
   };
 
   return (
-    <div style={{position:"fixed",left:0,right:0,bottom:0,zIndex:10000,background:"#0a1628",borderTop:"1px solid rgba(249,115,22,.4)",boxShadow:"0 -10px 40px rgba(0,0,0,.5)"}}>
+    <div id="hz-cookie-banner" style={{position:"fixed",left:0,right:0,bottom:0,zIndex:10000,background:"#0a1628",borderTop:"1px solid rgba(249,115,22,.4)",boxShadow:"0 -10px 40px rgba(0,0,0,.5)"}}>
       <style>{`
         @media (max-width: 640px) {
           .hz-cookie-row { flex-direction: column; align-items: stretch !important; }
@@ -4948,6 +4957,228 @@ const CookieConsent = ({ onNavigate }) => {
         </div>
       </div>
     </div>
+  );
+};
+
+// ─── AI CHAT WIDGET ──────────────────────────────────────────────────────────
+// Floating assistant powered by the Claude API. The browser only ever calls
+// the same-origin /api/chat serverless function, which holds the Anthropic
+// key server-side. History persists in localStorage for 24 hours.
+const CHAT_HISTORY_KEY = "humzones_chat_history";
+const CHAT_SEEN_KEY    = "humzones_chat_seen";
+const CHAT_HISTORY_TTL = 24 * 60 * 60 * 1000;
+const CHAT_WELCOME = "Hi there! I am the HumZones Assistant. I can help you understand data centers near your home, explain what our infrastructure data means, or guide you to the right report for your needs. What would you like to know?";
+const CHAT_SUGGESTIONS = [
+  "What data centers are near me?",
+  "What do the exposure categories mean?",
+  "How do I get a full report?",
+];
+
+const ChatWidget = () => {
+  const [open, setOpen] = useState(false);
+  const [messages, setMessages] = useState(() => {
+    if (typeof window === "undefined") return [];
+    try {
+      const raw = localStorage.getItem(CHAT_HISTORY_KEY);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (parsed && Array.isArray(parsed.messages) && Date.now() - parsed.ts < CHAT_HISTORY_TTL) {
+          return parsed.messages;
+        }
+        localStorage.removeItem(CHAT_HISTORY_KEY);
+      }
+    } catch {}
+    return [];
+  });
+  const [input, setInput]     = useState("");
+  const [loading, setLoading] = useState(false);
+  const [notif, setNotif]     = useState(() => {
+    if (typeof window === "undefined") return false;
+    try { return !localStorage.getItem(CHAT_SEEN_KEY); } catch { return false; }
+  });
+  const [bannerOffset, setBannerOffset] = useState(0);
+  const [isMobile, setIsMobile] = useState(() => typeof window !== "undefined" && window.innerWidth <= 600);
+
+  const bodyRef = useRef(null);
+  const taRef   = useRef(null);
+
+  // Persist the conversation so it survives page navigation.
+  useEffect(() => {
+    try {
+      if (messages.length) localStorage.setItem(CHAT_HISTORY_KEY, JSON.stringify({ ts: Date.now(), messages }));
+    } catch {}
+  }, [messages]);
+
+  useEffect(() => {
+    const onResize = () => setIsMobile(window.innerWidth <= 600);
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, []);
+
+  // Watch the cookie banner. While humzones_cookie_consent is unset the banner
+  // is showing, so lift the bubble and window above it by the banner height
+  // plus 16px. Same-tab localStorage writes do not fire the storage event, so
+  // poll until consent is recorded, then stop.
+  useEffect(() => {
+    const measure = () => {
+      const el = document.getElementById("hz-cookie-banner");
+      setBannerOffset(el ? el.offsetHeight + 16 : 0);
+    };
+    measure();
+    window.addEventListener("resize", measure);
+    let iv = null;
+    try {
+      if (!localStorage.getItem(COOKIE_CONSENT_KEY)) {
+        iv = setInterval(() => {
+          measure();
+          try {
+            if (localStorage.getItem(COOKIE_CONSENT_KEY)) { measure(); clearInterval(iv); iv = null; }
+          } catch {}
+        }, 400);
+      }
+    } catch {}
+    return () => { window.removeEventListener("resize", measure); if (iv) clearInterval(iv); };
+  }, []);
+
+  // Keep the message list scrolled to the newest entry.
+  useEffect(() => {
+    if (open && bodyRef.current) bodyRef.current.scrollTop = bodyRef.current.scrollHeight;
+  }, [messages, loading, open]);
+
+  const openChat = () => {
+    setOpen(true);
+    setNotif(false);
+    try { localStorage.setItem(CHAT_SEEN_KEY, "1"); } catch {}
+    setMessages(prev => prev.length ? prev : [{ role:"assistant", content:CHAT_WELCOME, ts:Date.now(), welcome:true }]);
+  };
+
+  const send = async (text) => {
+    const content = (text || "").trim();
+    if (!content || loading) return;
+    const next = [...messages, { role:"user", content, ts:Date.now() }];
+    setMessages(next);
+    setInput("");
+    if (taRef.current) taRef.current.style.height = "auto";
+    setLoading(true);
+    try {
+      // Drop the UI-only welcome message, keep the last 10 turns, and make
+      // sure the history sent to the API begins with a user message.
+      let payload = next.filter(m => !m.welcome).map(m => ({ role:m.role, content:m.content })).slice(-10);
+      while (payload.length && payload[0].role !== "user") payload = payload.slice(1);
+      const r = await fetch("/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ messages: payload }),
+      });
+      const data = await r.json().catch(() => ({}));
+      if (!r.ok || !data.reply) throw new Error(data.error || "No response");
+      setMessages(m => [...m, { role:"assistant", content:data.reply, ts:Date.now() }]);
+    } catch (e) {
+      console.error("Chat send failed:", e);
+      setMessages(m => [...m, { role:"assistant", content:"Sorry, I could not respond just now. Please try again in a moment, or contact hello@humzones.com.", ts:Date.now() }]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const onKey = (e) => {
+    if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(input); }
+  };
+  const fmtTime = (ts) => {
+    try { return new Date(ts).toLocaleTimeString([], { hour:"numeric", minute:"2-digit" }); } catch { return ""; }
+  };
+
+  const showSuggestions = messages.length > 0 && !messages.some(m => m.role === "user");
+
+  const windowStyle = isMobile
+    ? { position:"fixed", left:0, right:0, bottom:bannerOffset, width:"100vw", height:"60vh", borderRadius:"16px 16px 0 0" }
+    : { position:"fixed", right:24, bottom:90 + bannerOffset, width:360, height:500, borderRadius:16 };
+
+  return (
+    <>
+      {!open && (
+        <button
+          className="hz-chat-fab"
+          onClick={openChat}
+          aria-label="Open the HumZones Assistant chat"
+          style={{position:"fixed",right:24,bottom:24 + bannerOffset,zIndex:9998,width:56,height:56,borderRadius:"50%",border:"none",cursor:"pointer",boxShadow:"0 8px 24px rgba(249,115,22,.45)",display:"flex",alignItems:"center",justifyContent:"center"}}
+        >
+          <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+          </svg>
+          {notif && (
+            <span style={{position:"absolute",top:-3,right:-3,minWidth:20,height:20,borderRadius:10,background:"#ef4444",color:"#fff",fontSize:11,fontWeight:800,display:"flex",alignItems:"center",justifyContent:"center",border:"2px solid #fff",padding:"0 4px",boxSizing:"border-box"}}>1</span>
+          )}
+        </button>
+      )}
+
+      {open && (
+        <div className="hz-chat-window" style={{...windowStyle,background:"#fff",boxShadow:"0 20px 60px rgba(0,0,0,0.2)",zIndex:9999,display:"flex",flexDirection:"column",overflow:"hidden",transition:"bottom .3s ease"}}>
+          {/* HEADER */}
+          <div style={{flexShrink:0,background:"#1e293b",borderRadius:"16px 16px 0 0",padding:"13px 14px",display:"flex",alignItems:"center",justifyContent:"space-between",gap:10}}>
+            <div style={{display:"flex",alignItems:"center",gap:10,minWidth:0}}>
+              <div style={{width:32,height:32,borderRadius:"50%",background:"#f97316",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
+                <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+                </svg>
+              </div>
+              <div style={{minWidth:0}}>
+                <div style={{display:"flex",alignItems:"center",gap:6}}>
+                  <span style={{fontSize:14,fontWeight:800,color:"#fff"}}>HumZones Assistant</span>
+                  <span style={{width:8,height:8,borderRadius:"50%",background:"#22c55e",boxShadow:"0 0 6px rgba(34,197,94,.9)",flexShrink:0}}/>
+                </div>
+                <div style={{fontSize:11,color:"#94a3b8",marginTop:1}}>Powered by AI. Ask me anything.</div>
+              </div>
+            </div>
+            <button onClick={()=>setOpen(false)} aria-label="Close chat" style={{background:"none",border:"none",color:"rgba(255,255,255,.7)",cursor:"pointer",padding:4,display:"flex",flexShrink:0}}>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M18 6L6 18M6 6l12 12"/></svg>
+            </button>
+          </div>
+
+          {/* BODY */}
+          <div ref={bodyRef} style={{flex:1,overflowY:"auto",background:"#fff",padding:"16px 14px",display:"flex",flexDirection:"column",gap:12}}>
+            {messages.map((m,i)=>(
+              <div key={i} style={{display:"flex",flexDirection:"column",alignItems:m.role==="user"?"flex-end":"flex-start"}}>
+                <div style={{maxWidth:"84%",padding:"10px 13px",borderRadius:14,fontSize:14,lineHeight:1.55,whiteSpace:"pre-wrap",wordBreak:"break-word",background:m.role==="user"?"#f97316":"#f1f5f9",color:m.role==="user"?"#fff":"#1e293b",borderBottomRightRadius:m.role==="user"?4:14,borderBottomLeftRadius:m.role==="user"?14:4}}>
+                  {m.content}
+                </div>
+                <div style={{fontSize:10,color:"#94a3b8",marginTop:3,padding:"0 4px"}}>{fmtTime(m.ts)}</div>
+              </div>
+            ))}
+            {showSuggestions && (
+              <div style={{display:"flex",flexDirection:"column",gap:8,marginTop:2}}>
+                {CHAT_SUGGESTIONS.map(q=>(
+                  <button key={q} onClick={()=>send(q)} disabled={loading} style={{textAlign:"left",padding:"9px 13px",borderRadius:12,border:"1px solid #f97316",background:"#fff7ed",color:"#c2410c",fontSize:13,fontWeight:600,cursor:loading?"default":"pointer",fontFamily:"inherit"}}>{q}</button>
+                ))}
+              </div>
+            )}
+            {loading && (
+              <div style={{display:"flex",justifyContent:"flex-start"}}>
+                <div className="hz-typing" style={{background:"#f1f5f9",borderRadius:14,borderBottomLeftRadius:4,padding:"13px 14px",display:"flex",alignItems:"center"}}>
+                  <span/><span/><span/>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* INPUT */}
+          <div style={{flexShrink:0,borderTop:"1px solid #e2e8f0",background:"#fff",padding:"10px 12px",display:"flex",alignItems:"flex-end",gap:8}}>
+            <textarea
+              ref={taRef}
+              value={input}
+              onChange={e=>{ setInput(e.target.value); const t=e.target; t.style.height="auto"; t.style.height=Math.min(t.scrollHeight,100)+"px"; }}
+              onKeyDown={onKey}
+              rows={1}
+              placeholder="Ask me anything about data centers..."
+              style={{flex:1,resize:"none",border:"1px solid #e2e8f0",borderRadius:12,padding:"10px 12px",fontSize:14,fontFamily:"inherit",outline:"none",maxHeight:100,lineHeight:1.4,color:"#1e293b",boxSizing:"border-box"}}
+            />
+            <button onClick={()=>send(input)} disabled={!input.trim()||loading} aria-label="Send message" style={{flexShrink:0,width:40,height:40,borderRadius:12,border:"none",cursor:(!input.trim()||loading)?"default":"pointer",background:(!input.trim()||loading)?"#fdba74":"#f97316",display:"flex",alignItems:"center",justifyContent:"center"}}>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"/></svg>
+            </button>
+          </div>
+        </div>
+      )}
+    </>
   );
 };
 
@@ -7779,6 +8010,7 @@ export default function App() {
       </div>
       )}
       <CookieConsent onNavigate={navigate}/>
+      <ChatWidget/>
     </>
   );
 }
