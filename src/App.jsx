@@ -5382,7 +5382,12 @@ const SubmitReportPage = ({ onNavigate }) => {
 
   useEffect(() => {
     let alive = true;
-    cachedFetch("Facilities", { "fields[]": [...FACILITY_LIST_FIELDS, "Address"] })
+    // Fetch straight from Airtable rather than via cachedFetch so the Address
+    // field (fldM1eSScQK8HD0Fh) is guaranteed in every record. cachedFetch
+    // keys its cache by table name only and ignores the requested fields, so
+    // an Address-less cached set loaded by another page would otherwise be
+    // served here and the confirmation card would fall back to the city.
+    apiFetch("Facilities", { "fields[]": [...FACILITY_LIST_FIELDS, "Address"] })
       .then(rows => { if (alive) { setFacs(rows); setLoading(false); } })
       .catch(() => { if (alive) setLoading(false); });
     return () => { alive = false; };
@@ -5651,8 +5656,8 @@ const SubmitReportPage = ({ onNavigate }) => {
                     <input value={selectedFacility.Name || ""} readOnly style={roInp}/>
                   </div>
                   <div style={{marginBottom:12}}>
-                    <label style={lbl}>Facility Address</label>
-                    <input value={buildLocationString(selectedFacility) || "Address not on file"} readOnly style={roInp}/>
+                    <label style={lbl}>Address</label>
+                    <input value={selectedFacility.Address || "Address not on file"} readOnly style={roInp}/>
                   </div>
                   <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:12}}>
                     <div>
