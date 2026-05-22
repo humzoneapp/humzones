@@ -517,6 +517,20 @@ const CSS = `
     .hero h1{font-size:38px!important}
     .scroll-hint{display:none!important}
   }
+
+  /* Site footer: 4 columns on desktop, 2 on tablet, stacked on mobile. */
+  .hz-footer-grid{display:grid;grid-template-columns:1.5fr 1fr 1fr 1fr;gap:36px}
+  .hz-foot-link{transition:color .15s}
+  .hz-foot-link:hover{color:#f97316!important}
+  .hz-faq-q{transition:background .15s}
+  .hz-faq-q:hover{background:#f8fafc}
+  @media(max-width:900px){
+    .hz-footer-grid{grid-template-columns:1fr 1fr!important;gap:28px!important}
+  }
+  @media(max-width:560px){
+    .hz-footer-grid{grid-template-columns:1fr!important}
+    .hz-footer-bottom{flex-direction:column!important;text-align:center!important;justify-content:center!important}
+  }
 `;
 
 // ─── COMPONENTS ───────────────────────────────────────────────────────────────
@@ -689,15 +703,7 @@ const MethodologyPage = ({ onBack, onNavigate }) => {
         </div>
       </main>
 
-      <footer style={{background:"#0a0f1e",padding:"32px 24px",textAlign:"center"}}>
-        <div style={{display:"flex",justifyContent:"center",gap:18,flexWrap:"wrap"}}>
-          <a href="/" onClick={e=>{e.preventDefault();go("/");}} className="ext-link" style={{color:"#f97316",fontSize:14,fontWeight:700,textDecoration:"none",letterSpacing:".02em"}}>Home</a>
-          <a href="/business" onClick={e=>{e.preventDefault();go("/business");}} className="ext-link" style={{color:"#f97316",fontSize:14,fontWeight:700,textDecoration:"none",letterSpacing:".02em"}}>Business Plans</a>
-          <a href="/my-report" onClick={e=>{e.preventDefault();go("/my-report");}} className="ext-link" style={{color:"#f97316",fontSize:14,fontWeight:700,textDecoration:"none",letterSpacing:".02em"}}>Retrieve My Report</a>
-          <a href="/privacy" onClick={e=>{e.preventDefault();go("/privacy");}} className="ext-link" style={{color:"#f97316",fontSize:14,fontWeight:700,textDecoration:"none",letterSpacing:".02em"}}>Privacy Policy</a>
-        </div>
-        <div style={{fontSize:13,color:"#475569",marginTop:16}}>HumZones Technologies Inc. | humzones.com</div>
-      </footer>
+      <Footer onNavigate={go}/>
     </div>
   );
 };
@@ -2676,40 +2682,123 @@ const REPORT_INCLUDES = [
   "Instant PDF download professionally formatted",
 ];
 
-// Reusable footer for the business-side pages. Mirrors the main-site footer
-// (links + disclaimer + copyright) so the business surface does not feel
-// detached from the rest of HumZones.
-const BusinessFooter = ({ onNavigate }) => (
-  <>
-    <div style={{borderTop:"1px solid rgba(255,255,255,.08)",padding:"28px 24px",textAlign:"center"}}>
-      <p style={{fontSize:12,color:"rgba(255,255,255,.55)",lineHeight:1.7,maxWidth:760,margin:"0 auto"}}>
-        Data Disclaimer: All figures shown including noise levels, EMF readings, power consumption, CO2 estimates, and water usage are research-based estimates compiled from public sources, permit filings, and industry standards. They are not certified measurements. Actual readings may vary by facility design, operating conditions, and season. HumZones is an informational resource only and does not constitute medical, legal, or environmental advice.
-        {" "}
-        <a href="/methodology" onClick={e=>{e.preventDefault();onNavigate("/methodology");}} className="ext-link" style={{color:"#f97316",fontWeight:700,textDecoration:"none"}}>Methodology</a>
-      </p>
-    </div>
-    <footer style={{background:"#0a0f1e",padding:"40px 24px 32px",textAlign:"center",borderTop:"1px solid rgba(255,255,255,.06)"}}>
-      <div style={{marginBottom:6}}>
-        <span style={{fontSize:24,fontWeight:900,letterSpacing:".08em",background:"linear-gradient(90deg,#ef4444,#f97316)",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent"}}>HumZones</span>
-        <sup style={{fontSize:13,color:"#f97316",fontWeight:700,verticalAlign:"super",marginLeft:2}}>TM</sup>
+// ─── SITE FOOTER ──────────────────────────────────────────────────────────────
+// Reusable 4-column footer rendered on every page. The "View Sample Report"
+// link generates the placeholder sample PDF on the fly.
+const Footer = ({ onNavigate }) => {
+  const [sampleBusy, setSampleBusy] = useState(false);
+  const go = (to) => { if (onNavigate) onNavigate(to); };
+
+  const handleSample = async () => {
+    if (sampleBusy) return;
+    setSampleBusy(true);
+    try {
+      const { doc } = await buildSampleReportPdf();
+      doc.save("HumZones-Sample-Report.pdf");
+    } catch (e) {
+      console.error("Sample report generation failed:", e);
+      window.alert("We could not generate the sample report. Please try again.");
+    } finally {
+      setSampleBusy(false);
+    }
+  };
+
+  const colHead = { fontSize:12, fontWeight:800, letterSpacing:".14em", textTransform:"uppercase", color:"#f97316", borderBottom:"1px solid rgba(255,255,255,.12)", paddingBottom:9, marginBottom:14 };
+  const linkBase = { color:"rgba(255,255,255,.78)", fontSize:14, fontWeight:600, textDecoration:"none", cursor:"pointer", background:"none", border:"none", padding:0, fontFamily:"inherit", textAlign:"left", lineHeight:1.5 };
+  const navLink = (label, to) => (
+    <a href={to} onClick={e=>{e.preventDefault();go(to);}} className="hz-foot-link" style={linkBase}>{label}</a>
+  );
+  const colWrap = { display:"flex", flexDirection:"column", gap:11, alignItems:"flex-start" };
+
+  return (
+    <footer style={{background:"#0a0f1e",color:"#fff"}}>
+      {/* TOP: 4 columns */}
+      <div style={{maxWidth:1180,margin:"0 auto",padding:"48px 24px 38px"}}>
+        <div className="hz-footer-grid">
+          {/* Column 1: Brand */}
+          <div>
+            <div style={{marginBottom:8}}>
+              <span style={{fontSize:24,fontWeight:900,color:"#fff",letterSpacing:".03em"}}>HumZones</span>
+              <sup style={{fontSize:12,color:"#f97316",fontWeight:700,verticalAlign:"super",marginLeft:2}}>TM</sup>
+            </div>
+            <div style={{fontSize:13,color:"#94a3b8",marginBottom:3}}>HumZones Technologies Inc.</div>
+            <div style={{fontSize:13,color:"#94a3b8",marginBottom:14,lineHeight:1.5}}>Global Data Center Health & Infrastructure Registry</div>
+            <div style={{fontSize:13,color:"#f97316",fontWeight:700,lineHeight:1.6,marginBottom:18}}>Transparency in infrastructure. Awareness for communities.</div>
+            <div style={{display:"flex",gap:10,flexWrap:"wrap"}}>
+              {SHARE_TARGETS.map(s=>(
+                <a key={s.name} href={s.url} aria-label={`Share on ${s.name}`}
+                  {...(s.newTab ? { target:"_blank", rel:"noopener noreferrer" } : {})}
+                  style={{width:32,height:32,borderRadius:"50%",background:s.color,display:"inline-flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
+                  <span style={{display:"inline-flex",transform:"scale(.8)"}}>{s.icon}</span>
+                </a>
+              ))}
+            </div>
+          </div>
+
+          {/* Column 2: Explore */}
+          <div>
+            <div style={colHead}>Explore</div>
+            <div style={colWrap}>
+              {navLink("Home","/")}
+              <button onClick={()=>go("/")} className="hz-foot-link" style={linkBase}>Find Data Centers Near Me</button>
+              <button onClick={()=>go("/")} className="hz-foot-link" style={linkBase}>Community Reports</button>
+              {navLink("Submit Your Report","/submit-report")}
+              {navLink("Methodology","/methodology")}
+              {navLink("FAQ","/faq")}
+            </div>
+          </div>
+
+          {/* Column 3: Reports & Plans */}
+          <div>
+            <div style={colHead}>Reports & Plans</div>
+            <div style={colWrap}>
+              {navLink("Get My Report","/report-landing")}
+              {navLink("Retrieve My Report","/my-report")}
+              {navLink("For Business","/business")}
+              {navLink("Business Login","/business-login")}
+              <button onClick={handleSample} disabled={sampleBusy} className="hz-foot-link" style={{...linkBase,cursor:sampleBusy?"wait":"pointer"}}>
+                {sampleBusy ? "Generating Sample..." : "View Sample Report"}
+              </button>
+            </div>
+          </div>
+
+          {/* Column 4: Company */}
+          <div>
+            <div style={colHead}>Company</div>
+            <div style={colWrap}>
+              {navLink("About Us","/about")}
+              {navLink("Contact Us","/contact")}
+              {navLink("Privacy Policy","/privacy")}
+              {navLink("Terms of Service","/terms")}
+              <a href="mailto:hello@humzones.com" className="hz-foot-link" style={{...linkBase,color:"#f97316"}}>hello@humzones.com</a>
+            </div>
+          </div>
+        </div>
       </div>
-      <div style={{fontSize:14,color:"#cbd5e1",fontWeight:700,marginBottom:6,letterSpacing:".02em"}}>HumZones Technologies Inc.</div>
-      <div style={{fontSize:14,color:"#64748b",marginBottom:20}}>Global Data Center Health & Infrastructure Registry</div>
-      <div style={{display:"flex",justifyContent:"center",gap:18,flexWrap:"wrap",marginBottom:22}}>
-        <a href="/" onClick={e=>{e.preventDefault();onNavigate("/");}} className="ext-link" style={{color:"#f97316",fontSize:14,fontWeight:700,textDecoration:"none",letterSpacing:".02em"}}>Home</a>
-        <a href="/methodology" onClick={e=>{e.preventDefault();onNavigate("/methodology");}} className="ext-link" style={{color:"#f97316",fontSize:14,fontWeight:700,textDecoration:"none",letterSpacing:".02em"}}>Methodology</a>
-        <a href="/submit-report" onClick={e=>{e.preventDefault();onNavigate("/submit-report");}} className="ext-link" style={{color:"#f97316",fontSize:14,fontWeight:700,textDecoration:"none",letterSpacing:".02em"}}>Submit Your Report</a>
-        <a href="/business" onClick={e=>{e.preventDefault();onNavigate("/business");}} className="ext-link" style={{color:"#f97316",fontSize:14,fontWeight:700,textDecoration:"none",letterSpacing:".02em"}}>Business Plans</a>
-        <a href="/my-report" onClick={e=>{e.preventDefault();onNavigate("/my-report");}} className="ext-link" style={{color:"#f97316",fontSize:14,fontWeight:700,textDecoration:"none",letterSpacing:".02em"}}>Retrieve My Report</a>
-        <a href="/privacy" onClick={e=>{e.preventDefault();onNavigate("/privacy");}} className="ext-link" style={{color:"#f97316",fontSize:14,fontWeight:700,textDecoration:"none",letterSpacing:".02em"}}>Privacy Policy</a>
+
+      {/* BOTTOM BAR */}
+      <div style={{background:"#060912",borderTop:"1px solid rgba(255,255,255,.06)"}}>
+        <div className="hz-footer-bottom" style={{maxWidth:1180,margin:"0 auto",padding:"18px 24px",display:"flex",justifyContent:"space-between",alignItems:"center",gap:10,flexWrap:"wrap"}}>
+          <div style={{fontSize:12,color:"#64748b"}}>&copy; 2026 HumZones Technologies Inc. All Rights Reserved</div>
+          <div style={{fontSize:12,color:"#64748b",display:"flex",gap:8,alignItems:"center",flexWrap:"wrap",justifyContent:"center"}}>
+            <a href="/privacy" onClick={e=>{e.preventDefault();go("/privacy");}} className="hz-foot-link" style={{color:"#64748b",textDecoration:"none"}}>Privacy Policy</a>
+            <span aria-hidden="true">|</span>
+            <a href="/terms" onClick={e=>{e.preventDefault();go("/terms");}} className="hz-foot-link" style={{color:"#64748b",textDecoration:"none"}}>Terms of Service</a>
+            <span aria-hidden="true">|</span>
+            <a href="/methodology" onClick={e=>{e.preventDefault();go("/methodology");}} className="hz-foot-link" style={{color:"#64748b",textDecoration:"none"}}>Methodology</a>
+          </div>
+        </div>
       </div>
-      <div style={{fontSize:13,color:"#94a3b8",borderTop:"1px solid #1e293b",paddingTop:18,lineHeight:1.8}}>
-        <div>HumZones<sup style={{fontSize:".55em",color:"#f97316",fontWeight:700,verticalAlign:"super",marginLeft:1,marginRight:4}}>TM</sup>Technologies Inc.</div>
-        <div>&copy; 2026 All Rights Reserved</div>
+
+      {/* DISCLAIMER */}
+      <div style={{background:"#060912",padding:"0 24px 24px"}}>
+        <p style={{maxWidth:900,margin:"0 auto",fontSize:11,color:"#475569",lineHeight:1.75,textAlign:"center"}}>
+          All facility data and figures shown on this site are research-based estimates compiled from public sources. They are not certified measurements. HumZones is an informational resource only and does not constitute medical, legal or environmental advice. See our Methodology page for full details.
+        </p>
       </div>
     </footer>
-  </>
-);
+  );
+};
 
 // ─── /business: PRICING PAGE ─────────────────────────────────────────────────
 const BusinessPlansPage = ({ onNavigate }) => {
@@ -2963,7 +3052,7 @@ const BusinessPlansPage = ({ onNavigate }) => {
         </div>
       </section>
 
-      <BusinessFooter onNavigate={onNavigate}/>
+      <Footer onNavigate={onNavigate}/>
     </div>
   );
 };
@@ -4027,7 +4116,7 @@ const BusinessDashboardPage = ({ onNavigate }) => {
         </div>
       </main>
 
-      <BusinessFooter onNavigate={onNavigate}/>
+      <Footer onNavigate={onNavigate}/>
 
       {toast && (
         <div role="status" style={{position:"fixed",top:24,left:"50%",transform:"translateX(-50%)",padding:"12px 22px",borderRadius:30,background:"#0f172a",border:"1px solid rgba(249,115,22,.5)",color:"#fff",fontWeight:700,fontSize:14,zIndex:100,boxShadow:"0 18px 50px rgba(0,0,0,.45)"}}>
@@ -4238,7 +4327,7 @@ const BusinessProfilePage = ({ onNavigate }) => {
         </div>
       </main>
 
-      <BusinessFooter onNavigate={onNavigate}/>
+      <Footer onNavigate={onNavigate}/>
 
       {toast && (
         <div role="status" style={{position:"fixed",top:24,left:"50%",transform:"translateX(-50%)",padding:"12px 22px",borderRadius:30,background:"#0f172a",border:"1px solid rgba(249,115,22,.5)",color:"#fff",fontWeight:700,fontSize:14,zIndex:100,boxShadow:"0 18px 50px rgba(0,0,0,.45)"}}>
@@ -4401,6 +4490,7 @@ const PrivacyPolicyPage = ({ onNavigate }) => {
 
         <button onClick={()=>onNavigate("/")} style={{marginTop:12,padding:"14px 26px",borderRadius:12,border:"none",cursor:"pointer",fontFamily:"inherit",fontSize:15,fontWeight:900,background:"linear-gradient(135deg,#ef4444,#f97316)",color:"#fff",boxShadow:"0 10px 28px rgba(249,115,22,.4)"}}>Back to HumZones</button>
       </main>
+      <Footer onNavigate={onNavigate}/>
     </div>
   );
 };
@@ -5083,11 +5173,360 @@ const SubmitReportPage = ({ onNavigate }) => {
 
       {/* FOOTER (shared with the business pages, on a dark backdrop) */}
       <div style={{background:"#0a0f1e"}}>
-        <BusinessFooter onNavigate={onNavigate}/>
+        <Footer onNavigate={onNavigate}/>
       </div>
     </div>
   );
 };
+
+// ─── SHARED: dark page hero used by the static content pages ─────────────────
+const PageHero = ({ onNavigate, title, subtitle }) => (
+  <section style={{background:"linear-gradient(150deg,#020c1b 0%,#0f172a 45%,#1e0535 100%)",padding:"22px 24px 60px"}}>
+    <div style={{maxWidth:1100,margin:"0 auto"}}>
+      <a href="/" onClick={e=>{e.preventDefault();onNavigate("/");}} style={{textDecoration:"none",display:"inline-block",marginBottom:40}}>
+        <span style={{fontSize:22,fontWeight:900,letterSpacing:".08em",background:"linear-gradient(90deg,#ef4444,#f97316)",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent"}}>HumZones</span>
+        <sup style={{fontSize:12,color:"#f97316",fontWeight:700,verticalAlign:"super",marginLeft:2}}>TM</sup>
+      </a>
+      <div style={{textAlign:"center",maxWidth:760,margin:"0 auto"}}>
+        <h1 style={{fontSize:"clamp(32px,5.5vw,50px)",fontWeight:900,letterSpacing:"-.02em",color:"#fff",lineHeight:1.12,marginBottom:16}}>{title}</h1>
+        {subtitle && <p style={{fontSize:18,color:"rgba(255,255,255,.72)",lineHeight:1.65}}>{subtitle}</p>}
+      </div>
+    </div>
+  </section>
+);
+
+// ─── /contact: CONTACT PAGE ──────────────────────────────────────────────────
+const ContactPage = ({ onNavigate }) => {
+  const SUBJECTS = ["General Inquiry","Report an Error","Media Inquiry","Business Inquiry","Data Request","Support","Other"];
+  const MAX_MSG = 2000;
+  const [firstName,setFirstName] = useState("");
+  const [lastName,setLastName]   = useState("");
+  const [email,setEmail]         = useState("");
+  const [subject,setSubject]     = useState("");
+  const [message,setMessage]     = useState("");
+  const [human,setHuman]         = useState(false);
+  const [hp,setHp]               = useState("");
+  const [sending,setSending]     = useState(false);
+  const [sent,setSent]           = useState(false);
+  const [sentName,setSentName]   = useState("");
+  const formLoadRef = useRef(Date.now());
+
+  const canSubmit = firstName.trim() && email.trim() && subject && message.trim() && human;
+
+  const submit = async () => {
+    if (!canSubmit) return;
+    // Honeypot: bots fill the hidden field. Silently accept.
+    if (hp) { setSentName(firstName.trim()); setSent(true); return; }
+    // 10-second minimum gate.
+    if (Date.now() - (formLoadRef.current || 0) < 10000) { setSentName(firstName.trim()); setSent(true); return; }
+    setSending(true);
+    try {
+      const r = await fetch("/api/send-contact", {
+        method:"POST",
+        headers:{ "Content-Type":"application/json" },
+        body: JSON.stringify({ firstName:firstName.trim(), lastName:lastName.trim(), email:email.trim(), subject, message }),
+      });
+      if (!r.ok) { const e = await r.json().catch(()=>({})); throw new Error(e.error || `Could not send message (${r.status})`); }
+      setSentName(firstName.trim());
+      setSent(true);
+    } catch (e) {
+      console.error("send-contact failed:", e);
+      window.alert("We could not send your message. Please try again, or email hello@humzones.com directly.");
+    } finally {
+      setSending(false);
+    }
+  };
+
+  const lbl = { fontSize:13, fontWeight:700, color:"#374151", display:"block", marginBottom:6 };
+  const fld = (filled) => ({ width:"100%", padding:"13px 16px", borderRadius:10, border:`1.5px solid ${filled?"#3b82f6":"#e2e8f0"}`, fontSize:15, boxSizing:"border-box", outline:"none", fontFamily:"inherit", color:"#1e293b" });
+  const infoHead = { fontSize:18, fontWeight:800, color:"#0f172a", marginBottom:8 };
+  const infoText = { fontSize:15, color:"#475569", lineHeight:1.7, margin:0 };
+  const divider = <div style={{borderTop:"1px solid #e2e8f0",margin:"24px 0"}}/>;
+
+  return (
+    <div style={{minHeight:"100vh",background:"#f1f5f9",width:"100%",maxWidth:"100vw",overflowX:"hidden"}}>
+      <PageHero onNavigate={onNavigate} title="Contact Us"
+        subtitle="We would love to hear from you. Whether you have a question about our data, a report to discuss, or a media inquiry, we are here to help."/>
+
+      <section style={{background:"#fff",padding:"56px 24px"}}>
+        <div className="nums-grid" style={{maxWidth:1080,margin:"0 auto",display:"grid",gridTemplateColumns:"1fr 1fr",gap:48,alignItems:"start"}}>
+          {/* LEFT: contact information */}
+          <div>
+            <h2 style={{fontSize:"clamp(24px,3.5vw,30px)",fontWeight:900,color:"#0f172a",marginBottom:18,letterSpacing:"-.01em"}}>Get In Touch</h2>
+            <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:8}}>
+              <span style={{fontSize:22}}>&#9993;</span>
+              <a href="mailto:hello@humzones.com" style={{fontSize:17,fontWeight:800,color:"#f97316",textDecoration:"none"}}>hello@humzones.com</a>
+            </div>
+            <p style={infoText}>We typically respond within 1 to 2 business days.</p>
+            {divider}
+            <h3 style={infoHead}>For Media Inquiries</h3>
+            <p style={infoText}>Journalists and researchers are welcome to contact us for data access, interviews, and press materials. Please include your publication and deadline in your message.</p>
+            {divider}
+            <h3 style={infoHead}>For Business Inquiries</h3>
+            <p style={infoText}>Interested in bulk reports or API access? Visit our Business Plans page or email us directly.</p>
+            <button onClick={()=>onNavigate("/business")} style={{marginTop:14,padding:"12px 24px",borderRadius:10,border:"1.5px solid #f97316",background:"transparent",color:"#f97316",fontSize:14,fontWeight:800,cursor:"pointer",fontFamily:"inherit"}}>View Business Plans</button>
+            {divider}
+            <h3 style={infoHead}>Report an Error</h3>
+            <p style={infoText}>If you believe any facility data is materially incorrect please let us know. We review all correction requests and update our database promptly.</p>
+          </div>
+
+          {/* RIGHT: contact form */}
+          <div style={{background:"#fff",border:"1px solid #e2e8f0",borderRadius:18,padding:"30px 30px 32px",boxShadow:"0 4px 24px rgba(0,0,0,.07)"}}>
+            {sent ? (
+              <div style={{textAlign:"center",padding:"12px 4px"}}>
+                <div style={{width:64,height:64,borderRadius:"50%",background:"linear-gradient(135deg,#10b981,#059669)",margin:"0 auto 16px",display:"flex",alignItems:"center",justifyContent:"center"}}>
+                  <Icon name="check" size={30} color="#fff"/>
+                </div>
+                <h3 style={{fontSize:20,fontWeight:900,color:"#0f172a",marginBottom:10}}>Thank you {sentName}!</h3>
+                <p style={{fontSize:15,color:"#475569",lineHeight:1.7,marginBottom:22}}>Your message has been sent. We will get back to you within 1 to 2 business days.</p>
+                <button onClick={()=>onNavigate("/")} style={{padding:"14px 28px",borderRadius:12,border:"none",background:"linear-gradient(135deg,#ef4444,#f97316)",color:"#fff",fontSize:15,fontWeight:900,cursor:"pointer",fontFamily:"inherit",boxShadow:"0 10px 28px rgba(249,115,22,.4)"}}>Back to HumZones</button>
+              </div>
+            ) : (
+              <>
+                <h2 style={{fontSize:20,fontWeight:900,color:"#0f172a",marginBottom:18}}>Send Us a Message</h2>
+                <input type="text" name="website" value={hp} onChange={e=>setHp(e.target.value)} tabIndex="-1" autoComplete="off" aria-hidden="true" style={{display:"none"}}/>
+                <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:14}}>
+                  <div><label style={lbl}>First Name *</label><input value={firstName} onChange={e=>setFirstName(e.target.value)} placeholder="Your first name" style={fld(firstName.trim())}/></div>
+                  <div><label style={lbl}>Last Name</label><input value={lastName} onChange={e=>setLastName(e.target.value)} placeholder="Optional" style={fld(lastName.trim())}/></div>
+                </div>
+                <div style={{marginBottom:14}}>
+                  <label style={lbl}>Email Address *</label>
+                  <input type="email" value={email} onChange={e=>setEmail(e.target.value)} placeholder="you@example.com" style={fld(email.trim())}/>
+                </div>
+                <div style={{marginBottom:14}}>
+                  <label style={lbl}>Subject *</label>
+                  <select value={subject} onChange={e=>setSubject(e.target.value)} style={{...fld(subject),cursor:"pointer"}}>
+                    <option value="">Select a subject</option>
+                    {SUBJECTS.map(s=><option key={s} value={s}>{s}</option>)}
+                  </select>
+                </div>
+                <div style={{marginBottom:14}}>
+                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}}>
+                    <label style={{...lbl,marginBottom:0}}>Message *</label>
+                    <span style={{fontSize:12,fontWeight:600,color:message.length>MAX_MSG*0.9?"#ef4444":"#94a3b8"}}>{message.length.toLocaleString()} / {MAX_MSG.toLocaleString()}</span>
+                  </div>
+                  <textarea value={message} onChange={e=>{if(e.target.value.length<=MAX_MSG)setMessage(e.target.value);}} rows={6}
+                    placeholder="How can we help?" style={{...fld(message.trim()),resize:"vertical",lineHeight:1.7}}/>
+                </div>
+                <div onClick={()=>setHuman(v=>!v)} style={{display:"flex",alignItems:"center",gap:12,padding:"13px 16px",borderRadius:12,border:`2px solid ${human?"#f97316":"#e2e8f0"}`,background:human?"#fff7ed":"#f8fafc",cursor:"pointer",marginBottom:18}}>
+                  <div style={{width:22,height:22,borderRadius:5,border:`2px solid ${human?"#f97316":"#94a3b8"}`,background:human?"#f97316":"transparent",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
+                    {human && <Icon name="check" size={13} color="#fff"/>}
+                  </div>
+                  <div style={{fontSize:14,color:"#374151",fontWeight:human?600:400}}>I confirm I am a human and not a bot</div>
+                </div>
+                <button onClick={submit} disabled={sending||!canSubmit} style={{width:"100%",padding:"15px 24px",borderRadius:12,border:"none",background:canSubmit?"#f97316":"#e2e8f0",color:canSubmit?"#fff":"#94a3b8",fontSize:16,fontWeight:800,cursor:canSubmit?"pointer":"default",fontFamily:"inherit",boxShadow:canSubmit?"0 4px 20px rgba(249,115,22,.4)":"none"}}>
+                  {sending?"Sending...":"Send Message"}
+                </button>
+              </>
+            )}
+          </div>
+        </div>
+      </section>
+
+      <Footer onNavigate={onNavigate}/>
+    </div>
+  );
+};
+
+// ─── /about: ABOUT PAGE ──────────────────────────────────────────────────────
+const AboutPage = ({ onNavigate }) => {
+  const h2 = { fontSize:"clamp(26px,4vw,34px)", fontWeight:900, letterSpacing:"-.02em", marginBottom:18, lineHeight:1.2 };
+  const para = (color) => ({ fontSize:16, lineHeight:1.8, color, whiteSpace:"pre-line", margin:0 });
+  const btn = { padding:"14px 28px", borderRadius:12, border:"none", cursor:"pointer", fontFamily:"inherit", fontSize:15, fontWeight:900, background:"linear-gradient(135deg,#ef4444,#f97316)", color:"#fff", boxShadow:"0 10px 28px rgba(249,115,22,.4)" };
+  const cards = [
+    { icon:"🗄️", title:"We Track",   desc:"We maintain a growing database of data center facilities worldwide, compiled from public planning filings, utility records, operator disclosures and environmental assessments." },
+    { icon:"🔍",       title:"We Analyze", desc:"We apply documented modeling formulas to estimate the environmental footprint of each facility including power draw, water consumption, noise levels and EMF exposure ranges." },
+    { icon:"👥",       title:"We Publish", desc:"We make this information freely available to anyone who wants to understand the infrastructure near their home, workplace or investment property." },
+  ];
+
+  return (
+    <div style={{minHeight:"100vh",background:"#f1f5f9",width:"100%",maxWidth:"100vw",overflowX:"hidden"}}>
+      <PageHero onNavigate={onNavigate} title="About HumZones"
+        subtitle="We believe every person has the right to know what infrastructure exists near their home and what it means for their community."/>
+
+      {/* SECTION 1: Our Mission */}
+      <section style={{background:"#fff",padding:"60px 24px"}}>
+        <div style={{maxWidth:820,margin:"0 auto"}}>
+          <h2 style={{...h2,color:"#0f172a"}}>Our Mission</h2>
+          <p style={para("#475569")}>{"HumZones is the Global Data Center Health & Infrastructure Registry. We compile, organize and publish publicly available information about data center infrastructure worldwide so that residents, researchers, real estate professionals and community advocates have access to the same information that corporations and governments already have.\n\nData centers are the backbone of the modern internet. They power artificial intelligence, cloud computing, streaming services and global communications. They are also large industrial facilities that consume enormous amounts of power and water, generate continuous noise and electromagnetic fields, and are being built at an unprecedented rate in communities around the world.\n\nMost people have no idea what is near their home. We are changing that."}</p>
+        </div>
+      </section>
+
+      {/* SECTION 2: What We Do */}
+      <section style={{background:"#f1f5f9",padding:"60px 24px"}}>
+        <div style={{maxWidth:1080,margin:"0 auto"}}>
+          <h2 style={{...h2,color:"#0f172a",textAlign:"center",marginBottom:36}}>What We Do</h2>
+          <div className="nums-grid" style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:20}}>
+            {cards.map(c=>(
+              <div key={c.title} style={{background:"#fff",border:"1px solid #e2e8f0",borderRadius:16,padding:"28px 26px",boxShadow:"0 2px 12px rgba(0,0,0,.05)"}}>
+                <div style={{fontSize:40,marginBottom:14,lineHeight:1}}>{c.icon}</div>
+                <div style={{fontSize:19,fontWeight:800,color:"#0f172a",marginBottom:10}}>{c.title}</div>
+                <p style={{fontSize:15,color:"#475569",lineHeight:1.7,margin:0}}>{c.desc}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* SECTION 3: Our Data */}
+      <section style={{background:"#0f172a",padding:"60px 24px"}}>
+        <div style={{maxWidth:820,margin:"0 auto"}}>
+          <h2 style={{...h2,color:"#fff"}}>Our Data</h2>
+          <p style={{...para("rgba(255,255,255,.78)"),marginBottom:14}}>HumZones currently tracks over 1,000 facilities across the United States and internationally, with new facilities added regularly. Our database is compiled from:</p>
+          <ul style={{margin:"0 0 14px 0",padding:"0 0 0 22px",color:"rgba(255,255,255,.78)",fontSize:16,lineHeight:1.9}}>
+            <li>Municipal planning and zoning filings</li>
+            <li>Utility interconnection applications</li>
+            <li>Operator press releases and sustainability reports</li>
+            <li>Environmental assessment documents</li>
+            <li>Permitting databases and public records</li>
+          </ul>
+          <p style={para("rgba(255,255,255,.78)")}>All figures in our database are modeled estimates based on publicly available information. They are not certified measurements. We are transparent about our methodology and encourage scrutiny. Visit our methodology page for full details.</p>
+          <button onClick={()=>onNavigate("/methodology")} style={{...btn,marginTop:24}}>Read Our Methodology</button>
+        </div>
+      </section>
+
+      {/* SECTION 4: Community */}
+      <section style={{background:"#fff",padding:"60px 24px"}}>
+        <div style={{maxWidth:820,margin:"0 auto"}}>
+          <h2 style={{...h2,color:"#0f172a"}}>Built With the Community</h2>
+          <p style={para("#475569")}>HumZones is more than a database. It is a platform for community voices. Residents living near data centers can submit verified reports of their experiences, which are reviewed and published to help others understand what life is really like near these facilities. Every verified report strengthens our registry and contributes to a growing body of community-sourced evidence that complements our infrastructure data.</p>
+          <button onClick={()=>onNavigate("/submit-report")} style={{...btn,marginTop:24}}>Submit Your Resident Report</button>
+        </div>
+      </section>
+
+      {/* SECTION 5: Contact */}
+      <section style={{background:"#0f172a",padding:"60px 24px",textAlign:"center"}}>
+        <div style={{maxWidth:720,margin:"0 auto"}}>
+          <h2 style={{...h2,color:"#fff"}}>Get In Touch</h2>
+          <p style={{...para("rgba(255,255,255,.78)"),marginBottom:26}}>For general inquiries, media requests, data corrections or business questions contact us at hello@humzones.com or visit our contact page.</p>
+          <div style={{display:"flex",gap:14,justifyContent:"center",flexWrap:"wrap"}}>
+            <button onClick={()=>onNavigate("/contact")} style={btn}>Contact Us</button>
+            <button onClick={()=>onNavigate("/business")} style={{padding:"14px 28px",borderRadius:12,border:"1.5px solid rgba(255,255,255,.3)",cursor:"pointer",fontFamily:"inherit",fontSize:15,fontWeight:900,background:"rgba(255,255,255,.06)",color:"#fff"}}>For Business</button>
+          </div>
+        </div>
+      </section>
+
+      <Footer onNavigate={onNavigate}/>
+    </div>
+  );
+};
+
+// ─── /faq: FREQUENTLY ASKED QUESTIONS ────────────────────────────────────────
+const FAQ_DATA = [
+  { section:"About HumZones", items:[
+    { q:"What is HumZones?", a:"HumZones is the Global Data Center Health & Infrastructure Registry. We compile publicly available information about data center facilities worldwide and make it accessible to residents, researchers, real estate professionals and community advocates." },
+    { q:"Who is behind HumZones?", a:"HumZones is operated by HumZones Technologies Inc. We are a technology company focused on infrastructure transparency and community awareness." },
+    { q:"Is HumZones free to use?", a:"Yes. The basic search and facility information is completely free. We also offer personalized area reports for $14.99 and business subscription plans for professionals who need bulk report access." },
+  ]},
+  { section:"Our Data", items:[
+    { q:"Where does your data come from?", a:"Our facility data is compiled from publicly available sources including municipal planning filings, utility interconnection applications, operator press releases, sustainability reports, environmental assessment documents and permitting databases." },
+    { q:"Are your figures accurate?", a:"All figures including power draw, noise levels, EMF exposure ranges, CO2 estimates and water consumption are modeled estimates derived from publicly available information using documented industry standard formulas. They are not certified field measurements. We are transparent about this on every page and in every report. See our methodology page for full details." },
+    { q:"How often is the database updated?", a:"We add new facilities regularly as we process public records and submissions. The database currently tracks over 1,000 facilities and grows continuously." },
+    { q:"Can I submit a correction?", a:"Yes. If you believe any data is materially incorrect please contact us at hello@humzones.com or use our contact form. We review all correction requests promptly." },
+  ]},
+  { section:"Reports", items:[
+    { q:"What is included in a HumZones Area Report?", a:"Your personalized report includes a complete list of all data center facilities within 100km of your address, distance from your location to each facility, infrastructure exposure category, reported power draw, estimated noise levels, modeled EMF exposure ranges, estimated CO2 and water impact, infrastructure and community impact considerations, and practical awareness steps." },
+    { q:"Can I retrieve my report after downloading it?", a:"Yes. Every report you purchase is saved to your account. Visit humzones.com/my-report and enter your purchase email address to retrieve any past report at any time." },
+    { q:"Do you offer refunds?", a:"Reports are delivered instantly as digital downloads. Due to the nature of digital products all sales are final. If you experience a technical issue please contact hello@humzones.com and we will do our best to assist." },
+    { q:"What is the Business Plan?", a:"Our business plans offer bulk report credits for professionals who need to generate multiple reports. Plans start at $99 per month for 10 reports. Visit humzones.com/business for full details." },
+  ]},
+  { section:"Community Reports", items:[
+    { q:"How do I submit a resident report?", a:"Visit humzones.com/submit-report to find facilities near you and submit your experience. Your report will be verified by email and reviewed by our team before publication." },
+    { q:"Will my personal information be shared?", a:"Only your first name is displayed with published reports. Your last name and email address are never shown publicly. See our privacy policy for full details." },
+    { q:"How long does review take?", a:"We aim to review all submitted reports within 48 hours." },
+  ]},
+  { section:"Privacy and Security", items:[
+    { q:"What data do you collect?", a:"We collect email addresses when you unlock search results, purchase a report or create a business account. We also collect location data when you use the Find Data Centers Near Me feature. See our privacy policy for full details." },
+    { q:"Do you sell my data?", a:"No. We do not sell personal data to any third party under any circumstances." },
+    { q:"How do I unsubscribe from emails?", a:"Every email we send includes an unsubscribe link at the bottom. You can also visit humzones.com/unsubscribe to opt out." },
+  ]},
+];
+
+const FaqPage = ({ onNavigate }) => {
+  const [open, setOpen] = useState({});
+  const toggle = (key) => setOpen(prev => ({ ...prev, [key]: !prev[key] }));
+
+  return (
+    <div style={{minHeight:"100vh",background:"#f1f5f9",width:"100%",maxWidth:"100vw",overflowX:"hidden"}}>
+      <PageHero onNavigate={onNavigate} title="Frequently Asked Questions"
+        subtitle="Everything you need to know about HumZones, our data and our reports."/>
+
+      <section style={{background:"#fff",padding:"54px 24px"}}>
+        <div style={{maxWidth:820,margin:"0 auto"}}>
+          {FAQ_DATA.map((sec,si)=>(
+            <div key={sec.section} style={{marginBottom:34}}>
+              <h2 style={{fontSize:20,fontWeight:900,color:"#0f172a",letterSpacing:"-.01em",marginBottom:14}}>{sec.section}</h2>
+              <div style={{border:"1px solid #e2e8f0",borderRadius:14,overflow:"hidden"}}>
+                {sec.items.map((it,qi)=>{
+                  const key = `${si}-${qi}`;
+                  const isOpen = !!open[key];
+                  return (
+                    <div key={key} style={{borderBottom:qi<sec.items.length-1?"1px solid #e2e8f0":"none"}}>
+                      <button onClick={()=>toggle(key)} className="hz-faq-q" aria-expanded={isOpen}
+                        style={{width:"100%",display:"flex",alignItems:"center",justifyContent:"space-between",gap:14,padding:"18px 20px",background:"#fff",border:"none",cursor:"pointer",fontFamily:"inherit",textAlign:"left"}}>
+                        <span style={{fontSize:16,fontWeight:800,color:"#0f172a",lineHeight:1.4}}>{it.q}</span>
+                        <span aria-hidden="true" style={{fontSize:24,fontWeight:900,color:"#f97316",lineHeight:1,flexShrink:0,width:22,textAlign:"center"}}>{isOpen?"−":"+"}</span>
+                      </button>
+                      <div style={{maxHeight:isOpen?600:0,overflow:"hidden",transition:"max-height .3s ease"}}>
+                        <p style={{fontSize:15,color:"#64748b",lineHeight:1.8,margin:0,padding:"0 20px 20px"}}>{it.a}</p>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          ))}
+          <div style={{textAlign:"center",marginTop:10}}>
+            <p style={{fontSize:15,color:"#64748b",marginBottom:14}}>Still have a question?</p>
+            <button onClick={()=>onNavigate("/contact")} style={{padding:"14px 30px",borderRadius:12,border:"none",background:"linear-gradient(135deg,#ef4444,#f97316)",color:"#fff",fontSize:15,fontWeight:900,cursor:"pointer",fontFamily:"inherit",boxShadow:"0 10px 28px rgba(249,115,22,.4)"}}>Contact Us</button>
+          </div>
+        </div>
+      </section>
+
+      <Footer onNavigate={onNavigate}/>
+    </div>
+  );
+};
+
+// ─── /terms: TERMS OF SERVICE ────────────────────────────────────────────────
+const TERMS_SECTIONS = [
+  { h:"Acceptance of Terms", b:"By accessing or using humzones.com you agree to be bound by these Terms of Service and our Privacy Policy. If you do not agree to these terms please do not use our service. HumZones Technologies Inc. reserves the right to update these terms at any time. Continued use of the service after changes constitutes acceptance of the updated terms." },
+  { h:"Description of Service", b:"HumZones provides an online platform for accessing publicly compiled information about data center infrastructure. We offer free facility search, personalized area reports for purchase, business subscription plans, and a community report submission system." },
+  { h:"Informational Purpose Only", b:"All information provided by HumZones including facility data, modeled estimates, exposure categories, and report content is for informational and public awareness purposes only. Nothing on this site constitutes medical, legal, scientific, environmental or financial advice. HumZones Technologies Inc. makes no warranties about the accuracy, completeness or fitness for any particular purpose of the information provided." },
+  { h:"Purchased Reports", b:"Reports purchased through HumZones are digital products delivered instantly upon payment. All sales are final. No refunds will be issued for digital downloads. By purchasing a report you acknowledge that the content is based on modeled estimates compiled from public sources and does not represent certified measurements or professional assessments of any kind." },
+  { h:"Business Subscriptions", b:"Business subscription plans are billed monthly or annually as selected. Monthly plans may be cancelled at any time and will not renew after the current billing period. Annual plans are billed for the full year and are non-refundable. Credits reset at the start of each billing period and unused credits do not roll over." },
+  { h:"User Conduct", b:"You agree not to use HumZones to:\n- Submit false or misleading community reports\n- Attempt to access other users accounts or data\n- Use automated tools to scrape or extract data without permission\n- Use the service for any unlawful purpose\n- Attempt to interfere with the operation of the service" },
+  { h:"Community Reports", b:"By submitting a community report you declare that the information is truthful to the best of your knowledge. You grant HumZones Technologies Inc. a non-exclusive license to publish your report (with first name only) on the platform. HumZones reserves the right to decline to publish any report that violates our guidelines or these terms." },
+  { h:"Intellectual Property", b:"All content on humzones.com including the database, reports, design and code is the property of HumZones Technologies Inc. You may not reproduce, distribute or create derivative works without written permission." },
+  { h:"Limitation of Liability", b:"HumZones Technologies Inc. shall not be liable for any direct, indirect, incidental, consequential or punitive damages arising from your use of or reliance on information provided through this service. Our total liability to you for any claim shall not exceed the amount you paid for the specific service giving rise to the claim." },
+  { h:"Governing Law", b:"These terms are governed by the laws of Canada. Any disputes shall be resolved in the courts of Canada." },
+  { h:"Contact", b:"For questions about these terms contact hello@humzones.com" },
+];
+
+const TermsPage = ({ onNavigate }) => (
+  <div style={{minHeight:"100vh",background:"#f1f5f9",width:"100%",maxWidth:"100vw",overflowX:"hidden"}}>
+    <PageHero onNavigate={onNavigate} title="Terms of Service" subtitle="Last updated: May 2026"/>
+
+    <section style={{background:"#fff",padding:"54px 24px"}}>
+      <div style={{maxWidth:820,margin:"0 auto"}}>
+        {TERMS_SECTIONS.map((s,i)=>(
+          <section key={s.h} style={{marginBottom:30}}>
+            <div style={{display:"flex",alignItems:"baseline",gap:12,marginBottom:10}}>
+              <div style={{fontSize:13,fontWeight:900,color:"#ef4444",letterSpacing:".06em",minWidth:26}}>{String(i+1).padStart(2,"0")}</div>
+              <h2 style={{fontSize:15,color:"#0f172a",letterSpacing:".10em",textTransform:"uppercase",fontWeight:800,margin:0,lineHeight:1.4}}>{s.h}</h2>
+            </div>
+            <p style={{fontSize:16,color:"#475569",lineHeight:1.8,marginLeft:38,whiteSpace:"pre-line"}}>{s.b}</p>
+          </section>
+        ))}
+        <div style={{borderTop:"1px solid #e2e8f0",marginTop:36,paddingTop:24,textAlign:"center"}}>
+          <button onClick={()=>onNavigate("/")} style={{padding:"14px 28px",borderRadius:12,border:"none",background:"linear-gradient(135deg,#ef4444,#f97316)",color:"#fff",fontSize:15,fontWeight:900,cursor:"pointer",fontFamily:"inherit",boxShadow:"0 10px 28px rgba(249,115,22,.4)"}}>Back to HumZones</button>
+        </div>
+      </div>
+    </section>
+
+    <Footer onNavigate={onNavigate}/>
+  </div>
+);
 
 // ─── MAIN APP ─────────────────────────────────────────────────────────────────
 export default function App() {
@@ -5640,13 +6079,24 @@ export default function App() {
         <MyReportPage onNavigate={navigate}/>
       ) : path === "/submit-report" ? (
         <SubmitReportPage onNavigate={navigate}/>
+      ) : path === "/contact" ? (
+        <ContactPage onNavigate={navigate}/>
+      ) : path === "/about" ? (
+        <AboutPage onNavigate={navigate}/>
+      ) : path === "/faq" ? (
+        <FaqPage onNavigate={navigate}/>
+      ) : path === "/terms" ? (
+        <TermsPage onNavigate={navigate}/>
       ) : (
       <div style={{minHeight:"100vh",background:"#f1f5f9",width:"100%",maxWidth:"100vw",overflowX:"hidden"}}>
 
         {/* HERO */}
         <section className="hero" style={{position:"relative",overflow:"visible",minHeight:"100vh",background:"linear-gradient(150deg,#020c1b 0%,#0f172a 35%,#1e0535 65%,#0a1628 100%)",backgroundSize:"400% 400%",animation:"gradShift 14s ease infinite",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:"80px 24px",textAlign:"center"}}>
-          {/* Top-right nav: For Business + Sign-in shortcut once a session exists. */}
-          <div style={{position:"absolute",top:18,right:22,zIndex:5,display:"flex",alignItems:"center",gap:14}}>
+          {/* Top-right nav: page links + For Business. */}
+          <div style={{position:"absolute",top:18,right:22,zIndex:5,display:"flex",alignItems:"center",gap:14,flexWrap:"wrap",justifyContent:"flex-end"}}>
+            {[["About","/about"],["FAQ","/faq"],["Contact","/contact"]].map(([label,to])=>(
+              <a key={to} href={to} onClick={e=>{e.preventDefault();navigate(to);}} style={{fontSize:13,fontWeight:700,letterSpacing:".04em",color:"rgba(255,255,255,.8)",textDecoration:"none"}}>{label}</a>
+            ))}
             <a href="/business" onClick={e=>{e.preventDefault();navigate("/business");}} style={{fontSize:13,fontWeight:800,letterSpacing:".08em",color:"rgba(255,255,255,.85)",textDecoration:"none",padding:"8px 14px",borderRadius:30,border:"1px solid rgba(249,115,22,.45)",background:"rgba(249,115,22,.1)"}}>For Business</a>
           </div>
           <div className="rings" style={{position:"absolute",left:"50%",top:"50%",pointerEvents:"none",zIndex:0,overflow:"hidden"}}>
@@ -6497,68 +6947,7 @@ export default function App() {
           </button>
         )}
 
-        <div style={{borderTop:"1px solid #e2e8f0",padding:"28px 24px",textAlign:"center"}}>
-          <p style={{fontSize:12,color:"#94a3b8",lineHeight:1.7,maxWidth:760,margin:"0 auto"}}>
-            Data Disclaimer: All figures shown including noise levels, EMF readings, power consumption, CO2 estimates, and water usage are research-based estimates compiled from public sources, permit filings, and industry standards. They are not certified measurements. Actual readings may vary by facility design, operating conditions, and season. HumZones is an informational resource only and does not constitute medical, legal, or environmental advice.
-            {" "}
-            <a href="/methodology" onClick={e=>{e.preventDefault();navigate("/methodology");}} className="ext-link" style={{color:"#ef4444",fontWeight:700,textDecoration:"none"}}>Methodology</a>
-          </p>
-        </div>
-
-        <footer style={{background:"#0a0f1e",padding:"48px 24px 36px",textAlign:"center"}}>
-          <div style={{marginBottom:6}}>
-            <span style={{fontSize:26,fontWeight:900,letterSpacing:".08em",background:"linear-gradient(90deg,#ef4444,#f97316)",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent"}}>HumZones</span>
-            <sup style={{fontSize:14,color:"#f97316",fontWeight:700,verticalAlign:"super",marginLeft:2}}>TM</sup>
-          </div>
-          <div style={{fontSize:14,color:"#cbd5e1",fontWeight:700,marginBottom:6,letterSpacing:".02em"}}>HumZones Technologies Inc.</div>
-          <div style={{fontSize:16,color:"#64748b",marginBottom:20}}>Global Data Center Health & Infrastructure Registry</div>
-
-          {/* Site links */}
-          <div style={{display:"flex",justifyContent:"center",gap:18,flexWrap:"wrap",marginBottom:22}}>
-            <a href="/methodology" onClick={e=>{e.preventDefault();navigate("/methodology");}} className="ext-link" style={{color:"#f97316",fontSize:14,fontWeight:700,textDecoration:"none",letterSpacing:".02em"}}>
-              Methodology
-            </a>
-            <a href="/business" onClick={e=>{e.preventDefault();navigate("/business");}} className="ext-link" style={{color:"#f97316",fontSize:14,fontWeight:700,textDecoration:"none",letterSpacing:".02em"}}>
-              Business Plans
-            </a>
-            <a href="/submit-report" onClick={e=>{e.preventDefault();navigate("/submit-report");}} className="ext-link" style={{color:"#f97316",fontSize:14,fontWeight:700,textDecoration:"none",letterSpacing:".02em"}}>
-              Submit Your Report
-            </a>
-            <a href="/my-report" onClick={e=>{e.preventDefault();navigate("/my-report");}} className="ext-link" style={{color:"#f97316",fontSize:14,fontWeight:700,textDecoration:"none",letterSpacing:".02em"}}>
-              Retrieve My Report
-            </a>
-            <a href="/privacy" onClick={e=>{e.preventDefault();navigate("/privacy");}} className="ext-link" style={{color:"#f97316",fontSize:14,fontWeight:700,textDecoration:"none",letterSpacing:".02em"}}>
-              Privacy Policy
-            </a>
-            <a href="https://humzones.com" className="ext-link" style={{color:"#94a3b8",fontSize:14,fontWeight:600,textDecoration:"none",letterSpacing:".02em"}}>
-              humzones.com
-            </a>
-          </div>
-
-          {/* External research sources */}
-          <div style={{fontSize:11,color:"#475569",letterSpacing:".10em",textTransform:"uppercase",fontWeight:800,marginBottom:10}}>Research Sources</div>
-          <div style={{display:"flex",justifyContent:"center",gap:20,flexWrap:"wrap",marginBottom:28}}>
-            {[
-              {t:"Epoch AI (CC-BY)",url:"https://epoch.ai/data/data-centers"},
-              {t:"EH Sciences",    url:"https://ehsciences.org"},
-              {t:"IARC / WHO",     url:"https://www.iarc.who.int"},
-              {t:"arXiv 2025",     url:"https://arxiv.org/abs/2412.06288"},
-              {t:"BioInitiative",  url:"https://www.bioinitiative.org"},
-              {t:"PubMed",         url:"https://pubmed.ncbi.nlm.nih.gov"},
-            ].map(s=>(
-              <a key={s.t} href={s.url} target="_blank" rel="noopener noreferrer" className="ext-link" style={{color:"#3b82f6",display:"flex",alignItems:"center",gap:4,fontSize:15,fontWeight:600}}>
-                {s.t} <Icon name="external" size={13} color="#3b82f6"/>
-              </a>
-            ))}
-          </div>
-          <div style={{fontSize:15,color:"#94a3b8",borderTop:"1px solid #1e293b",paddingTop:20,lineHeight:1.8}}>
-            <div>HumZones<sup style={{fontSize:".55em",color:"#f97316",fontWeight:700,verticalAlign:"super",marginLeft:1,marginRight:4}}>TM</sup>Technologies Inc.</div>
-            <div>&copy; 2026 All Rights Reserved</div>
-          </div>
-          <div style={{fontSize:13,color:"#475569",marginTop:6}}>
-            humzones.com &middot; Built for residents, not the industry
-          </div>
-        </footer>
+        <Footer onNavigate={navigate}/>
 
       </div>
       )}
