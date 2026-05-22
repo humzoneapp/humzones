@@ -620,7 +620,8 @@ const METHODOLOGY_SECTIONS = [
   {t:"Contact and Corrections",b:"If you are a facility operator or researcher and believe any data is materially incorrect, please contact us. We are committed to accuracy and will review and correct verified errors promptly."},
 ];
 
-const MethodologyPage = ({ onBack }) => {
+const MethodologyPage = ({ onBack, onNavigate }) => {
+  const go = onNavigate || onBack;
   const backLink = (
     <a href="/" onClick={e=>{e.preventDefault();onBack();}} className="ext-link" style={{display:"inline-flex",alignItems:"center",gap:8,color:"#ef4444",textDecoration:"none",fontSize:14,fontWeight:800,letterSpacing:".06em"}}>
       <span style={{fontSize:18,lineHeight:1}}>&larr;</span> BACK TO HUMZONES
@@ -672,6 +673,16 @@ const MethodologyPage = ({ onBack }) => {
           </div>
         </div>
       </main>
+
+      <footer style={{background:"#0a0f1e",padding:"32px 24px",textAlign:"center"}}>
+        <div style={{display:"flex",justifyContent:"center",gap:18,flexWrap:"wrap"}}>
+          <a href="/" onClick={e=>{e.preventDefault();go("/");}} className="ext-link" style={{color:"#f97316",fontSize:14,fontWeight:700,textDecoration:"none",letterSpacing:".02em"}}>Home</a>
+          <a href="/business" onClick={e=>{e.preventDefault();go("/business");}} className="ext-link" style={{color:"#f97316",fontSize:14,fontWeight:700,textDecoration:"none",letterSpacing:".02em"}}>Business Plans</a>
+          <a href="/my-report" onClick={e=>{e.preventDefault();go("/my-report");}} className="ext-link" style={{color:"#f97316",fontSize:14,fontWeight:700,textDecoration:"none",letterSpacing:".02em"}}>Retrieve My Report</a>
+          <a href="/privacy" onClick={e=>{e.preventDefault();go("/privacy");}} className="ext-link" style={{color:"#f97316",fontSize:14,fontWeight:700,textDecoration:"none",letterSpacing:".02em"}}>Privacy Policy</a>
+        </div>
+        <div style={{fontSize:13,color:"#475569",marginTop:16}}>HumZones Technologies Inc. | humzones.com</div>
+      </footer>
     </div>
   );
 };
@@ -948,6 +959,8 @@ const ReportLandingPage = ({ onBack, onNavigate }) => {
     "Noise impact analysis",
     "Water and CO2 impact in your region",
     "Practical steps to reduce your exposure",
+    "Lifetime report access: every report you purchase is saved to your account forever",
+    "Re-download anytime: retrieve any past report using your email address, even years later",
   ];
 
   const testimonials = [
@@ -1193,6 +1206,7 @@ const ReportLandingPage = ({ onBack, onNavigate }) => {
               {label:"Instant Download", emphasis:true},
               {label:"Secure Payment"},
               {label:"Personalized to Your Address"},
+              {label:"Lifetime Access", emoji:"📁"},
             ].map(b => (
               <div key={b.label} style={{
                 display:"inline-flex",
@@ -1204,6 +1218,8 @@ const ReportLandingPage = ({ onBack, onNavigate }) => {
               }}>
                 {b.emphasis ? (
                   <span role="img" aria-label="Lightning" style={{fontSize:16,lineHeight:1}}>⚡</span>
+                ) : b.emoji ? (
+                  <span role="img" aria-label="Folder" style={{fontSize:15,lineHeight:1}}>{b.emoji}</span>
                 ) : (
                   <span style={{display:"inline-flex",width:22,height:22,borderRadius:"50%",background:"rgba(16,185,129,.18)",alignItems:"center",justifyContent:"center"}}>
                     <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#10b981" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>
@@ -1787,21 +1803,27 @@ const ReportSuccessPage = ({ onBack, onNavigate }) => {
         const filename = `HumZones-Report-${pdfFilenameSafe(searchAddress)}-${datePart}.pdf`;
         doc.save(filename);
 
-        // ─── 6. Silently record the purchase in Airtable Emails ─────────────
-        // These fields back the /my-report retrieval page: the saved
-        // coordinates and radius let a buyer regenerate their PDF later.
+        // ─── 6. Record the purchase in the Airtable Emails table ────────────
+        // Written with verified field IDs. The saved coordinates and radius
+        // let a buyer regenerate their PDF later from /my-report.
         try {
-          await postEmail({
-            Email: buyerEmail || "",
-            Date: datePart,
-            Source: "PaidReport",
-            Address: searchAddress,
-            Latitude: Number.isFinite(searchLat) ? searchLat : "",
-            Longitude: Number.isFinite(searchLng) ? searchLng : "",
-            Facilities_Count: Number.isFinite(facilities100) ? facilities100 : totalFound,
-            High_Risk_Count: Number.isFinite(highRisk) ? highRisk : counts.HIGH,
-            Radius_KM: 100,
+          const captureFields = {
+            [EMAIL_FIELD.Email]:            buyerEmail || "",
+            [EMAIL_FIELD.Source]:           "PaidReport",
+            [EMAIL_FIELD.Address]:          searchAddress,
+            [EMAIL_FIELD.Radius_KM]:        100,
+            [EMAIL_FIELD.Facilities_Count]: Number.isFinite(facilities100) ? facilities100 : totalFound,
+            [EMAIL_FIELD.High_Risk_Count]:  Number.isFinite(highRisk) ? highRisk : counts.HIGH,
+            [EMAIL_FIELD.Date]:             datePart,
+          };
+          if (Number.isFinite(searchLat)) captureFields[EMAIL_FIELD.Latitude] = searchLat;
+          if (Number.isFinite(searchLng)) captureFields[EMAIL_FIELD.Longitude] = searchLng;
+          const capRes = await fetch(`${APIURL}/${EMAILS_TABLE}`, {
+            method: "POST",
+            headers: HDR,
+            body: JSON.stringify({ fields: captureFields }),
           });
+          if (!capRes.ok) console.warn("[HumZones] Emails capture responded", capRes.status);
         } catch (e) { console.warn("[HumZones] Emails capture failed:", e); }
 
         setProgress(100);
@@ -2064,6 +2086,7 @@ const BIZ_FIELD = {
   Recovery_PIN:       "fldNCDrm8FTAde1yI",
   Security_Question:  "fld70Jq3GDJEC52W9",
   Security_Answer:    "fldNpLubvAo6qbh45",
+  Unsubscribed:       "flddY1vzy1wtjIJVa",
 };
 
 // Security questions offered at business signup. The chosen question is
@@ -2091,6 +2114,25 @@ const BIZ_REP_FIELD = {
   Longitude:        "fld8CNu73mNipqVTw",
   Plan:             "fldAfYZVkvTFiBeDw",
   Report_Name:      "fldXeqbdbf3d9hRvq",
+};
+
+// Emails capture table (paid report purchases, Near Me email gate, report
+// retrieval verification codes). Verified table + field IDs.
+const EMAILS_TABLE = "tblHieqgtZdaXZOdw";
+const EMAIL_FIELD = {
+  Email:              "fldtB7M0LNazwrftI",
+  Address:            "fldQEK7KRegxfB1FB",
+  Latitude:           "fld8qKY7QEOBLLZVp",
+  Longitude:          "fldNtZU5TopmzwLMC",
+  Radius_KM:          "fld9WMfUZUrtKyrwB",
+  Facilities_Count:   "fldbpQ4byugzV6Ou7",
+  Facilities_100km:   "fld3Sz7UrKuCulytD",
+  High_Risk_Count:    "fldiG6Ur4LOZ4Rkg1",
+  Source:             "fldUcANdD7WdoryMy",
+  Date:               "fldAf1RsT5jFoZIpQ",
+  Verify_Code:        "fldH2zdk7hrUfPVQB",
+  Verify_Code_Expiry: "fldxuKZR2ydvMipMZ",
+  Unsubscribed:       "fld90TmavlEPCyk4U",
 };
 
 const PLAN_INFO = {
@@ -2282,6 +2324,7 @@ const BusinessFooter = ({ onNavigate }) => (
         <a href="/methodology" onClick={e=>{e.preventDefault();onNavigate("/methodology");}} className="ext-link" style={{color:"#f97316",fontSize:14,fontWeight:700,textDecoration:"none",letterSpacing:".02em"}}>Methodology</a>
         <a href="/" onClick={e=>{e.preventDefault();onNavigate("/");}} className="ext-link" style={{color:"#f97316",fontSize:14,fontWeight:700,textDecoration:"none",letterSpacing:".02em"}}>Submit Your Report</a>
         <a href="/business" onClick={e=>{e.preventDefault();onNavigate("/business");}} className="ext-link" style={{color:"#f97316",fontSize:14,fontWeight:700,textDecoration:"none",letterSpacing:".02em"}}>Business Plans</a>
+        <a href="/my-report" onClick={e=>{e.preventDefault();onNavigate("/my-report");}} className="ext-link" style={{color:"#f97316",fontSize:14,fontWeight:700,textDecoration:"none",letterSpacing:".02em"}}>Retrieve My Report</a>
         <a href="/privacy" onClick={e=>{e.preventDefault();onNavigate("/privacy");}} className="ext-link" style={{color:"#f97316",fontSize:14,fontWeight:700,textDecoration:"none",letterSpacing:".02em"}}>Privacy Policy</a>
       </div>
       <div style={{fontSize:13,color:"#94a3b8",borderTop:"1px solid #1e293b",paddingTop:18,lineHeight:1.8}}>
@@ -3893,29 +3936,6 @@ const PrivacyPolicyPage = ({ onNavigate }) => {
   );
 };
 
-// Best-effort creation of the Unsubscribed checkbox field on the Emails and
-// Business_Accounts tables. Requires a key with schema scope; any failure
-// (no scope, field already exists) is swallowed so the unsubscribe flow
-// still proceeds.
-async function ensureUnsubscribedField() {
-  try {
-    const res = await fetch(`https://api.airtable.com/v0/meta/bases/${BASE}/tables`, { headers: HDR });
-    if (!res.ok) return;
-    const schema = await res.json();
-    for (const t of (schema.tables || [])) {
-      if (t.name !== "Emails" && t.id !== BUSINESS_TABLE) continue;
-      if ((t.fields || []).some(f => f.name === "Unsubscribed")) continue;
-      await fetch(`https://api.airtable.com/v0/meta/bases/${BASE}/tables/${t.id}/fields`, {
-        method: "POST",
-        headers: HDR,
-        body: JSON.stringify({ name: "Unsubscribed", type: "checkbox", options: { icon: "check", color: "greenBright" } }),
-      }).catch(() => {});
-    }
-  } catch (e) {
-    console.warn("ensureUnsubscribedField skipped:", e);
-  }
-}
-
 // ─── /unsubscribe: EMAIL OPT-OUT ─────────────────────────────────────────────
 const UnsubscribePage = ({ onNavigate }) => {
   const email = (new URLSearchParams(window.location.search).get("email") || "").trim();
@@ -3924,22 +3944,21 @@ const UnsubscribePage = ({ onNavigate }) => {
   const confirm = async () => {
     setStatus("working");
     const lc = email.toLowerCase().replace(/'/g, "\\'");
-    await ensureUnsubscribedField();
     // Emails table: flag every row matching this address.
     try {
-      const rows = await apiFetch("Emails", { filterByFormula: `LOWER({Email}) = '${lc}'` });
+      const rows = await apiFetch(EMAILS_TABLE, { filterByFormula: `LOWER({Email}) = '${lc}'` });
       for (const row of rows) {
-        await fetch(`${APIURL}/Emails/${row.id}`, {
+        await fetch(`${APIURL}/${EMAILS_TABLE}/${row.id}`, {
           method: "PATCH",
           headers: HDR,
-          body: JSON.stringify({ fields: { Unsubscribed: true } }),
+          body: JSON.stringify({ fields: { [EMAIL_FIELD.Unsubscribed]: true } }),
         }).catch(e => console.warn("Emails unsubscribe patch failed:", e));
       }
     } catch (e) { console.warn("Emails unsubscribe lookup failed:", e); }
     // Business_Accounts: flag the account if one exists.
     try {
       const rec = await fetchBusinessAccountByEmail(email);
-      if (rec) await patchBusinessAccount(rec.id, { Unsubscribed: true });
+      if (rec) await patchBusinessAccount(rec.id, { [BIZ_FIELD.Unsubscribed]: true });
     } catch (e) { console.warn("Business unsubscribe failed:", e); }
     setStatus("done");
   };
@@ -3993,50 +4012,144 @@ const UnsubscribePage = ({ onNavigate }) => {
   );
 };
 
-// ─── /my-report: PAID REPORT RETRIEVAL ───────────────────────────────────────
-// Lets a one-time ($14.99) report buyer look up their purchases by email and
-// regenerate any PDF from the coordinates saved on the Emails capture row.
+// ─── /my-report: SECURE PAID REPORT RETRIEVAL ────────────────────────────────
+// Three steps: enter the purchase email, verify a 6-digit code emailed to
+// that address, then list and re-download every paid report on the account.
 const MyReportPage = ({ onNavigate }) => {
+  const [step, setStep] = useState("email"); // email | code | reports
   const [email, setEmail] = useState("");
-  const [status, setStatus] = useState("idle"); // idle | searching | results | none | error
+  const [code, setCode] = useState("");
   const [reports, setReports] = useState([]);
+  const [busy, setBusy] = useState(false);
+  const [emailErr, setEmailErr] = useState("");
+  const [codeErr, setCodeErr] = useState("");
+  const [codeAttempts, setCodeAttempts] = useState(0);
+  const [expiryTs, setExpiryTs] = useState(0);
+  const [nowTick, setNowTick] = useState(Date.now());
   const [downloadingId, setDownloadingId] = useState(null);
   const [toast, setToast] = useState("");
+
+  // Drive the verification-code countdown while on the code step.
+  useEffect(() => {
+    if (step !== "code") return;
+    const t = setInterval(() => setNowTick(Date.now()), 1000);
+    return () => clearInterval(t);
+  }, [step]);
 
   const showToast = (msg) => {
     setToast(msg);
     setTimeout(() => setToast(""), 4000);
   };
 
-  const findReports = async () => {
-    if (!email.trim() || status === "searching") return;
-    setStatus("searching");
+  // Fetch every PaidReport row for an email, newest first, keyed by field ID.
+  const fetchPaidReports = async (addr) => {
+    const lc = addr.trim().toLowerCase().replace(/'/g, "\\'");
+    const rows = await apiFetch(EMAILS_TABLE, {
+      returnFieldsByFieldId: true,
+      filterByFormula: `AND(LOWER({Email}) = '${lc}', {Source} = 'PaidReport')`,
+    });
+    return rows
+      .map(r => ({
+        id:        r.id,
+        address:   r[EMAIL_FIELD.Address] || "Your area",
+        date:      r[EMAIL_FIELD.Date] || "",
+        facilities:r[EMAIL_FIELD.Facilities_Count],
+        highRisk:  r[EMAIL_FIELD.High_Risk_Count],
+        lat:       Number(r[EMAIL_FIELD.Latitude]),
+        lng:       Number(r[EMAIL_FIELD.Longitude]),
+        radius:    Number(r[EMAIL_FIELD.Radius_KM]) || 100,
+        verifyCode:   r[EMAIL_FIELD.Verify_Code],
+        verifyExpiry: r[EMAIL_FIELD.Verify_Code_Expiry],
+      }))
+      .sort((a, b) => (a.date < b.date ? 1 : -1));
+  };
+
+  // Generate, persist and email a fresh 6-digit code against the most recent
+  // PaidReport row. Shared by the initial send and the resend link.
+  const issueCode = async (rows) => {
+    const verifyCode = Math.floor(100000 + Math.random() * 900000).toString();
+    const expiryMs = Date.now() + 10 * 60 * 1000;
+    await fetch(`${APIURL}/${EMAILS_TABLE}/${rows[0].id}`, {
+      method: "PATCH",
+      headers: HDR,
+      body: JSON.stringify({ fields: {
+        [EMAIL_FIELD.Verify_Code]: verifyCode,
+        [EMAIL_FIELD.Verify_Code_Expiry]: new Date(expiryMs).toISOString(),
+      } }),
+    });
+    await fetch("/api/send-report-code", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email: email.trim(), code: verifyCode }),
+    }).catch(e => console.warn("send-report-code failed:", e));
+    setExpiryTs(expiryMs);
+  };
+
+  const sendCode = async () => {
+    if (!email.trim() || busy) return;
+    setBusy(true);
+    setEmailErr("");
     try {
-      const lc = email.trim().toLowerCase().replace(/'/g, "\\'");
-      const rows = await apiFetch("Emails", {
-        filterByFormula: `AND(LOWER({Email}) = '${lc}', {Source} = 'PaidReport')`,
-      });
+      const rows = await fetchPaidReports(email);
       if (!rows.length) {
-        setReports([]);
-        setStatus("none");
+        setEmailErr("No reports found for this email address. If you believe this is an error contact hello@humzones.com");
         return;
       }
-      const mapped = rows.map(r => ({
-        id:        r.id,
-        address:   r.Address || "Your area",
-        date:      r.Date || "",
-        count:     r.Facilities_Count != null ? r.Facilities_Count : r.Facilities_100km,
-        highRisk:  r.High_Risk_Count,
-        lat:       Number(r.Latitude),
-        lng:       Number(r.Longitude),
-        radius:    Number(r.Radius_KM) || 100,
-      }));
-      mapped.sort((a, b) => (a.date < b.date ? 1 : -1));
-      setReports(mapped);
-      setStatus("results");
+      setReports(rows);
+      await issueCode(rows);
+      setCode("");
+      setCodeErr("");
+      setCodeAttempts(0);
+      setStep("code");
     } catch (e) {
-      console.error("Report lookup failed:", e);
-      setStatus("error");
+      console.error("Report code request failed:", e);
+      setEmailErr("Something went wrong. Please try again.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const resendCode = async () => {
+    if (busy || !reports.length) return;
+    setBusy(true);
+    setCodeErr("");
+    try {
+      await issueCode(reports);
+      setCode("");
+      setCodeAttempts(0);
+      showToast("A new code is on its way.");
+    } catch (e) {
+      console.error("Resend failed:", e);
+      setCodeErr("Could not resend the code. Please try again.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const verifyCode = async () => {
+    if (busy || codeAttempts >= 3 || !/^[0-9]{6}$/.test(code.trim())) return;
+    setBusy(true);
+    setCodeErr("");
+    try {
+      // Re-read the most recent row so the check always reflects Airtable.
+      const rows = await fetchPaidReports(email);
+      const latest = rows[0];
+      const ok = latest &&
+        latest.verifyCode && String(latest.verifyCode) === code.trim() &&
+        latest.verifyExpiry && new Date(latest.verifyExpiry).getTime() > Date.now();
+      if (ok) {
+        setReports(rows);
+        setStep("reports");
+      } else {
+        const n = codeAttempts + 1;
+        setCodeAttempts(n);
+        setCodeErr("Invalid or expired code. Please request a new one.");
+      }
+    } catch (e) {
+      console.error("Code verification failed:", e);
+      setCodeErr("Something went wrong. Please try again.");
+    } finally {
+      setBusy(false);
     }
   };
 
@@ -4080,6 +4193,11 @@ const MyReportPage = ({ onNavigate }) => {
     }
   };
 
+  const secsLeft = Math.max(0, Math.round((expiryTs - nowTick) / 1000));
+  const mm = String(Math.floor(secsLeft / 60)).padStart(2, "0");
+  const ss = String(secsLeft % 60).padStart(2, "0");
+  const codeLocked = codeAttempts >= 3;
+
   return (
     <div style={{minHeight:"100vh",background:"linear-gradient(150deg,#020c1b 0%,#0f172a 50%,#1e0535 100%)",color:"#fff"}}>
       <div style={{padding:"22px 24px"}}>
@@ -4090,49 +4208,86 @@ const MyReportPage = ({ onNavigate }) => {
       </div>
 
       <main style={{maxWidth:560,margin:"0 auto",padding:"24px 24px 80px"}}>
-        <div style={{background:"rgba(15,23,42,.55)",border:"1px solid rgba(255,255,255,.1)",borderRadius:16,padding:"28px",marginBottom:22}}>
-          <h1 style={{fontSize:26,fontWeight:900,letterSpacing:"-.01em",marginBottom:8}}>Retrieve Your Report</h1>
-          <p style={{fontSize:15,color:"rgba(255,255,255,.72)",lineHeight:1.6,marginBottom:18}}>Enter the email address you used when purchasing your report.</p>
-          <input
-            type="email"
-            value={email}
-            onChange={e=>setEmail(e.target.value)}
-            onKeyDown={e=>{ if (e.key === "Enter") findReports(); }}
-            placeholder="Your email address"
-            style={{width:"100%",padding:"13px 16px",borderRadius:10,border:`1.5px solid ${email.trim()?"#f97316":"rgba(255,255,255,.18)"}`,fontSize:15,boxSizing:"border-box",outline:"none",fontFamily:"inherit",color:"#fff",background:"rgba(255,255,255,.06)",marginBottom:14}}
-          />
-          <button onClick={findReports} disabled={!email.trim() || status === "searching"} style={{width:"100%",padding:"15px 22px",borderRadius:12,border:"none",cursor:(!email.trim()||status==="searching")?"not-allowed":"pointer",fontFamily:"inherit",fontSize:15,fontWeight:900,letterSpacing:".04em",background:email.trim()?"linear-gradient(135deg,#ef4444,#f97316)":"rgba(255,255,255,.1)",color:"#fff",boxShadow:email.trim()?"0 10px 28px rgba(249,115,22,.4)":"none"}}>
-            {status === "searching" ? "Searching..." : "Find My Report"}
-          </button>
-          <p style={{fontSize:12,color:"rgba(255,255,255,.5)",marginTop:12}}>We will show you all reports purchased with this email address.</p>
-        </div>
 
-        {status === "none" && (
-          <div style={{padding:"18px 20px",borderRadius:14,background:"rgba(239,68,68,.1)",border:"1px solid rgba(239,68,68,.35)",color:"#fecaca",fontSize:14,lineHeight:1.6}}>
-            No reports found for this email address. If you believe this is an error contact hello@humzones.com
-          </div>
-        )}
-        {status === "error" && (
-          <div style={{padding:"18px 20px",borderRadius:14,background:"rgba(239,68,68,.1)",border:"1px solid rgba(239,68,68,.35)",color:"#fecaca",fontSize:14}}>
-            Something went wrong looking up your reports. Please try again.
+        {step === "email" && (
+          <div style={{background:"rgba(15,23,42,.55)",border:"1px solid rgba(255,255,255,.1)",borderRadius:16,padding:"28px"}}>
+            <h1 style={{fontSize:26,fontWeight:900,letterSpacing:"-.01em",marginBottom:8}}>Retrieve Your Reports</h1>
+            <p style={{fontSize:15,color:"rgba(255,255,255,.72)",lineHeight:1.6,marginBottom:18}}>Enter the email address you used when purchasing your report. We will send you a secure 6-digit verification code.</p>
+            <input
+              type="email"
+              value={email}
+              onChange={e=>setEmail(e.target.value)}
+              onKeyDown={e=>{ if (e.key === "Enter") sendCode(); }}
+              placeholder="Your purchase email address"
+              style={{width:"100%",padding:"13px 16px",borderRadius:10,border:`1.5px solid ${email.trim()?"#f97316":"rgba(255,255,255,.18)"}`,fontSize:15,boxSizing:"border-box",outline:"none",fontFamily:"inherit",color:"#fff",background:"rgba(255,255,255,.06)",marginBottom:14}}
+            />
+            <button onClick={sendCode} disabled={!email.trim() || busy} style={{width:"100%",padding:"15px 22px",borderRadius:12,border:"none",cursor:(!email.trim()||busy)?"not-allowed":"pointer",fontFamily:"inherit",fontSize:15,fontWeight:900,letterSpacing:".04em",background:email.trim()?"linear-gradient(135deg,#ef4444,#f97316)":"rgba(255,255,255,.1)",color:"#fff",boxShadow:email.trim()?"0 10px 28px rgba(249,115,22,.4)":"none"}}>
+              {busy ? "Sending..." : "Send Verification Code"}
+            </button>
+            <p style={{fontSize:12,color:"rgba(255,255,255,.5)",marginTop:12,lineHeight:1.55}}>Check your spam folder if you do not receive the code within a few minutes.</p>
+            {emailErr && (
+              <div style={{marginTop:14,padding:"12px 14px",borderRadius:10,background:"rgba(239,68,68,.12)",border:"1px solid rgba(239,68,68,.4)",color:"#fecaca",fontSize:14,lineHeight:1.6}}>{emailErr}</div>
+            )}
+            <p style={{fontSize:13,color:"rgba(255,255,255,.55)",marginTop:16,paddingTop:14,borderTop:"1px solid rgba(255,255,255,.08)"}}>
+              Need help? Contact hello@humzones.com
+            </p>
           </div>
         )}
 
-        {status === "results" && (
-          <div style={{display:"flex",flexDirection:"column",gap:12}}>
-            {reports.map(r => (
-              <div key={r.id} style={{background:"rgba(15,23,42,.55)",border:"1px solid rgba(255,255,255,.08)",borderRadius:14,padding:"18px 20px"}}>
-                <div style={{fontSize:15,fontWeight:800,color:"#fff",marginBottom:6,wordBreak:"break-word"}}>{r.address}</div>
-                <div style={{fontSize:13,color:"rgba(255,255,255,.6)",display:"flex",gap:14,flexWrap:"wrap",marginBottom:14}}>
-                  {r.date && <span>Purchased {r.date}</span>}
-                  {r.count != null && <span>{r.count} facilities</span>}
+        {step === "code" && (
+          <div style={{background:"rgba(15,23,42,.55)",border:"1px solid rgba(255,255,255,.1)",borderRadius:16,padding:"28px"}}>
+            <h1 style={{fontSize:26,fontWeight:900,letterSpacing:"-.01em",marginBottom:8}}>Check Your Email</h1>
+            <p style={{fontSize:15,color:"rgba(255,255,255,.72)",lineHeight:1.6,marginBottom:18}}>We sent a 6-digit code to {email}. Enter it below.</p>
+            {codeErr && (
+              <div style={{padding:"12px 14px",borderRadius:10,background:"rgba(239,68,68,.12)",border:"1px solid rgba(239,68,68,.4)",color:"#fecaca",fontSize:14,marginBottom:14}}>{codeErr}</div>
+            )}
+            {codeLocked && (
+              <div style={{padding:"12px 14px",borderRadius:10,background:"rgba(239,68,68,.12)",border:"1px solid rgba(239,68,68,.4)",color:"#fecaca",fontSize:14,marginBottom:14}}>Too many failed attempts. Please request a new code.</div>
+            )}
+            <input
+              type="text"
+              inputMode="numeric"
+              maxLength={6}
+              value={code}
+              onChange={e=>setCode(e.target.value.replace(/[^0-9]/g, ""))}
+              onKeyDown={e=>{ if (e.key === "Enter") verifyCode(); }}
+              disabled={codeLocked}
+              placeholder="000000"
+              style={{width:"100%",padding:"16px",borderRadius:10,border:`1.5px solid ${/^[0-9]{6}$/.test(code)?"#f97316":"rgba(255,255,255,.18)"}`,fontSize:32,letterSpacing:"12px",textAlign:"center",boxSizing:"border-box",outline:"none",fontFamily:"inherit",fontWeight:900,color:"#fff",background:"rgba(255,255,255,.06)",marginBottom:8,opacity:codeLocked?.5:1}}
+            />
+            <div style={{fontSize:13,color:"rgba(255,255,255,.55)",textAlign:"center",marginBottom:14}}>
+              {secsLeft > 0 ? `Code expires in ${mm}:${ss}` : "Your code has expired. Request a new one."}
+            </div>
+            <button onClick={verifyCode} disabled={busy || codeLocked || !/^[0-9]{6}$/.test(code)} style={{width:"100%",padding:"15px 22px",borderRadius:12,border:"none",cursor:(busy||codeLocked||!/^[0-9]{6}$/.test(code))?"not-allowed":"pointer",fontFamily:"inherit",fontSize:15,fontWeight:900,letterSpacing:".04em",background:(/^[0-9]{6}$/.test(code)&&!codeLocked)?"linear-gradient(135deg,#ef4444,#f97316)":"rgba(255,255,255,.1)",color:"#fff",boxShadow:(/^[0-9]{6}$/.test(code)&&!codeLocked)?"0 10px 28px rgba(249,115,22,.4)":"none"}}>
+              {busy ? "Verifying..." : "Verify and Show My Reports"}
+            </button>
+            <p style={{fontSize:13,color:"rgba(255,255,255,.55)",textAlign:"center",marginTop:14}}>
+              <a href="/my-report" onClick={e=>{e.preventDefault();resendCode();}} style={{color:"#f97316",fontWeight:700,textDecoration:"none",cursor:"pointer"}}>Resend code</a>
+            </p>
+          </div>
+        )}
+
+        {step === "reports" && (
+          <>
+            <h1 style={{fontSize:26,fontWeight:900,letterSpacing:"-.01em",marginBottom:8}}>Your Reports</h1>
+            <p style={{fontSize:15,color:"rgba(255,255,255,.72)",lineHeight:1.6,marginBottom:6}}>All reports purchased with {email}. Re-download any report at any time.</p>
+            <p style={{fontSize:13,color:"rgba(255,255,255,.5)",marginBottom:18}}>You have {reports.length} {reports.length === 1 ? "report" : "reports"} in your account</p>
+            <div style={{display:"flex",flexDirection:"column",gap:12}}>
+              {reports.map(r => (
+                <div key={r.id} style={{background:"rgba(15,23,42,.55)",border:"1px solid rgba(255,255,255,.08)",borderRadius:14,padding:"18px 20px"}}>
+                  <div style={{fontSize:15,fontWeight:800,color:"#fff",marginBottom:6,wordBreak:"break-word"}}>{r.address}</div>
+                  <div style={{fontSize:13,color:"rgba(255,255,255,.6)",display:"flex",gap:14,flexWrap:"wrap",marginBottom:14}}>
+                    {r.date && <span>Purchased {r.date}</span>}
+                    {r.facilities != null && <span>{r.facilities} facilities</span>}
+                    {r.highRisk != null && <span>{r.highRisk} high risk</span>}
+                  </div>
+                  <button onClick={()=>redownload(r)} disabled={downloadingId === r.id} style={{padding:"11px 20px",borderRadius:10,border:"none",cursor:downloadingId === r.id ? "not-allowed" : "pointer",fontFamily:"inherit",fontSize:14,fontWeight:800,background:"linear-gradient(135deg,#ef4444,#f97316)",color:"#fff",boxShadow:"0 6px 18px rgba(249,115,22,.34)"}}>
+                    {downloadingId === r.id ? "Generating..." : "Re-download Report"}
+                  </button>
                 </div>
-                <button onClick={()=>redownload(r)} disabled={downloadingId === r.id} style={{padding:"11px 20px",borderRadius:10,border:"none",cursor:downloadingId === r.id ? "not-allowed" : "pointer",fontFamily:"inherit",fontSize:14,fontWeight:800,background:"linear-gradient(135deg,#ef4444,#f97316)",color:"#fff",boxShadow:"0 6px 18px rgba(249,115,22,.34)"}}>
-                  {downloadingId === r.id ? "Generating..." : "Re-download Report"}
-                </button>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          </>
         )}
       </main>
 
@@ -4752,7 +4907,7 @@ export default function App() {
     <>
       <style>{CSS}</style>
       {path === "/methodology" ? (
-        <MethodologyPage onBack={()=>navigate("/")}/>
+        <MethodologyPage onBack={()=>navigate("/")} onNavigate={navigate}/>
       ) : path === "/report-landing" ? (
         <ReportLandingPage onBack={()=>navigate("/")} onNavigate={navigate}/>
       ) : path === "/report-success" ? (
