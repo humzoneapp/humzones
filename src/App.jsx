@@ -1927,17 +1927,21 @@ const GetReportPage = ({ onNavigate }) => {
             )}
           </>
         )}
-
-        {/* Before a search runs, show the same interactive map and social
-            share cards as the main page. They are hidden once results
-            appear. The map card sits above the share card. */}
-        {!loc && (
-          <>
-            <MapSection facilities={facs} loading={loading}/>
-            <ShareSection/>
-          </>
-        )}
       </div>
+
+      {/* Before a search runs, show the same interactive map and social
+          share cards as the main page. Rendered outside the
+          .near-me-results wrapper so the global `.near-me-results *`
+          size constraints (added for mobile result cards) do not cascade
+          into Leaflet popup internals and clip the popup card. The main
+          page already places MapSection outside this wrapper for the
+          same reason. */}
+      {!loc && (
+        <div style={{maxWidth:1200,margin:"0 auto",padding:"0 20px 24px",width:"100%",boxSizing:"border-box"}}>
+          <MapSection facilities={facs} loading={loading}/>
+          <ShareSection/>
+        </div>
+      )}
 
       <Footer onNavigate={onNavigate} facilities={facs}/>
     </div>
