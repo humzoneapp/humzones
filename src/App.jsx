@@ -511,7 +511,9 @@ const CSS = `
   .hz-trap{position:absolute;left:-9999px;opacity:0;pointer-events:none;tab-index:-1}
 
   @media(max-width:768px){
-    .hero{padding:48px 20px 60px!important;min-height:auto!important}
+    /* Extra top padding clears the absolutely positioned top nav so it never
+       overlaps the hero content on mobile. Desktop keeps its inline padding. */
+    .hero{padding:96px 20px 60px!important;min-height:auto!important}
     .hero h1{font-size:48px!important}
     .scroll-hint{display:none!important}
     .search-row{flex-direction:column!important}
@@ -3325,14 +3327,6 @@ const Footer = ({ onNavigate }) => {
 
   return (
     <footer style={{background:"#0a0f1e",color:"#fff"}}>
-      {/* DATA DISCLAIMER: a thin top border sets it off from the page content
-          above. Lives in the Footer so it shows on every page that uses it. */}
-      <div style={{borderTop:"1px solid rgba(255,255,255,.08)",padding:"22px 24px"}}>
-        <p style={{maxWidth:900,margin:"0 auto",fontSize:12,color:"#64748b",lineHeight:1.7,textAlign:"center"}}>
-          Data Disclaimer: All figures shown including noise levels, EMF readings, power consumption, CO2 estimates and water usage are research-based estimates compiled from public sources, permit filings and industry standards. They are not certified measurements. Actual readings may vary by facility design, operating conditions and season. HumZones is an informational resource only and does not constitute medical, legal or environmental advice.
-        </p>
-      </div>
-
       {/* TOP: 4 columns */}
       <div style={{maxWidth:1180,margin:"0 auto",padding:"48px 24px 38px"}}>
         <div className="hz-footer-grid">
