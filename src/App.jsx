@@ -1,5 +1,5 @@
 // HumZones - Last updated: May 22 2026
-// Build marker: 2026-05-19, force fresh Vercel deployment.
+// Build marker: 2026-05-22, force fresh Vercel deployment of the full-width navy nav bar.
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 // Leaflet base stylesheet for the interactive world map. The react-leaflet
 // library itself is dynamically imported inside MapSection.
