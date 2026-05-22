@@ -1674,11 +1674,7 @@ const GetReportPage = ({ onNavigate }) => {
   return (
     <div style={{minHeight:"100vh",background:"#f1f5f9",width:"100%",maxWidth:"100vw",overflowX:"hidden"}}>
 
-      {/* Full-width dark navy band behind the nav so no light page
-          background shows through beside the 1040px-wide BackNav. */}
-      <div style={{background:"#1e293b"}}>
-        <BackNav onNavigate={onNavigate}/>
-      </div>
+      <BackNav onNavigate={onNavigate}/>
 
       {/* HERO */}
       <section style={{background:"linear-gradient(150deg,#020c1b 0%,#0f172a 45%,#1e0535 100%)",padding:"0 0 56px",position:"relative",overflow:"hidden",borderBottom:"1px solid rgba(249,115,22,.18)"}}>
@@ -5901,20 +5897,24 @@ const SubmitReportPage = ({ onNavigate }) => {
 };
 
 // ─── SHARED: dark page hero used by the static content pages ─────────────────
-// Standardized top nav: a #1e293b bar, constrained to 1040px and centered,
-// with a plain-text back button on the far left and the 20px HumZones logo
-// on the right. Optional `extra` content renders just left of the logo.
+// Standardized top nav: a full-width #1e293b band with a plain-text back
+// button on the far left and the 20px HumZones logo on the right. The band
+// spans edge to edge so no light page background shows through; the back
+// button and logo stay constrained to 1040px and centered. Optional `extra`
+// content renders just left of the logo.
 const BackNav = ({ onNavigate, extra }) => (
-  <div style={{background:"#1e293b",maxWidth:1040,margin:"0 auto",width:"100%",padding:"16px 24px",display:"flex",alignItems:"center",justifyContent:"space-between",gap:14,boxSizing:"border-box"}}>
-    <button onClick={()=>window.history.back()} className="backnav-btn" aria-label="Go back" style={{display:"inline-flex",alignItems:"center",gap:6,background:"none",border:"none",color:"rgba(255,255,255,.85)",fontSize:14,fontWeight:500,padding:"8px 12px",cursor:"pointer",fontFamily:"inherit"}}>
-      <span style={{fontSize:16,lineHeight:1}}>&larr;</span> Back
-    </button>
-    <div style={{display:"flex",alignItems:"center",gap:16,flexWrap:"wrap",justifyContent:"flex-end"}}>
-      {extra}
-      <a href="/" onClick={e=>{e.preventDefault();onNavigate("/");}} aria-label="HumZones home" style={{textDecoration:"none",display:"inline-flex",alignItems:"baseline"}}>
-        <span style={{fontSize:20,fontWeight:700,color:"#fff"}}>HumZones</span>
-        <sup style={{fontSize:10,color:"#f97316",fontWeight:700,verticalAlign:"super",marginLeft:1}}>TM</sup>
-      </a>
+  <div style={{background:"#1e293b",width:"100%"}}>
+    <div style={{maxWidth:1040,margin:"0 auto",width:"100%",padding:"16px 24px",display:"flex",alignItems:"center",justifyContent:"space-between",gap:14,boxSizing:"border-box"}}>
+      <button onClick={()=>window.history.back()} className="backnav-btn" aria-label="Go back" style={{display:"inline-flex",alignItems:"center",gap:6,background:"none",border:"none",color:"rgba(255,255,255,.85)",fontSize:14,fontWeight:500,padding:"8px 12px",cursor:"pointer",fontFamily:"inherit"}}>
+        <span style={{fontSize:16,lineHeight:1}}>&larr;</span> Back
+      </button>
+      <div style={{display:"flex",alignItems:"center",gap:16,flexWrap:"wrap",justifyContent:"flex-end"}}>
+        {extra}
+        <a href="/" onClick={e=>{e.preventDefault();onNavigate("/");}} aria-label="HumZones home" style={{textDecoration:"none",display:"inline-flex",alignItems:"baseline"}}>
+          <span style={{fontSize:20,fontWeight:700,color:"#fff"}}>HumZones</span>
+          <sup style={{fontSize:10,color:"#f97316",fontWeight:700,verticalAlign:"super",marginLeft:1}}>TM</sup>
+        </a>
+      </div>
     </div>
   </div>
 );
