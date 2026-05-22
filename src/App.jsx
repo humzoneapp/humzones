@@ -346,7 +346,7 @@ const QUIZ = [
 ];
 
 const TABS = [
-  {id:"feel",    label:"What You'll Feel",  icon:"sound"},
+  {id:"feel",    label:"What Residents Report",  icon:"sound"},
   {id:"numbers", label:"By the Numbers",    icon:"number"},
   {id:"quiz",    label:"Your Risk Quiz",    icon:"question"},
   {id:"health",  label:"Long-Term Health",  icon:"heart"},
@@ -934,8 +934,8 @@ const ReportLandingPage = ({ onBack, onNavigate }) => {
     },
     {
       val: numbersUnknown ? "" : String(highRiskCount),
-      label: "HIGH risk facilities",
-      desc: "Sites at 50 MW or more, or within 500m of homes. These have the strongest documented health impact patterns.",
+      label: "HIGH exposure category facilities",
+      desc: "Sites at 50 MW or more, or within 500m of homes. These have the strongest documented infrastructure impact patterns.",
       color: "#f97316",
     },
     {
@@ -954,11 +954,11 @@ const ReportLandingPage = ({ onBack, onNavigate }) => {
 
   const benefits = [
     "Complete list of all facilities within 100km of your address",
-    "Risk level and health context for each facility",
+    "Infrastructure exposure category and infrastructure and community impact context for each facility",
     "EMF exposure estimates at your distance",
     "Noise impact analysis",
     "Water and CO2 impact in your region",
-    "Practical steps to reduce your exposure",
+    "Infrastructure awareness and community action steps",
     "Lifetime report access: every report you purchase is saved to your account forever",
     "Re-download anytime: retrieve any past report using your email address, even years later",
   ];
@@ -1422,7 +1422,7 @@ async function buildAreaReportPdf({ searchAddress, facsNear, radiusKm = 100, fac
   });
 
   y += 18;
-  const paragraph = `This report identifies ${totalFound} data center ${totalFound === 1 ? "facility" : "facilities"} operating within ${radiusLbl} of your address. Of these, ${counts.HIGH} ${counts.HIGH === 1 ? "is" : "are"} classified as HIGH risk based on power scale, proximity to residential areas and cooling type.`;
+  const paragraph = `This report identifies ${totalFound} data center ${totalFound === 1 ? "facility" : "facilities"} operating within ${radiusLbl} of your address. Of these, ${counts.HIGH} ${counts.HIGH === 1 ? "is" : "are"} in the HIGH infrastructure exposure category based on power scale, proximity to residential areas and cooling type.`;
   doc.setFont("helvetica", "normal"); doc.setFontSize(11);
   setText(71, 85, 105);
   const pWrap = doc.splitTextToSize(paragraph, PW - M*2);
@@ -1473,7 +1473,7 @@ async function buildAreaReportPdf({ searchAddress, facsNear, radiusKm = 100, fac
           ? [249, 115, 22]
           : [59, 130, 246];
       setText(rc[0], rc[1], rc[2]);
-      doc.text(`Risk Level: ${String(f.Risk_Level || "UNKNOWN").toUpperCase()}`, M + 270, y);
+      doc.text(`Exposure Category: ${String(f.Risk_Level || "UNKNOWN").toUpperCase()}`, M + 270, y);
       y += 16;
 
       doc.setFont("helvetica", "normal"); doc.setFontSize(10);
@@ -1493,14 +1493,14 @@ async function buildAreaReportPdf({ searchAddress, facsNear, radiusKm = 100, fac
       const waterv= resolveWater(f, mw);
       const noisev= resolveNoise(f);
       const stats = [
-        ["Power",         `${fmtNum(mw)} MW`],
-        ["Noise",         `${noisev} dB`],
-        ["CO2",           `${fmtNum(co2v)} tons per year`],
-        ["Water",         `${fmtNum(waterv)} gallons per day`],
-        ["EMF at fence",  f.EMF_Fence_High != null && f.EMF_Fence_High !== "" ? `${f.EMF_Fence_High} mG` : "n/a"],
-        ["EMF at 100m",   f.EMF_100m       != null && f.EMF_100m       !== "" ? `${f.EMF_100m} mG`       : "n/a"],
-        ["Cooling type",  f.Cooling || "n/a"],
-        ["Opened",        f.Opened ? String(f.Opened) : "n/a"],
+        ["Reported power",       `${fmtNum(mw)} MW`],
+        ["Estimated noise",      `${noisev} dB`],
+        ["Estimated CO2",        `${fmtNum(co2v)} tons per year`],
+        ["Estimated water draw", `${fmtNum(waterv)} gallons per day`],
+        ["Modeled EMF at fence", f.EMF_Fence_High != null && f.EMF_Fence_High !== "" ? `${f.EMF_Fence_High} mG` : "n/a"],
+        ["Modeled EMF at 100m",  f.EMF_100m       != null && f.EMF_100m       !== "" ? `${f.EMF_100m} mG`       : "n/a"],
+        ["Cooling type",         f.Cooling || "n/a"],
+        ["Opened",               f.Opened ? String(f.Opened) : "n/a"],
       ];
       const colW = (PW - M*2) / 2;
       stats.forEach((s, idx) => {
@@ -1508,10 +1508,15 @@ async function buildAreaReportPdf({ searchAddress, facsNear, radiusKm = 100, fac
         if (col === 0 && idx > 0) y += 16;
         const x = M + col * colW;
         doc.setFont("helvetica", "bold"); doc.setFontSize(10);
-        setText(100, 116, 139); doc.text(`${s[0]}:`, x, y);
+        setText(100, 116, 139);
+        const labelTxt = `${s[0]}:`;
+        doc.text(labelTxt, x, y);
+        // Value is placed immediately after its own label so the longer
+        // infrastructure labels never overlap the figure.
+        const valX = x + doc.getTextWidth(labelTxt) + 8;
         doc.setFont("helvetica", "normal"); setText(15, 23, 42);
-        const valLines = doc.splitTextToSize(String(s[1]), colW - 90);
-        doc.text(valLines[0], x + 84, y);
+        const valLines = doc.splitTextToSize(String(s[1]), x + colW - valX - 8);
+        doc.text(valLines[0], valX, y);
       });
       y += 22;
 
@@ -1676,6 +1681,216 @@ function pdfFilenameSafe(address) {
     .replace(/-+/g, "-")
     .replace(/^-+|-+$/g, "")
     .slice(0, 60) || "report";
+}
+
+// ─── SAMPLE REPORT PDF ───────────────────────────────────────────────────────
+// Builds the downloadable sample report offered on the /business page. Every
+// page carries a diagonal light-grey SAMPLE watermark and all facilities and
+// figures are placeholder data, so it can never be confused with a paid
+// area report. Returns the jsPDF doc for the caller to save.
+async function buildSampleReportPdf() {
+  const jsPDFModule = await import("jspdf");
+  const { jsPDF } = jsPDFModule;
+  const doc = new jsPDF({ unit: "pt", format: "letter" });
+  const PW = doc.internal.pageSize.getWidth();
+  const PH = doc.internal.pageSize.getHeight();
+  const M  = 56;
+  const setText = (r,g,b) => doc.setTextColor(r,g,b);
+  const dateLong = new Date().toLocaleDateString("en-US", { year:"numeric", month:"long", day:"numeric" });
+
+  // Light grey diagonal SAMPLE watermark. Drawn before page content so it
+  // sits behind the text and stays legible underneath.
+  const stampSample = () => {
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(80);
+    doc.setTextColor(226, 232, 240);
+    doc.text("SAMPLE", PW / 2, PH / 2 + 40, { align: "center", angle: 30 });
+    setText(15, 23, 42);
+  };
+
+  const drawTopBand = (rightLabel) => {
+    doc.setFillColor(15, 23, 42);
+    doc.rect(0, 0, PW, 32, "F");
+    doc.setFillColor(249, 115, 22);
+    doc.rect(0, 32, PW, 2, "F");
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(11);
+    setText(255, 255, 255);
+    doc.text("HumZones Sample Report", M, 22);
+    doc.setFont("helvetica", "normal");
+    setText(148, 163, 184);
+    doc.text(rightLabel, PW - M, 22, { align: "right" });
+    setText(15, 23, 42);
+  };
+
+  const catColor = (cat) => cat === "HIGH" ? [239,68,68] : cat === "MODERATE" ? [249,115,22] : [59,130,246];
+
+  // ═══ PAGE 1: COVER
+  stampSample();
+  doc.setFillColor(15, 23, 42); doc.rect(0, 0, PW, 6, "F");
+  doc.setFillColor(249, 115, 22); doc.rect(0, 6, PW, 3, "F");
+
+  doc.setFont("helvetica", "bold"); doc.setFontSize(16);
+  setText(15, 23, 42); doc.text("HumZones", M, 48);
+
+  let y = 200;
+  doc.setFont("helvetica", "bold"); doc.setFontSize(26);
+  setText(15, 23, 42); doc.text("HumZones Sample Report", M, y);
+  y += 30;
+  doc.setFont("helvetica", "normal"); doc.setFontSize(12);
+  setText(100, 116, 139);
+  doc.text(doc.splitTextToSize("A demonstration of the infrastructure intelligence included in every HumZones professional report. All facilities and figures shown are placeholder sample data.", PW - M*2), M, y);
+
+  y += 74;
+  doc.setFillColor(241, 245, 249); doc.rect(M, y - 22, PW - M*2, 82, "F");
+  doc.setFillColor(249, 115, 22); doc.rect(M, y - 22, 4, 82, "F");
+  doc.setFont("helvetica", "bold"); doc.setFontSize(11);
+  setText(100, 116, 139); doc.text("SAMPLE LOCATION", M + 20, y);
+  doc.setFont("helvetica", "bold"); doc.setFontSize(13);
+  setText(15, 23, 42); doc.text("Sample Address, Sample City, Sample Region", M + 20, y + 22);
+  doc.setFont("helvetica", "normal"); doc.setFontSize(11);
+  setText(100, 116, 139); doc.text("This is not a real address. No real location data is shown.", M + 20, y + 44);
+
+  doc.setFont("helvetica", "bold"); doc.setFontSize(11);
+  setText(15, 23, 42); doc.text("Prepared by HumZones", M, PH - 86);
+  doc.setFont("helvetica", "normal"); doc.setFontSize(10);
+  setText(100, 116, 139);
+  doc.text("Global Data Center Health & Infrastructure Registry", M, PH - 68);
+  doc.text("A service of HumZones Technologies Inc.", M, PH - 52);
+  doc.text("humzones.com", M, PH - 36);
+
+  // ═══ PAGE 2: EXECUTIVE SUMMARY
+  doc.addPage(); stampSample(); drawTopBand("Executive Summary");
+  y = 80;
+  doc.setFont("helvetica", "bold"); doc.setFontSize(22);
+  setText(15, 23, 42); doc.text("Executive Summary", M, y);
+  y += 36;
+  const summaryRows = [
+    ["Total facilities within 100km", "12"],
+    ["HIGH exposure category facilities", "3"],
+    ["MODERATE exposure category facilities", "5"],
+    ["LOW exposure category facilities", "4"],
+    ["Combined estimated power draw", "612 MW"],
+    ["Combined daily water consumption", "2,140,000 gallons"],
+    ["Combined CO2 per year", "1,180,000 tons"],
+  ];
+  summaryRows.forEach((r, idx) => {
+    if (idx % 2 === 0) { doc.setFillColor(248,250,252); doc.rect(M, y-14, PW-M*2, 28, "F"); }
+    doc.setFont("helvetica", "normal"); doc.setFontSize(12);
+    setText(71,85,105); doc.text(r[0], M+14, y+4);
+    doc.setFont("helvetica", "bold"); setText(15,23,42);
+    doc.text(r[1], PW-M-14, y+4, { align:"right" });
+    y += 28;
+  });
+  y += 22;
+  doc.setFont("helvetica", "normal"); doc.setFontSize(11);
+  setText(71,85,105);
+  doc.text(doc.splitTextToSize("This sample report identifies 12 placeholder data center facilities within 100km of a sample address. Of these, 3 are in the HIGH infrastructure exposure category, 5 are MODERATE and 4 are LOW, based on power scale, proximity to residential areas and cooling type. A full HumZones report lists every facility near a real searched address with the same depth of detail shown on the following pages.", PW - M*2), M, y);
+
+  // ═══ PAGES 3-5: SAMPLE FACILITIES
+  const sampleFacs = [
+    { name:"SAMPLE Data Center Alpha", company:"Sample Operator LLC",          city:"Sample City, Sample Region",    dist:"2.4 km",  cat:"HIGH",     power:"95 MW", noise:"68 dB", emfFence:"6 mG", emf100:"3 mG",       co2:"310,000 tons per year", water:"680,000 gallons per day", cooling:"Evaporative",   opened:"2022" },
+    { name:"SAMPLE Data Center Beta",  company:"Example Infrastructure Group",  city:"Sample Town, Sample Region",    dist:"11.8 km", cat:"MODERATE", power:"38 MW", noise:"64 dB", emfFence:"3 mG", emf100:"1 mG",       co2:"120,000 tons per year", water:"210,000 gallons per day", cooling:"Chilled water", opened:"2020" },
+    { name:"SAMPLE Data Center Gamma", company:"Placeholder Hosting Inc.",      city:"Sample Village, Sample Region", dist:"46.2 km", cat:"LOW",      power:"12 MW", noise:"60 dB", emfFence:"1 mG", emf100:"below 1 mG", co2:"Near zero",             water:"Minimal",                 cooling:"Air-cooled",    opened:"2019" },
+  ];
+  sampleFacs.forEach((f, i) => {
+    doc.addPage(); stampSample(); drawTopBand(`Sample Facility ${i+1} of 3`);
+    y = 80;
+    doc.setFont("helvetica", "bold"); doc.setFontSize(20);
+    setText(15,23,42); doc.text(f.name, M, y);
+    y += 22;
+    doc.setFont("helvetica", "normal"); doc.setFontSize(11);
+    setText(100,116,139); doc.text(f.company, M, y);
+    y += 16;
+    doc.text(f.city, M, y);
+    y += 26;
+    doc.setFont("helvetica", "bold"); doc.setFontSize(11);
+    setText(15,23,42); doc.text(`Distance: ${f.dist} from sample address`, M, y);
+    const cc = catColor(f.cat);
+    setText(cc[0],cc[1],cc[2]);
+    doc.text(`Exposure Category: ${f.cat}`, M + 300, y);
+    setText(15,23,42);
+    y += 28;
+    const facStats = [
+      ["Reported power",       f.power],
+      ["Estimated noise",      f.noise],
+      ["Estimated CO2",        f.co2],
+      ["Estimated water draw", f.water],
+      ["Modeled EMF at fence", f.emfFence],
+      ["Modeled EMF at 100m",  f.emf100],
+      ["Cooling type",         f.cooling],
+      ["Opened",               f.opened],
+    ];
+    const colW = (PW - M*2) / 2;
+    facStats.forEach((s, idx) => {
+      const col = idx % 2;
+      if (col === 0 && idx > 0) y += 26;
+      const x = M + col * colW;
+      doc.setFont("helvetica", "bold"); doc.setFontSize(10);
+      setText(100,116,139); doc.text(`${s[0]}:`, x, y);
+      doc.setFont("helvetica", "normal"); doc.setFontSize(10); setText(15,23,42);
+      doc.text(String(s[1]), x + 124, y);
+    });
+    y += 40;
+    doc.setDrawColor(226,232,240); doc.setLineWidth(0.6);
+    doc.line(M, y, PW-M, y);
+    y += 20;
+    doc.setFont("helvetica", "italic"); doc.setFontSize(10);
+    setText(148,163,184);
+    doc.text(doc.splitTextToSize("Sample data shown for demonstration only. This facility does not exist and these figures do not describe any real location.", PW - M*2), M, y);
+  });
+
+  // ═══ INFRASTRUCTURE AND COMMUNITY IMPACT CONSIDERATIONS
+  doc.addPage(); stampSample(); drawTopBand("Impact Considerations");
+  y = 80;
+  doc.setFont("helvetica", "bold"); doc.setFontSize(20);
+  setText(15,23,42);
+  const considTitle = doc.splitTextToSize("Infrastructure and Community Impact Considerations", PW - M*2);
+  doc.text(considTitle, M, y);
+  y += considTitle.length * 24 + 16;
+  const considerations = [
+    "Modeled EMF exposure ranges. Power-frequency electromagnetic fields are associated with the substations and feeder lines that large data centers require. HumZones reports show modeled EMF ranges at the facility fence line and at 100 meters so you can see how modeled exposure changes with distance from the site.",
+    "Estimated noise levels. Data centers operate around the clock and produce a continuous low-frequency hum from cooling systems and transformers. Low-frequency sound carries further and penetrates buildings more readily than higher frequencies, which is why noise is a common subject of community feedback near large facilities.",
+    "Water and CO2 footprint. Evaporative cooling at large facilities draws significant volumes of water from the local supply each day, and around-the-clock electricity demand carries an associated grid emissions footprint. HumZones reports sum the modeled draw across every facility near a searched address.",
+    "Community and development context. Infrastructure-dense areas can see ongoing utility expansion, construction activity and zoning review. The HumZones report gives professionals a clear, location-based view of that context for relocation, valuation, research and consultation work.",
+  ];
+  considerations.forEach(txt => {
+    if (y + 80 > PH - 80) { doc.addPage(); stampSample(); drawTopBand("Impact Considerations"); y = 80; }
+    doc.setFont("helvetica", "normal"); doc.setFontSize(11);
+    setText(71,85,105);
+    const lines = doc.splitTextToSize(txt, PW - M*2);
+    doc.text(lines, M, y);
+    y += lines.length * 14 + 14;
+  });
+
+  // ═══ DISCLAIMER
+  doc.addPage(); stampSample(); drawTopBand("Important Disclaimer");
+  y = 80;
+  doc.setFont("helvetica", "bold"); doc.setFontSize(22);
+  setText(15,23,42); doc.text("Important Disclaimer", M, y);
+  y += 30;
+  const sampleDisclaimer = [
+    "This HumZones Sample Report is provided to demonstrate the format and content of a HumZones professional report. Every facility, address, figure and category shown in this document is placeholder sample data and does not describe any real location.",
+    "All figures in a full HumZones report, including power, noise, modeled EMF ranges, CO2 and water usage, are modeled estimates compiled from public sources such as planning filings, utility records, environmental assessments, operator disclosures and permitting databases. They are not certified field measurements.",
+    "Infrastructure exposure categories are relative indicators for general awareness only. They do not constitute a scientific, environmental or health determination of any kind.",
+    "HumZones reports are informational resources only and do not constitute medical, legal, scientific or environmental advice. HumZones Technologies Inc. makes no warranties regarding the accuracy or completeness of the information in a report and shall not be liable for any decisions made in reliance on it.",
+  ];
+  sampleDisclaimer.forEach(p => {
+    if (y + 80 > PH - 80) { doc.addPage(); stampSample(); drawTopBand("Important Disclaimer"); y = 80; }
+    doc.setFont("helvetica", "normal"); doc.setFontSize(10);
+    setText(71,85,105);
+    const lines = doc.splitTextToSize(p, PW - M*2);
+    doc.text(lines, M, y);
+    y += lines.length * 13 + 12;
+  });
+  y += 8;
+  doc.setFont("helvetica", "normal"); doc.setFontSize(10);
+  setText(100,116,139);
+  doc.text("Generated by HumZones Technologies Inc.", M, y); y += 14;
+  doc.text("humzones.com", M, y); y += 14;
+  doc.text(dateLong, M, y);
+
+  return { doc };
 }
 
 // ─── REPORT SUCCESS (post-payment PDF generation) ─────────────────────────────
@@ -2287,15 +2502,15 @@ function normalizeBusinessAccount(rec) {
 const REPORT_INCLUDES = [
   "Complete list of all data centers within 100km of any address",
   "Distance from address to each facility",
-  "Risk level assessment (LOW, MODERATE, HIGH)",
+  "Infrastructure exposure category",
   "Power draw in megawatts",
   "Estimated noise levels in decibels",
-  "EMF readings at fence line and 100 meters",
+  "Modeled EMF exposure ranges",
   "CO2 emissions per year",
   "Daily water consumption estimate",
   "Cooling system type",
   "Year facility opened",
-  "Practical health and safety recommendations",
+  "Infrastructure and community impact considerations",
   "Legal disclaimer and methodology reference",
   "Instant PDF download professionally formatted",
 ];
@@ -2338,6 +2553,7 @@ const BusinessFooter = ({ onNavigate }) => (
 // ─── /business: PRICING PAGE ─────────────────────────────────────────────────
 const BusinessPlansPage = ({ onNavigate }) => {
   const [annual, setAnnual] = useState(false);
+  const [sampleBusy, setSampleBusy] = useState(false);
 
   const plans = [
     {
@@ -2394,6 +2610,21 @@ const BusinessPlansPage = ({ onNavigate }) => {
     window.location.href = PLAN_LINKS[key];
   };
 
+  // Generates the placeholder sample PDF on the fly and triggers a download.
+  const handleSampleDownload = async () => {
+    if (sampleBusy) return;
+    setSampleBusy(true);
+    try {
+      const { doc } = await buildSampleReportPdf();
+      doc.save("HumZones-Sample-Report.pdf");
+    } catch (e) {
+      console.error("Sample report generation failed:", e);
+      window.alert("We could not generate the sample report. Please try again.");
+    } finally {
+      setSampleBusy(false);
+    }
+  };
+
   return (
     <div style={{minHeight:"100vh",background:"linear-gradient(150deg,#020c1b 0%,#0f172a 50%,#1e0535 100%)",color:"#fff",width:"100%",maxWidth:"100vw",overflowX:"hidden"}}>
       <div style={{padding:"22px 24px",display:"flex",alignItems:"center",justifyContent:"space-between",maxWidth:1200,margin:"0 auto"}}>
@@ -2410,10 +2641,10 @@ const BusinessPlansPage = ({ onNavigate }) => {
         <div style={{display:"inline-block",fontSize:12,color:"#f97316",letterSpacing:".18em",textTransform:"uppercase",fontWeight:800,marginBottom:14,padding:"6px 14px",borderRadius:30,background:"rgba(249,115,22,.12)",border:"1px solid rgba(249,115,22,.3)"}}>For Business</div>
         <h1 style={{fontSize:"clamp(36px,6vw,56px)",fontWeight:900,letterSpacing:"-.02em",marginBottom:18,lineHeight:1.1}}>HumZones for Business</h1>
         <p style={{fontSize:19,color:"rgba(255,255,255,.78)",lineHeight:1.6,marginBottom:14,maxWidth:680,marginLeft:"auto",marginRight:"auto"}}>
-          Bulk reports for real estate professionals, environmental consultants and legal teams.
+          Infrastructure intelligence for real estate, environmental, and research professionals.
         </p>
         <p style={{fontSize:14,color:"rgba(255,255,255,.55)",lineHeight:1.6}}>
-          Fully automated. Instant PDF delivery. No contracts on monthly plans.
+          Instant report generation. Commercial usage included. No long-term contracts.
         </p>
       </section>
 
@@ -2489,6 +2720,86 @@ const BusinessPlansPage = ({ onNavigate }) => {
         <p style={{fontSize:13,color:"rgba(255,255,255,.45)",marginTop:8}}>
           Forgot your email? <a href="/business-recover" onClick={e=>{e.preventDefault();onNavigate("/business-recover");}} style={{color:"rgba(255,255,255,.65)",fontWeight:700,textDecoration:"underline"}}>Recover your account</a>
         </p>
+      </section>
+
+      {/* SAMPLE REPORT CTA */}
+      <section style={{background:"#0a0f1e",padding:"58px 24px",textAlign:"center"}}>
+        <div style={{maxWidth:720,margin:"0 auto"}}>
+          <h2 style={{fontSize:"clamp(26px,4vw,36px)",fontWeight:900,letterSpacing:"-.02em",marginBottom:14,color:"#fff",lineHeight:1.2}}>
+            See What You Get Before You Subscribe
+          </h2>
+          <p style={{fontSize:16,color:"rgba(255,255,255,.7)",lineHeight:1.65,marginBottom:32,maxWidth:560,marginLeft:"auto",marginRight:"auto"}}>
+            Download a sample professional report to see the depth and quality of HumZones infrastructure intelligence.
+          </p>
+
+          {/* Blurred grey placeholder with diagonal SAMPLE text and a lock overlay */}
+          <div style={{position:"relative",width:400,maxWidth:"100%",height:300,margin:"0 auto 34px",borderRadius:14,overflow:"hidden",background:"#94a3b8",border:"1px solid rgba(255,255,255,.12)",boxShadow:"0 20px 50px rgba(0,0,0,.4)"}}>
+            <div aria-hidden="true" style={{filter:"blur(6px)",padding:"28px 30px",pointerEvents:"none",userSelect:"none"}}>
+              {[88,72,94,64,80,58,90,70].map((w,i)=>(
+                <div key={i} style={{height:13,background:"rgba(255,255,255,.55)",borderRadius:4,marginBottom:13,width:`${w}%`}}/>
+              ))}
+            </div>
+            <div aria-hidden="true" style={{position:"absolute",top:"50%",left:"50%",transform:"translate(-50%,-50%) rotate(-28deg)",fontSize:66,fontWeight:900,color:"rgba(255,255,255,.5)",letterSpacing:".2em",pointerEvents:"none",whiteSpace:"nowrap"}}>SAMPLE</div>
+            <div aria-hidden="true" style={{position:"absolute",inset:0,display:"flex",alignItems:"center",justifyContent:"center",pointerEvents:"none"}}>
+              <div style={{width:74,height:74,borderRadius:"50%",background:"rgba(15,23,42,.78)",display:"flex",alignItems:"center",justifyContent:"center",boxShadow:"0 12px 30px rgba(0,0,0,.45)"}}>
+                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <rect x="4" y="11" width="16" height="10" rx="2"/>
+                  <path d="M8 11V7a4 4 0 0 1 8 0v4"/>
+                </svg>
+              </div>
+            </div>
+          </div>
+
+          <button onClick={handleSampleDownload} disabled={sampleBusy} style={{padding:"18px 38px",borderRadius:14,border:"none",cursor:sampleBusy?"wait":"pointer",fontFamily:"inherit",fontSize:17,fontWeight:900,letterSpacing:".02em",background:"linear-gradient(135deg,#ef4444,#f97316)",color:"#fff",boxShadow:"0 12px 32px rgba(249,115,22,.45)",opacity:sampleBusy?.75:1}}>
+            {sampleBusy ? "Generating Sample..." : "Download Sample Report"}
+          </button>
+        </div>
+      </section>
+
+      {/* HOW PROFESSIONALS USE HUMZONES */}
+      <section style={{background:"#0f172a",padding:"60px 24px"}}>
+        <div style={{maxWidth:1000,margin:"0 auto"}}>
+          <h2 style={{fontSize:"clamp(26px,4vw,36px)",fontWeight:900,letterSpacing:"-.02em",marginBottom:36,color:"#fff",textAlign:"center",lineHeight:1.2}}>
+            How Professionals Use HumZones
+          </h2>
+          <div className="biz-use-grid" style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:20}}>
+            {[
+              {icon:"🏠",title:"Real Estate",                    desc:"Neighborhood infrastructure awareness for buyers and relocation clients."},
+              {icon:"🚧",title:"Property & Development",          desc:"Monitor nearby infrastructure expansion and utility-intensive development."},
+              {icon:"⚖️",title:"Environmental & Legal Research",  desc:"Access location-based infrastructure intelligence for zoning, review, and consultation workflows."},
+              {icon:"🔍",title:"Research & Media",               desc:"Track AI infrastructure growth and regional development patterns."},
+            ].map(c=>(
+              <div key={c.title} style={{background:"rgba(255,255,255,.04)",border:"1px solid rgba(249,115,22,.25)",borderRadius:16,padding:"28px 26px"}}>
+                <div style={{fontSize:38,marginBottom:14,lineHeight:1}}>{c.icon}</div>
+                <div style={{fontSize:19,fontWeight:800,color:"#fff",marginBottom:10}}>{c.title}</div>
+                <p style={{fontSize:15,color:"rgba(255,255,255,.7)",lineHeight:1.6,margin:0}}>{c.desc}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+        <style>{`@media (max-width:680px){.biz-use-grid{grid-template-columns:1fr !important}}`}</style>
+      </section>
+
+      {/* BUILT USING PUBLIC INFRASTRUCTURE DATA */}
+      <section style={{background:"#fff",padding:"64px 24px",textAlign:"center"}}>
+        <div style={{maxWidth:760,margin:"0 auto"}}>
+          <div style={{fontSize:12,color:"#94a3b8",letterSpacing:".18em",textTransform:"uppercase",fontWeight:800,marginBottom:14}}>Data Sources</div>
+          <h2 style={{fontSize:"clamp(24px,4vw,34px)",fontWeight:900,letterSpacing:"-.02em",marginBottom:14,color:"#0f172a",lineHeight:1.2}}>
+            Built Using Public Infrastructure Data
+          </h2>
+          <p style={{fontSize:16,color:"#475569",lineHeight:1.65,marginBottom:28}}>
+            HumZones compiles publicly available information from:
+          </p>
+          <div style={{display:"flex",flexWrap:"wrap",justifyContent:"center",gap:12,marginBottom:30}}>
+            {["Planning Filings","Utility Records","Environmental Assessments","Operator Disclosures","Permitting Databases","Public Infrastructure Records"].map(s=>(
+              <span key={s} style={{display:"inline-flex",alignItems:"center",padding:"10px 18px",borderRadius:30,background:"#f1f5f9",border:"1px solid #e2e8f0",fontSize:14,fontWeight:700,color:"#334155"}}>{s}</span>
+            ))}
+          </div>
+          <p style={{fontSize:13,color:"#94a3b8",lineHeight:1.65,marginBottom:18,maxWidth:560,marginLeft:"auto",marginRight:"auto"}}>
+            All figures are modeled estimates compiled for informational purposes only. See our methodology page for full details.
+          </p>
+          <a href="/methodology" onClick={e=>{e.preventDefault();onNavigate("/methodology");}} className="ext-link" style={{color:"#f97316",fontSize:15,fontWeight:800,textDecoration:"none",letterSpacing:".02em"}}>Read Our Methodology</a>
+        </div>
       </section>
 
       <BusinessFooter onNavigate={onNavigate}/>
@@ -4897,10 +5208,10 @@ export default function App() {
   };
 
   const STATS=[
-    {val:`~${(statVals[0]/1e9).toFixed(2).replace(/\.?0+$/,"")} Billion`,    label:"Gallons of water consumed by data centers daily"},
-    {val:`~${(statVals[1]/1e6).toFixed(1)} Million`,                         label:"Americans living within 1 mile of a major data center"},
-    {val:`~${(statVals[2]/1e12).toFixed(2).replace(/\.?0+$/,"")} Trillion`,  label:"Watts of power consumed by data centers globally"},
-    {val:loading?"---":statVals[3],                                          label:"Facilities in our database"},
+    {val:`~${(statVals[0]/1e9).toFixed(2).replace(/\.?0+$/,"")} Billion`,    label:"Estimated gallons of water drawn by data centers daily"},
+    {val:`~${(statVals[1]/1e6).toFixed(1)} Million`,                         label:"Americans estimated to live within 1 mile of a major data center"},
+    {val:`~${(statVals[2]/1e12).toFixed(2).replace(/\.?0+$/,"")} Trillion`,  label:"Estimated watts of power drawn by data centers globally"},
+    {val:loading?"---":statVals[3],                                          label:"Facilities tracked in our database"},
   ];
 
   return (
@@ -4962,8 +5273,8 @@ export default function App() {
           </h1>
 
           <p className="a3" style={{fontSize:19,color:"rgba(255,255,255,.62)",maxWidth:560,lineHeight:1.75,marginBottom:52,position:"relative",zIndex:1,fontWeight:400}}>
-            Data centers power the world's digital infrastructure. You may live next to one.
-            Search your country and city to find out what that means for your health and environment.
+            Data centers power the world's digital infrastructure. Millions of people live near one.
+            Search your country and city to understand the infrastructure footprint in your area.
           </p>
 
           {/* SEARCH */}
@@ -5409,10 +5720,10 @@ export default function App() {
                 {dc.Opened && <div style={{fontSize:14,color:"#94a3b8",marginBottom:20}}>Status / Opened: {dc.Opened}</div>}
                 <div className="fac-stats" style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:14}}>
                   {[
-                    {icon:"power",label:"Power Draw",   value:dc.Power_MW>=1000?`${(dc.Power_MW/1000).toFixed(1)} GW`:`${dc.Power_MW||"?"}MW`,color:rc},
-                    {icon:"noise",label:"Noise Level",  value:`${dc.Noise_DB||"?"} dB`,color:dc.Noise_DB>=70?"#ef4444":dc.Noise_DB>=60?"#f97316":"#3b82f6"},
-                    {icon:"emf",  label:"EMF at Fence", value:`${dc.EMF_Fence_High||"?"} mG`,color:dc.EMF_Fence_High>=4?"#ef4444":"#10b981"},
-                    {icon:"water",label:"Water/Day",    value:dc.Water_Gal_Day>0?`${fmt(dc.Water_Gal_Day)} gal`:"Near zero",color:"#3b82f6"},
+                    {icon:"power",label:"Reported Power Draw",   value:dc.Power_MW>=1000?`${(dc.Power_MW/1000).toFixed(1)} GW`:`${dc.Power_MW||"?"}MW`,color:rc},
+                    {icon:"noise",label:"Estimated Noise Level",  value:`${dc.Noise_DB||"?"} dB`,color:dc.Noise_DB>=70?"#ef4444":dc.Noise_DB>=60?"#f97316":"#3b82f6"},
+                    {icon:"emf",  label:"Modeled EMF Range at Fence", value:`${dc.EMF_Fence_High||"?"} mG`,color:dc.EMF_Fence_High>=4?"#ef4444":"#10b981"},
+                    {icon:"water",label:"Estimated Daily Water Draw",    value:dc.Water_Gal_Day>0?`${fmt(dc.Water_Gal_Day)} gal`:"Near zero",color:"#3b82f6"},
                   ].map(s=>(
                     <div key={s.label} style={{background:"#f8fafc",border:"1px solid #e2e8f0",borderRadius:14,padding:"16px 18px",textAlign:"center"}}>
                       <div style={{display:"flex",justifyContent:"center",marginBottom:10}}><Icon name={s.icon} size={22} color={s.color}/></div>
@@ -5484,12 +5795,12 @@ export default function App() {
                 {tab==="numbers" && (
                   <div className="nums-grid" style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16}}>
                     {[
-                      {icon:"power",label:"Power Draw",    value:dc.Power_MW>=1000?`${(dc.Power_MW/1000).toFixed(1)} GW`:`${dc.Power_MW||"?"}MW`,plain:dc.Power_MW?`Enough to power ${fmt(Math.round(dc.Power_MW*1000/1.25))} average homes continuously, 24 hours a day, 365 days a year.`:"Power data pending verification.",color:rc},
-                      {icon:"co2",  label:"CO2 Per Year",  value:dc.CO2_Tons_Year>0?`${fmt(dc.CO2_Tons_Year)} tons`:"Near zero",plain:dc.CO2_Tons_Year>0?`Same as ${fmt(Math.round(dc.CO2_Tons_Year/4.6))} cars driven for a full year.`:"Powered by renewable energy.",color:dc.CO2_Tons_Year>200000?"#ef4444":"#10b981"},
-                      {icon:"water",label:"Water Per Day", value:dc.Water_Gal_Day>0?`${fmt(dc.Water_Gal_Day)} gal`:"Near zero",plain:dc.Water_Gal_Day>0?`Same daily water use as ${fmt(Math.round(dc.Water_Gal_Day/80))} households. Permanently removed from the local water cycle.`:"Air-cooled design. Minimal water consumption.",color:dc.Water_Gal_Day>500000?"#ef4444":"#10b981"},
-                      {icon:"noise",label:"Perimeter Noise",value:`${dc.Noise_DB||"?"} dB`,plain:"Sustained 24/7 including overnight. Low-frequency noise travels further than this number suggests.",color:dc.Noise_DB>=70?"#ef4444":dc.Noise_DB>=60?"#f97316":"#3b82f6"},
-                      {icon:"emf",  label:"EMF at Fence",  value:`up to ${dc.EMF_Fence_High||"?"}mG`,plain:dc.EMF_Fence_High>=4?"Studies link childhood leukemia risk starting at 3 to 4 mG. The legal US limit is 2,000 mG. Legal does not mean safe.":"Below the 3 to 4 mG concern threshold at the fence line.",color:dc.EMF_Fence_High>=4?"#ef4444":"#10b981"},
-                      {icon:"emf",  label:"EMF at 100m",   value:`~${dc.EMF_100m||"?"} mG`,plain:dc.EMF_100m>=3?"Still above the level linked to childhood leukemia in studies. Take this seriously if you live within 100m.":dc.EMF_100m>=1?"Within the zone where a 2026 study found health associations.":"Below precautionary thresholds at this distance.",color:dc.EMF_100m>=3?"#ef4444":dc.EMF_100m>=1?"#f97316":"#10b981"},
+                      {icon:"power",label:"Reported Power",    value:dc.Power_MW>=1000?`${(dc.Power_MW/1000).toFixed(1)} GW`:`${dc.Power_MW||"?"}MW`,plain:dc.Power_MW?`Enough to power ${fmt(Math.round(dc.Power_MW*1000/1.25))} average homes continuously, 24 hours a day, 365 days a year.`:"Power data pending verification.",color:rc},
+                      {icon:"co2",  label:"Estimated CO2",  value:dc.CO2_Tons_Year>0?`${fmt(dc.CO2_Tons_Year)} tons`:"Near zero",plain:dc.CO2_Tons_Year>0?`Same as ${fmt(Math.round(dc.CO2_Tons_Year/4.6))} cars driven for a full year.`:"Powered by renewable energy.",color:dc.CO2_Tons_Year>200000?"#ef4444":"#10b981"},
+                      {icon:"water",label:"Estimated Water Draw", value:dc.Water_Gal_Day>0?`${fmt(dc.Water_Gal_Day)} gal`:"Near zero",plain:dc.Water_Gal_Day>0?`Same daily water use as ${fmt(Math.round(dc.Water_Gal_Day/80))} households. Permanently removed from the local water cycle.`:"Air-cooled design. Minimal water consumption.",color:dc.Water_Gal_Day>500000?"#ef4444":"#10b981"},
+                      {icon:"noise",label:"Estimated Noise",value:`${dc.Noise_DB||"?"} dB`,plain:"Sustained 24/7 including overnight. Low-frequency noise travels further than this number suggests.",color:dc.Noise_DB>=70?"#ef4444":dc.Noise_DB>=60?"#f97316":"#3b82f6"},
+                      {icon:"emf",  label:"Modeled EMF at Fence",  value:`up to ${dc.EMF_Fence_High||"?"}mG`,plain:dc.EMF_Fence_High>=4?"Studies link childhood leukemia risk starting at 3 to 4 mG. The legal US limit is 2,000 mG. Legal does not mean safe.":"Below the 3 to 4 mG concern threshold at the fence line.",color:dc.EMF_Fence_High>=4?"#ef4444":"#10b981"},
+                      {icon:"emf",  label:"Modeled EMF at 100m",   value:`~${dc.EMF_100m||"?"} mG`,plain:dc.EMF_100m>=3?"Still above the level linked to childhood leukemia in studies. Take this seriously if you live within 100m.":dc.EMF_100m>=1?"Within the zone where a 2026 study found health associations.":"Below precautionary thresholds at this distance.",color:dc.EMF_100m>=3?"#ef4444":dc.EMF_100m>=1?"#f97316":"#10b981"},
                     ].map(s=>(
                       <div key={s.label} style={{background:"#fff",border:`2px solid ${s.color}20`,borderRadius:16,padding:"22px",boxShadow:"0 2px 12px rgba(0,0,0,.05)"}}>
                         <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:12}}>
