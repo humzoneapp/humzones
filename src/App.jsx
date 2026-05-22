@@ -4897,10 +4897,15 @@ const SubmitReportPage = ({ onNavigate }) => {
       {/* HERO */}
       <section style={{background:"linear-gradient(150deg,#020c1b 0%,#0f172a 45%,#1e0535 100%)",padding:"22px 24px 56px"}}>
         <div style={{maxWidth:1080,margin:"0 auto"}}>
-          <a href="/" onClick={e=>{e.preventDefault();onNavigate("/");}} style={{textDecoration:"none",display:"inline-block",marginBottom:34}}>
-            <span style={{fontSize:22,fontWeight:900,letterSpacing:".08em",background:"linear-gradient(90deg,#ef4444,#f97316)",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent"}}>HumZones</span>
-            <sup style={{fontSize:12,color:"#f97316",fontWeight:700,verticalAlign:"super",marginLeft:2}}>TM</sup>
-          </a>
+          <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:14,marginBottom:34}}>
+            <button onClick={()=>window.history.back()} className="back-btn" aria-label="Go back" style={{display:"inline-flex",alignItems:"center",gap:8,background:"rgba(255,255,255,.08)",border:"1px solid rgba(255,255,255,.20)",color:"#fff",padding:"12px 20px",borderRadius:10,fontSize:14,fontWeight:800,letterSpacing:".05em",cursor:"pointer",fontFamily:"inherit"}}>
+              <span style={{fontSize:17,lineHeight:1}}>&larr;</span> Back
+            </button>
+            <a href="/" onClick={e=>{e.preventDefault();onNavigate("/");}} style={{textDecoration:"none"}}>
+              <span style={{fontSize:22,fontWeight:900,letterSpacing:".08em",background:"linear-gradient(90deg,#ef4444,#f97316)",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent"}}>HumZones</span>
+              <sup style={{fontSize:12,color:"#f97316",fontWeight:700,verticalAlign:"super",marginLeft:2}}>TM</sup>
+            </a>
+          </div>
           <div style={{textAlign:"center",maxWidth:760,margin:"0 auto 30px"}}>
             <h1 style={{fontSize:"clamp(30px,5vw,46px)",fontWeight:900,letterSpacing:"-.02em",color:"#fff",lineHeight:1.15,marginBottom:16}}>Submit Your Resident Report</h1>
             <p style={{fontSize:17,color:"rgba(255,255,255,.72)",lineHeight:1.65}}>Have you experienced the effects of living or working near a data center? Your report helps others in your community understand what life is really like near these facilities.</p>
@@ -5075,6 +5080,11 @@ const SubmitReportPage = ({ onNavigate }) => {
           )}
         </div>
       </section>
+
+      {/* FOOTER (shared with the business pages, on a dark backdrop) */}
+      <div style={{background:"#0a0f1e"}}>
+        <BusinessFooter onNavigate={onNavigate}/>
+      </div>
     </div>
   );
 };
