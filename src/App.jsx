@@ -5158,8 +5158,9 @@ const ChatWidget = ({ onNavigate }) => {
   const [bannerOffset, setBannerOffset] = useState(0);
   const [isMobile, setIsMobile] = useState(() => typeof window !== "undefined" && window.innerWidth <= 600);
 
-  const bodyRef = useRef(null);
-  const taRef   = useRef(null);
+  const bodyRef    = useRef(null);
+  const taRef      = useRef(null);
+  const lastMsgRef = useRef(null);   // wrapper div of the newest message
 
   // Idle nudge state: idleTimer refs hold the pending timeouts, idleStageRef
   // tracks how many idle messages have shown (0, 1 or 2) since the visitor
@@ -5206,9 +5207,18 @@ const ChatWidget = ({ onNavigate }) => {
     return () => { window.removeEventListener("resize", measure); if (iv) clearInterval(iv); };
   }, []);
 
-  // Keep the message list scrolled to the newest entry.
+  // Scroll on new content. A new assistant reply scrolls so the TOP of its
+  // bubble is visible, so long answers are not cut off at the start. The
+  // visitor's own message and the typing indicator keep the view pinned to
+  // the bottom instead.
   useEffect(() => {
-    if (open && bodyRef.current) bodyRef.current.scrollTop = bodyRef.current.scrollHeight;
+    if (!open) return;
+    const last = messages[messages.length - 1];
+    if (last && last.role === "assistant" && lastMsgRef.current) {
+      lastMsgRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
+    } else if (bodyRef.current) {
+      bodyRef.current.scrollTop = bodyRef.current.scrollHeight;
+    }
   }, [messages, loading, open]);
 
   // Idle nudges. When the newest message is an assistant reply and the chat
@@ -5331,15 +5341,16 @@ const ChatWidget = ({ onNavigate }) => {
             </button>
           </div>
 
-          {/* BODY */}
-          <div ref={bodyRef} style={{flex:1,overflowY:"auto",background:"#fff",padding:"16px 14px",display:"flex",flexDirection:"column",gap:12}}>
+          {/* BODY: flex:1 within the fixed-height window, minHeight:0 so it
+             keeps a bounded height and scrolls instead of growing. */}
+          <div ref={bodyRef} style={{flex:1,minHeight:0,overflowY:"auto",background:"#fff",padding:"16px 14px",display:"flex",flexDirection:"column",gap:12}}>
             {messages.map((m,i)=>{
               const isAssistant = m.role === "assistant";
               // Follow-up chips sit under the newest assistant reply only.
               const showChips = isAssistant && i === messages.length - 1 && !loading;
               const chips = showChips ? (m.welcome ? CHAT_FOLLOWUPS_DEFAULT : chatFollowUps(m.content)) : [];
               return (
-                <div key={i} style={{display:"flex",flexDirection:"column",alignItems:m.role==="user"?"flex-end":"flex-start"}}>
+                <div key={i} ref={i === messages.length - 1 ? lastMsgRef : null} style={{display:"flex",flexDirection:"column",alignItems:m.role==="user"?"flex-end":"flex-start"}}>
                   <div style={{maxWidth:"84%",padding:"10px 13px",borderRadius:14,fontSize:14,lineHeight:1.55,whiteSpace:"pre-wrap",wordBreak:"break-word",background:m.role==="user"?"#f97316":"#f1f5f9",color:m.role==="user"?"#fff":"#1e293b",borderBottomRightRadius:m.role==="user"?4:14,borderBottomLeftRadius:m.role==="user"?14:4}}>
                     {isAssistant ? renderRichText(m.content, onNavigate) : m.content}
                   </div>
