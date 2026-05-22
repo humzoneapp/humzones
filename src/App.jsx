@@ -598,6 +598,9 @@ const CSS = `
   .hz-typing span{display:inline-block;width:7px;height:7px;border-radius:50%;background:#94a3b8;margin:0 2px;animation:hzChatDot 1.2s infinite}
   .hz-typing span:nth-child(2){animation-delay:.15s}
   .hz-typing span:nth-child(3){animation-delay:.3s}
+  /* Follow-up suggestion chips shown under each assistant reply. */
+  .hz-chat-chip{transition:border-color .15s,color .15s,background .15s}
+  .hz-chat-chip:hover{border-color:#f97316!important;color:#f97316!important;background:#fff7ed!important}
 `;
 
 // ─── COMPONENTS ───────────────────────────────────────────────────────────────
@@ -5048,13 +5051,81 @@ const CHAT_HISTORY_KEY = "humzones_chat_history";
 const CHAT_SEEN_KEY    = "humzones_chat_seen";
 const CHAT_HISTORY_TTL = 24 * 60 * 60 * 1000;
 const CHAT_WELCOME = "Hi there! I am the HumZones Assistant. I can help you understand data centers near your home, explain what our infrastructure data means, or guide you to the right report for your needs. What would you like to know?";
-const CHAT_SUGGESTIONS = [
-  "What data centers are near me?",
-  "What do the exposure categories mean?",
+// Idle nudges: the first fires 45s after the last assistant reply, the
+// goodbye fires 30s after that. Both stop as soon as the visitor replies.
+const CHAT_IDLE_PROMPT  = "Is there anything else I can help you with? You can also search for data centers near your address at humzones.com/get-report or contact us at hello@humzones.com if you have a specific question.";
+const CHAT_IDLE_GOODBYE = "Thank you for visiting HumZones! I am always here if you have questions. Have a great day!";
+const CHAT_IDLE_DELAY_1 = 45000;
+const CHAT_IDLE_DELAY_2 = 30000;
+
+// Contextual follow-up chips shown under each assistant reply. The first
+// keyword group that matches the reply text wins; otherwise the defaults
+// are used. The welcome message always shows the defaults.
+const CHAT_FOLLOWUPS_DEFAULT = [
+  "Find data centers near me",
+  "What do exposure categories mean?",
   "How do I get a full report?",
 ];
+const CHAT_FOLLOWUP_RULES = [
+  { test:/report|get-report/, chips:[
+    "What is included in the report?",
+    "Can I retrieve it later?",
+    "Tell me about business plans",
+  ]},
+  { test:/exposure|emf|noise/, chips:[
+    "How are these figures calculated?",
+    "What do the exposure categories mean?",
+    "Where can I read the methodology?",
+  ]},
+  { test:/business|plans|subscription|credits/, chips:[
+    "How do credits work?",
+    "Can I try before subscribing?",
+    "What is included in each report?",
+  ]},
+  { test:/submit|community|resident/, chips:[
+    "How is my report verified?",
+    "Will my name be shown?",
+    "How long does review take?",
+  ]},
+  { test:/methodology|estimates|modeled/, chips:[
+    "Where can I read the full methodology?",
+    "Are these certified measurements?",
+    "How accurate are the figures?",
+  ]},
+];
+const chatFollowUps = (text) => {
+  const t = String(text || "").toLowerCase();
+  const rule = CHAT_FOLLOWUP_RULES.find(r => r.test.test(t));
+  return rule ? rule.chips : CHAT_FOLLOWUPS_DEFAULT;
+};
 
-const ChatWidget = () => {
+// Turns an assistant message into React nodes: **bold**, *italic*, and
+// humzones.com/page links that navigate in the same tab via the app router.
+const CHAT_RICH_TOKEN = /(\*\*[^*]+\*\*|\*[^*\n]+\*|humzones\.com\/[A-Za-z0-9-]+)/i;
+const renderRichText = (text, onNavigate) =>
+  String(text || "").split(CHAT_RICH_TOKEN).map((part, i) => {
+    if (!part) return null;
+    if (part.startsWith("**") && part.endsWith("**")) {
+      return <strong key={i}>{renderRichText(part.slice(2, -2), onNavigate)}</strong>;
+    }
+    if (part.startsWith("*") && part.endsWith("*")) {
+      return <em key={i}>{renderRichText(part.slice(1, -1), onNavigate)}</em>;
+    }
+    if (part.toLowerCase().startsWith("humzones.com/")) {
+      const path = part.slice("humzones.com".length);
+      return (
+        <a
+          key={i}
+          href={path}
+          onClick={e=>{ e.preventDefault(); if (onNavigate) onNavigate(path); }}
+          style={{color:"#ea580c",fontWeight:700,textDecoration:"underline",cursor:"pointer"}}
+        >{part}</a>
+      );
+    }
+    return part;
+  });
+
+const ChatWidget = ({ onNavigate }) => {
   const [open, setOpen] = useState(false);
   const [messages, setMessages] = useState(() => {
     if (typeof window === "undefined") return [];
@@ -5081,6 +5152,13 @@ const ChatWidget = () => {
 
   const bodyRef = useRef(null);
   const taRef   = useRef(null);
+
+  // Idle nudge state: idleTimer refs hold the pending timeouts, idleStageRef
+  // tracks how many idle messages have shown (0, 1 or 2) since the visitor
+  // last spoke, so the nudges never loop.
+  const idleTimer1Ref = useRef(null);
+  const idleTimer2Ref = useRef(null);
+  const idleStageRef  = useRef(0);
 
   // Persist the conversation so it survives page navigation.
   useEffect(() => {
@@ -5125,6 +5203,34 @@ const ChatWidget = () => {
     if (open && bodyRef.current) bodyRef.current.scrollTop = bodyRef.current.scrollHeight;
   }, [messages, loading, open]);
 
+  // Idle nudges. When the newest message is an assistant reply and the chat
+  // is open and idle, schedule the next nudge: the prompt after 45s, then the
+  // goodbye 30s later. Any change to messages (the visitor replying), closing
+  // the chat, or a pending request clears the timers via this effect's
+  // cleanup, so the nudges never fire at the wrong time or loop.
+  useEffect(() => {
+    clearTimeout(idleTimer1Ref.current);
+    clearTimeout(idleTimer2Ref.current);
+    if (!open || loading || messages.length === 0) return;
+    const last = messages[messages.length - 1];
+    if (last.role !== "assistant") return;
+    if (idleStageRef.current === 0) {
+      idleTimer1Ref.current = setTimeout(() => {
+        idleStageRef.current = 1;
+        setMessages(m => [...m, { role:"assistant", content:CHAT_IDLE_PROMPT, ts:Date.now() }]);
+      }, CHAT_IDLE_DELAY_1);
+    } else if (idleStageRef.current === 1) {
+      idleTimer2Ref.current = setTimeout(() => {
+        idleStageRef.current = 2;
+        setMessages(m => [...m, { role:"assistant", content:CHAT_IDLE_GOODBYE, ts:Date.now() }]);
+      }, CHAT_IDLE_DELAY_2);
+    }
+    return () => {
+      clearTimeout(idleTimer1Ref.current);
+      clearTimeout(idleTimer2Ref.current);
+    };
+  }, [messages, open, loading]);
+
   const openChat = () => {
     setOpen(true);
     setNotif(false);
@@ -5135,6 +5241,10 @@ const ChatWidget = () => {
   const send = async (text) => {
     const content = (text || "").trim();
     if (!content || loading) return;
+    // The visitor is active again: stop and reset the idle nudge sequence.
+    clearTimeout(idleTimer1Ref.current);
+    clearTimeout(idleTimer2Ref.current);
+    idleStageRef.current = 0;
     const next = [...messages, { role:"user", content, ts:Date.now() }];
     setMessages(next);
     setInput("");
@@ -5167,8 +5277,6 @@ const ChatWidget = () => {
   const fmtTime = (ts) => {
     try { return new Date(ts).toLocaleTimeString([], { hour:"numeric", minute:"2-digit" }); } catch { return ""; }
   };
-
-  const showSuggestions = messages.length > 0 && !messages.some(m => m.role === "user");
 
   const windowStyle = isMobile
     ? { position:"fixed", left:0, right:0, bottom:bannerOffset, width:"100vw", height:"60vh", borderRadius:"16px 16px 0 0" }
@@ -5217,21 +5325,33 @@ const ChatWidget = () => {
 
           {/* BODY */}
           <div ref={bodyRef} style={{flex:1,overflowY:"auto",background:"#fff",padding:"16px 14px",display:"flex",flexDirection:"column",gap:12}}>
-            {messages.map((m,i)=>(
-              <div key={i} style={{display:"flex",flexDirection:"column",alignItems:m.role==="user"?"flex-end":"flex-start"}}>
-                <div style={{maxWidth:"84%",padding:"10px 13px",borderRadius:14,fontSize:14,lineHeight:1.55,whiteSpace:"pre-wrap",wordBreak:"break-word",background:m.role==="user"?"#f97316":"#f1f5f9",color:m.role==="user"?"#fff":"#1e293b",borderBottomRightRadius:m.role==="user"?4:14,borderBottomLeftRadius:m.role==="user"?14:4}}>
-                  {m.content}
+            {messages.map((m,i)=>{
+              const isAssistant = m.role === "assistant";
+              // Follow-up chips sit under the newest assistant reply only.
+              const showChips = isAssistant && i === messages.length - 1 && !loading;
+              const chips = showChips ? (m.welcome ? CHAT_FOLLOWUPS_DEFAULT : chatFollowUps(m.content)) : [];
+              return (
+                <div key={i} style={{display:"flex",flexDirection:"column",alignItems:m.role==="user"?"flex-end":"flex-start"}}>
+                  <div style={{maxWidth:"84%",padding:"10px 13px",borderRadius:14,fontSize:14,lineHeight:1.55,whiteSpace:"pre-wrap",wordBreak:"break-word",background:m.role==="user"?"#f97316":"#f1f5f9",color:m.role==="user"?"#fff":"#1e293b",borderBottomRightRadius:m.role==="user"?4:14,borderBottomLeftRadius:m.role==="user"?14:4}}>
+                    {isAssistant ? renderRichText(m.content, onNavigate) : m.content}
+                  </div>
+                  <div style={{fontSize:10,color:"#94a3b8",marginTop:3,padding:"0 4px"}}>{fmtTime(m.ts)}</div>
+                  {chips.length > 0 && (
+                    <div style={{display:"flex",flexWrap:"wrap",gap:7,marginTop:6,maxWidth:"92%"}}>
+                      {chips.map(c=>(
+                        <button
+                          key={c}
+                          className="hz-chat-chip"
+                          onClick={()=>send(c)}
+                          disabled={loading}
+                          style={{padding:"7px 12px",borderRadius:30,border:"1px solid #e2e8f0",background:"#f1f5f9",color:"#1e293b",fontSize:12.5,fontWeight:700,cursor:loading?"default":"pointer",fontFamily:"inherit"}}
+                        >{c}</button>
+                      ))}
+                    </div>
+                  )}
                 </div>
-                <div style={{fontSize:10,color:"#94a3b8",marginTop:3,padding:"0 4px"}}>{fmtTime(m.ts)}</div>
-              </div>
-            ))}
-            {showSuggestions && (
-              <div style={{display:"flex",flexDirection:"column",gap:8,marginTop:2}}>
-                {CHAT_SUGGESTIONS.map(q=>(
-                  <button key={q} onClick={()=>send(q)} disabled={loading} style={{textAlign:"left",padding:"9px 13px",borderRadius:12,border:"1px solid #f97316",background:"#fff7ed",color:"#c2410c",fontSize:13,fontWeight:600,cursor:loading?"default":"pointer",fontFamily:"inherit"}}>{q}</button>
-                ))}
-              </div>
-            )}
+              );
+            })}
             {loading && (
               <div style={{display:"flex",justifyContent:"flex-start"}}>
                 <div className="hz-typing" style={{background:"#f1f5f9",borderRadius:14,borderBottomLeftRadius:4,padding:"13px 14px",display:"flex",alignItems:"center"}}>
@@ -8091,7 +8211,7 @@ export default function App() {
       </div>
       )}
       <CookieConsent onNavigate={navigate}/>
-      <ChatWidget/>
+      <ChatWidget onNavigate={navigate}/>
     </>
   );
 }
