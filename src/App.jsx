@@ -1,6 +1,9 @@
 // HumZones - Last updated: May 22 2026
 // Build marker: 2026-05-19, force fresh Vercel deployment.
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, useMemo } from "react";
+// Leaflet base stylesheet for the interactive world map. The react-leaflet
+// library itself is dynamically imported inside MapSection.
+import "leaflet/dist/leaflet.css";
 
 // ─── AIRTABLE CONNECTION ───────────────────────────────────────────────────────
 const BASE   = "app2FUPqq8VQSwQ64";
@@ -548,6 +551,14 @@ const CSS = `
     .hz-footer-grid{grid-template-columns:1fr!important}
     .hz-footer-bottom{flex-direction:column!important;text-align:center!important;justify-content:center!important}
   }
+
+  /* Interactive world map: 500px tall on desktop, 350px on mobile. */
+  .hz-map-wrap{height:500px}
+  @media(max-width:768px){
+    .hz-map-wrap{height:350px}
+  }
+  .leaflet-container{font-family:inherit}
+  .leaflet-popup-content{margin:14px 16px}
 `;
 
 // ─── COMPONENTS ───────────────────────────────────────────────────────────────
@@ -837,6 +848,166 @@ const ShareSection = () => (
     </div>
   </section>
 );
+
+// ─── INTERACTIVE WORLD MAP ───────────────────────────────────────────────────
+// Northern Virginia, the data center capital of the world, is the opening view.
+const MAP_CENTER = [38.9, -77.4];
+const MAP_ZOOM   = 8;
+
+// Marker fill color by exposure tier: HIGH red, MODERATE orange, LOW green,
+// anything else grey.
+const mapMarkerColor = (lvl) => {
+  const t = exposureTier(lvl);
+  if (t === "HIGH")     return "#ef4444";
+  if (t === "MODERATE") return "#f97316";
+  if (t === "LOW")      return "#22c55e";
+  return "#94a3b8";
+};
+
+// Full-width interactive map of every tracked facility. react-leaflet is
+// dynamically imported so the leaflet bundle is code-split and never runs
+// during a server render. A grey skeleton holds the space until both the map
+// library and the Airtable facility data are ready.
+const MapSection = ({ facilities, loading, onSelectFacility }) => {
+  const [RL, setRL]   = useState(null);   // the react-leaflet module
+  const [map, setMap] = useState(null);   // the underlying Leaflet map instance
+
+  // Keep the latest select handler in a ref so memoized markers always call
+  // through to it without having to be rebuilt when its identity changes.
+  const onSelectRef = useRef(onSelectFacility);
+  useEffect(() => { onSelectRef.current = onSelectFacility; });
+
+  useEffect(() => {
+    let alive = true;
+    import("react-leaflet")
+      .then(mod => { if (alive) setRL(mod); })
+      .catch(err => console.error("[HumZones] map library failed to load:", err));
+    return () => { alive = false; };
+  }, []);
+
+  const all   = facilities || [];
+  const ready = !loading && !!RL;
+
+  // Build one CircleMarker per facility that has real coordinates. Memoized on
+  // the facility list and the loaded library so typing elsewhere on the page
+  // does not re-diff hundreds of markers.
+  const markers = useMemo(() => {
+    if (!RL) return null;
+    const { CircleMarker, Tooltip, Popup } = RL;
+    return all
+      .filter(f => {
+        const lat = parseFloat(f.Latitude), lng = parseFloat(f.Longitude);
+        return Number.isFinite(lat) && Number.isFinite(lng) && lat !== 0 && lng !== 0;
+      })
+      .map(f => {
+        const lat = parseFloat(f.Latitude), lng = parseFloat(f.Longitude);
+        const color = mapMarkerColor(f.Risk_Level);
+        return (
+          <CircleMarker
+            key={f.id}
+            center={[lat, lng]}
+            radius={6}
+            pathOptions={{ color:"#ffffff", weight:1, fillColor:color, fillOpacity:0.8 }}
+            eventHandlers={{
+              mouseover: e => e.target.setRadius(9),
+              mouseout:  e => e.target.setRadius(6),
+            }}
+          >
+            <Tooltip>{f.Name || "Unnamed facility"}</Tooltip>
+            <Popup>
+              <div style={{minWidth:190}}>
+                <div style={{fontSize:14,fontWeight:800,color:"#0f172a",lineHeight:1.3,marginBottom:4}}>{f.Name || "Unnamed facility"}</div>
+                {f.Company && <div style={{fontSize:12,color:"#64748b",marginBottom:2}}>{f.Company}</div>}
+                <div style={{fontSize:12,color:"#94a3b8",marginBottom:9}}>{[f.City,f.State_Region].filter(Boolean).join(", ") || "Location not on file"}</div>
+                <span style={{display:"inline-block",fontSize:10,fontWeight:800,letterSpacing:".06em",padding:"3px 9px",borderRadius:999,color:"#fff",background:color,marginBottom:10}}>
+                  {exposureLabel(f.Risk_Level)}
+                </span>
+                <div>
+                  <button
+                    onClick={()=>{ if(onSelectRef.current) onSelectRef.current(f.id); }}
+                    style={{background:"none",border:"none",padding:0,color:"#f97316",fontWeight:800,fontSize:13,cursor:"pointer",fontFamily:"inherit",textDecoration:"underline"}}
+                  >
+                    View Details
+                  </button>
+                </div>
+              </div>
+            </Popup>
+          </CircleMarker>
+        );
+      });
+  }, [RL, all]);
+
+  const legendRows = [
+    ["#ef4444", "HIGH EXPOSURE"],
+    ["#f97316", "MODERATE EXPOSURE"],
+    ["#22c55e", "LOW EXPOSURE"],
+  ];
+
+  return (
+    <section aria-label="Data center world map" style={{padding:"6px 0 32px"}}>
+      {/* Heading */}
+      <div style={{textAlign:"center",maxWidth:760,margin:"0 auto 22px"}}>
+        <div style={{fontSize:12,fontWeight:800,letterSpacing:".16em",color:"#94a3b8",textTransform:"uppercase",marginBottom:9}}>
+          Live Database
+        </div>
+        <h2 style={{fontSize:"clamp(23px,3.6vw,32px)",fontWeight:900,letterSpacing:"-.02em",color:"#0f172a",margin:"0 0 10px",lineHeight:1.2}}>
+          {all.length.toLocaleString("en-US")} Data {all.length === 1 ? "Center" : "Centers"} Tracked Worldwide
+        </h2>
+        <p style={{fontSize:15,color:"#64748b",lineHeight:1.7,margin:0}}>
+          Click any marker to explore a facility. Zoom out to see the global picture.
+        </p>
+      </div>
+
+      {/* Map card, or a grey skeleton of the same size while data loads */}
+      <div style={{width:"100%",maxWidth:1200,margin:"0 auto"}}>
+        <div className="hz-map-wrap" style={{position:"relative",width:"100%",borderRadius:16,boxShadow:"0 20px 60px rgba(0,0,0,0.2)",overflow:"hidden"}}>
+          {ready ? (
+            <>
+              <RL.MapContainer
+                center={MAP_CENTER}
+                zoom={MAP_ZOOM}
+                scrollWheelZoom={true}
+                ref={setMap}
+                style={{height:"100%",width:"100%"}}
+              >
+                <RL.TileLayer
+                  url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                  attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+                />
+                {markers}
+              </RL.MapContainer>
+
+              {/* Reset View: returns to the Northern Virginia opening view */}
+              <button
+                onClick={()=>{ if(map) map.setView(MAP_CENTER, MAP_ZOOM); }}
+                style={{position:"absolute",top:10,right:10,zIndex:1000,background:"#fff",border:"1px solid #e2e8f0",borderRadius:8,padding:"7px 13px",fontSize:12,fontWeight:800,color:"#1e293b",cursor:"pointer",fontFamily:"inherit",boxShadow:"0 2px 10px rgba(0,0,0,.2)"}}
+              >
+                Reset View
+              </button>
+
+              {/* Legend, bottom right, lifted clear of the attribution strip */}
+              <div style={{position:"absolute",bottom:24,right:10,zIndex:1000,background:"rgba(255,255,255,.96)",borderRadius:10,padding:"10px 12px",boxShadow:"0 4px 16px rgba(0,0,0,.2)"}}>
+                {legendRows.map(([c,l],i)=>(
+                  <div key={l} style={{display:"flex",alignItems:"center",gap:7,marginBottom:i<legendRows.length-1?6:0}}>
+                    <span style={{width:11,height:11,borderRadius:"50%",background:c,border:"1.5px solid #fff",boxShadow:"0 0 0 1px rgba(0,0,0,.12)",flexShrink:0}}/>
+                    <span style={{fontSize:11,fontWeight:700,color:"#475569"}}>{l}</span>
+                  </div>
+                ))}
+              </div>
+            </>
+          ) : (
+            <div className="hz-map-skeleton" style={{position:"absolute",inset:0,background:"#e2e8f0",display:"flex",alignItems:"center",justifyContent:"center"}}>
+              <div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:12,color:"#94a3b8",fontWeight:700,fontSize:14}}>
+                <div className="spinning" style={{width:30,height:30,border:"3px solid #cbd5e1",borderTop:"3px solid #94a3b8",borderRadius:"50%"}}/>
+                Loading map...
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    </section>
+  );
+};
 
 // ─── PAYMENT METHODS ROW ──────────────────────────────────────────────────────
 // Renders the accepted-cards strip shown below the $14.99 CTA on the report
@@ -6850,7 +7021,7 @@ export default function App() {
         <main className="main" ref={topRef} style={{maxWidth:1040,margin:"0 auto",padding:"36px 24px 72px",width:"100%",boxSizing:"border-box",overflowX:"hidden"}}>
 
           {/* FIND DATA CENTERS NEAR ME */}
-          <section id="near-me" className="near-panel" style={{background:"#fff",borderRadius:24,boxShadow:"0 8px 48px rgba(0,0,0,.10)",padding:"26px 26px 22px",marginBottom:28,scrollMarginTop:24}}>
+          <section id="near-me" className="near-panel" style={{background:"#fff",borderRadius:16,boxShadow:"0 20px 60px rgba(0,0,0,0.2)",padding:"26px 26px 22px",marginBottom:28,scrollMarginTop:24}}>
             <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:18,flexWrap:"wrap"}}>
               <span style={{fontSize:26,lineHeight:1}} role="img" aria-label="Pin">📍</span>
               <h2 style={{fontSize:22,fontWeight:900,color:"#0f172a",letterSpacing:"-.01em",margin:0}}>Find Data Centers Near Me</h2>
@@ -7089,26 +7260,14 @@ export default function App() {
           </div>
           )}
 
+          {/* INTERACTIVE WORLD MAP: sits between the Find Data Centers Near Me
+              feature and the social share prompt. */}
+          {!dc && <MapSection facilities={facs} loading={loading} onSelectFacility={pickFac}/>}
+
           {/* SOCIAL SHARE: lives directly below the Find Data Centers Near Me
               feature so the prompt to share lands after the buyer has seen
               their own results, upsell banner and email gate. */}
           {!dc && <ShareSection/>}
-
-          {!dc && !nearLoc && !loading && (
-            <div style={{textAlign:"center",padding:"80px 24px"}}>
-              <div className="floating" style={{fontSize:80,marginBottom:24}}>🌍</div>
-              <h2 style={{fontSize:28,fontWeight:800,color:"#0f172a",marginBottom:12}}>Search for a data center near you</h2>
-              <p style={{fontSize:17,color:"#64748b",maxWidth:480,margin:"0 auto",lineHeight:1.75}}>Select your country above, then choose your city to find data centers in your area and understand their real health impact.</p>
-              <div style={{display:"flex",justifyContent:"center",gap:24,marginTop:48,flexWrap:"wrap"}}>
-                {Object.entries(STATUS).map(([k,v])=>(
-                  <div key={k} style={{display:"flex",alignItems:"center",gap:8,fontSize:15,color:"#64748b",fontWeight:600}}>
-                    <div style={{width:10,height:10,borderRadius:"50%",background:v.color,boxShadow:`0 0 8px ${v.color}`}}/>
-                    {v.label}: {facs.filter(f=>f.Facility_Status===k).length}
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
 
           {loading && !nearLoc && (
             <div className="near-card-skel-list" style={{display:"flex",flexDirection:"column",gap:14}} aria-busy="true" aria-label="Loading facility data">
