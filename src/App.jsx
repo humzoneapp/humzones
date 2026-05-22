@@ -892,6 +892,41 @@ const ReportLandingPage = ({ onBack, onNavigate }) => {
   const facilities100km  = parseInt(get("facilities100km"), 10)  || 0;
   const highRiskCount    = parseInt(get("highRiskCount"), 10)    || 0;
 
+  // Free sample report download. Uses fixed placeholder data so it is
+  // identical for every visitor and never reveals real facility figures.
+  const [sampleBusy, setSampleBusy] = useState(false);
+  const handleSampleDownload = async () => {
+    if (sampleBusy) return;
+    setSampleBusy(true);
+    try {
+      const { doc } = await buildSampleReportPdf({
+        subtitle: "Local infrastructure, environmental, and community impact insights for your area.",
+        address: "123 Main Street, Austin, Texas, United States",
+        summaryRows: [
+          ["Total facilities within 100km", "8"],
+          ["HIGH exposure category facilities", "2"],
+          ["MODERATE exposure category facilities", "4"],
+          ["LOW exposure category facilities", "2"],
+          ["Combined estimated power draw", "318 MW"],
+          ["Combined estimated daily water draw", "1,985,000 gallons"],
+          ["Combined estimated annual CO2 impact", "1,074,600 tons"],
+        ],
+        summaryParagraph: "This sample report identifies 8 placeholder data center facilities within 100km of a sample address. Of these, 2 are in the HIGH infrastructure exposure category, 4 are MODERATE and 2 are LOW, based on power scale, proximity to residential areas and cooling type. A full HumZones report lists every facility near a real searched address with the same depth of detail shown on the following pages.",
+        facilities: [
+          { name:"Amazon Data Center",   city:"Austin, Texas, United States", dist:"15.2 km", cat:"HIGH",     power:"120 MW", noise:"68 dB", emfFence:"45 mG", emf100:"5 mG", co2:"405,720 tons per year", water:"900,000 gallons per day" },
+          { name:"Google Cloud Campus",  city:"Austin, Texas, United States", dist:"28.7 km", cat:"MODERATE", power:"45 MW",  noise:"65 dB", emfFence:"40 mG", emf100:"4 mG", co2:"152,145 tons per year", water:"337,500 gallons per day" },
+          { name:"Equinix Data Center",  city:"Austin, Texas, United States", dist:"67.3 km", cat:"LOW",      power:"12 MW",  noise:"60 dB", emfFence:"33 mG", emf100:"2 mG", co2:"40,572 tons per year",  water:"90,000 gallons per day" },
+        ],
+      });
+      doc.save("HumZones-Sample-Report.pdf");
+    } catch (e) {
+      console.error("Sample report generation failed:", e);
+      window.alert("We could not generate the sample report. Please try again.");
+    } finally {
+      setSampleBusy(false);
+    }
+  };
+
   // Estimated rollups (per the spec): 45 MW average draw, 35,000 gal/day water.
   const estPowerMW       = facilities100km * 45;
   const estWaterGalDay   = facilities100km * 35000;
@@ -1100,48 +1135,30 @@ const ReportLandingPage = ({ onBack, onNavigate }) => {
             </ul>
           </div>
 
-          {/* Blurred fake report preview, taller, with SAMPLE REPORT diagonal + lock overlay */}
-          <div style={{position:"relative"}}>
-            {/* Soft orange halo behind the card */}
-            <div aria-hidden="true" style={{position:"absolute",inset:"-32px",background:"radial-gradient(ellipse at center, rgba(249,115,22,.42) 0%, rgba(249,115,22,0) 65%)",filter:"blur(22px)",pointerEvents:"none",zIndex:0}}/>
-            <div style={{maxWidth:460,margin:"0 auto",background:"#fff",borderRadius:18,boxShadow:"0 0 60px rgba(249,115,22,.45),0 0 110px rgba(249,115,22,.22),0 22px 60px rgba(15,23,42,.35),0 0 0 1px rgba(249,115,22,.45)",padding:"28px 26px",position:"relative",zIndex:1,overflow:"hidden",minHeight:440}}>
-              <div style={{filter:"blur(5px)",pointerEvents:"none",userSelect:"none"}} aria-hidden="true">
-                <div style={{display:"flex",justifyContent:"space-between",alignItems:"baseline",marginBottom:14}}>
-                  <div style={{fontSize:20,fontWeight:900,color:"#0f172a",letterSpacing:"-.01em"}}>HumZones Area Report</div>
-                  <div style={{fontSize:11,color:"#94a3b8",fontWeight:700}}>PAGE 1 / 12</div>
-                </div>
-                <div style={{fontSize:12,color:"#64748b",marginBottom:14}}>Generated for {searchAddress.length>40?searchAddress.slice(0,40)+"...":searchAddress}</div>
-                <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8,marginBottom:14}}>
-                  <div style={{height:60,background:"linear-gradient(135deg,#fef2f2,#fee2e2)",borderRadius:10}}/>
-                  <div style={{height:60,background:"linear-gradient(135deg,#fff7ed,#ffedd5)",borderRadius:10}}/>
-                  <div style={{height:60,background:"linear-gradient(135deg,#eff6ff,#dbeafe)",borderRadius:10}}/>
-                </div>
-                {[92,84,78,88,72,66].map((w,i)=>(
-                  <div key={i} style={{height:9,background:"#e2e8f0",borderRadius:4,marginBottom:7,width:`${w}%`}}/>
-                ))}
-                <div style={{height:140,background:"linear-gradient(135deg,#fef2f2 0%,#fff7ed 60%,#eff6ff 100%)",borderRadius:12,marginTop:14}}/>
-                {[80,68,90,74].map((w,i)=>(
-                  <div key={`b-${i}`} style={{height:9,background:"#e2e8f0",borderRadius:4,marginTop:7,width:`${w}%`}}/>
-                ))}
-                <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginTop:14}}>
-                  <div style={{height:48,background:"#f1f5f9",borderRadius:10}}/>
-                  <div style={{height:48,background:"#f1f5f9",borderRadius:10}}/>
-                </div>
-              </div>
+          {/* Sample report preview + free sample download */}
+          <div style={{position:"relative",display:"flex",flexDirection:"column",alignItems:"center"}}>
+            {/* Soft orange halo behind the preview */}
+            <div aria-hidden="true" style={{position:"absolute",top:-34,left:"50%",transform:"translateX(-50%)",width:468,height:368,maxWidth:"calc(100% + 68px)",background:"radial-gradient(ellipse at center, rgba(249,115,22,.42) 0%, rgba(249,115,22,0) 65%)",filter:"blur(22px)",pointerEvents:"none",zIndex:0}}/>
 
-              {/* Diagonal SAMPLE REPORT watermark */}
-              <div aria-hidden="true" style={{position:"absolute",top:"50%",left:"50%",transform:"translate(-50%,-50%) rotate(-22deg)",fontSize:54,fontWeight:900,color:"rgba(239,68,68,.22)",letterSpacing:".18em",pointerEvents:"none",whiteSpace:"nowrap"}}>SAMPLE REPORT</div>
-
-              {/* Centered lock overlay */}
-              <div aria-hidden="true" style={{position:"absolute",inset:0,display:"flex",alignItems:"center",justifyContent:"center",pointerEvents:"none"}}>
-                <div style={{width:78,height:78,borderRadius:"50%",background:"linear-gradient(135deg,#ef4444,#f97316)",display:"flex",alignItems:"center",justifyContent:"center",boxShadow:"0 14px 38px rgba(239,68,68,.55),0 0 0 6px rgba(255,255,255,.85)"}}>
-                  <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                    <rect x="4" y="11" width="16" height="10" rx="2"/>
-                    <path d="M8 11V7a4 4 0 0 1 8 0v4"/>
-                  </svg>
-                </div>
+            {/* Blurred report preview */}
+            <div style={{position:"relative",zIndex:1,width:400,maxWidth:"100%",height:300,background:"linear-gradient(135deg,#2d3748,#1e293b)",borderRadius:8,boxShadow:"0 20px 60px rgba(0,0,0,0.4)",overflow:"hidden"}}>
+              <div aria-hidden="true" style={{filter:"blur(4px)",padding:"30px 32px",pointerEvents:"none",userSelect:"none"}}>
+                {[92,78,96,66,84,58,90,72,82].map((w,i)=>(
+                  <div key={i} style={{height:13,background:"rgba(255,255,255,.20)",borderRadius:4,marginBottom:13,width:`${w}%`}}/>
+                ))}
               </div>
+              {/* Diagonal SAMPLE text across the entire preview */}
+              <div aria-hidden="true" style={{position:"absolute",top:"50%",left:"50%",transform:"translate(-50%,-50%) rotate(-30deg)",fontSize:48,fontWeight:900,color:"rgba(255,255,255,0.15)",letterSpacing:"8px",textTransform:"uppercase",pointerEvents:"none",whiteSpace:"nowrap"}}>Sample</div>
+              {/* Centered lock icon overlay */}
+              <div aria-hidden="true" style={{position:"absolute",top:"50%",left:"50%",transform:"translate(-50%,-50%)",fontSize:32,lineHeight:1,background:"rgba(0,0,0,0.5)",borderRadius:"50%",padding:16,color:"#fff",pointerEvents:"none"}}>🔒</div>
             </div>
+
+            {/* Free sample CTA */}
+            <h3 style={{fontSize:24,fontWeight:900,color:"#fff",margin:"30px 0 10px",textAlign:"center",letterSpacing:"-.01em"}}>See a Sample Report Before You Buy</h3>
+            <p style={{fontSize:15,color:"rgba(255,255,255,.7)",lineHeight:1.6,textAlign:"center",marginBottom:18,maxWidth:400}}>Download a free sample to see the depth and detail of your personalized report.</p>
+            <button onClick={handleSampleDownload} disabled={sampleBusy} style={{padding:"14px 30px",borderRadius:12,border:"2px solid #f97316",background:"transparent",color:"#f97316",fontSize:15,fontWeight:900,letterSpacing:".02em",cursor:sampleBusy?"wait":"pointer",fontFamily:"inherit",opacity:sampleBusy?.65:1}}>
+              {sampleBusy ? "Generating Sample..." : "Download Free Sample"}
+            </button>
           </div>
         </div>
       </section>
@@ -1304,10 +1321,10 @@ async function buildAreaReportPdf({ searchAddress, facsNear, radiusKm = 100, fac
   const counts = { HIGH: 0, MODERATE: 0, LOW: 0 };
   let totalPower = 0, totalWater = 0, totalCO2 = 0;
   facsNear.forEach(f => {
-    const lvl = String(f.Risk_Level || "").toUpperCase();
-    if (lvl === "HIGH") counts.HIGH++;
-    else if (lvl === "MODERATE") counts.MODERATE++;
-    else counts.LOW++;
+    const tier = exposureTier(f.Risk_Level);
+    if (tier === "HIGH") counts.HIGH++;
+    else if (tier === "LOW") counts.LOW++;
+    else counts.MODERATE++;
     const mw = resolvePower(f);
     totalPower += mw;
     totalWater += resolveWater(f, mw);
@@ -1358,13 +1375,25 @@ async function buildAreaReportPdf({ searchAddress, facsNear, radiusKm = 100, fac
   doc.setFont("helvetica", "bold"); doc.setFontSize(16);
   setText(15, 23, 42); doc.text("HumZones", M, 48);
 
-  let y = 180;
-  doc.setFont("helvetica", "bold"); doc.setFontSize(24);
-  setText(15, 23, 42); doc.text("Your Personalized HumZones™ Report", M, y);
-  y += 26;
+  let y = 178;
+  // Cover title: 32pt bold, centered, with a superscript TM rendered smaller
+  // and raised above the baseline.
+  setText(15, 23, 42);
+  doc.setFont("helvetica", "bold"); doc.setFontSize(32);
+  const titleBefore = "Your Personalized HumZones";
+  const titleAfter  = " Report";
+  const wTitleBefore = doc.getTextWidth(titleBefore);
+  const wTitleAfter  = doc.getTextWidth(titleAfter);
+  doc.setFontSize(18);
+  const wTitleTM = doc.getTextWidth("TM");
+  let titleX = (PW - (wTitleBefore + wTitleTM + wTitleAfter)) / 2;
+  doc.setFontSize(32); doc.text(titleBefore, titleX, y);
+  doc.setFontSize(18); doc.text("TM", titleX + wTitleBefore, y - 10);
+  doc.setFontSize(32); doc.text(titleAfter, titleX + wTitleBefore + wTitleTM, y);
+  y += 30;
   doc.setFont("helvetica", "normal"); doc.setFontSize(12);
   setText(100, 116, 139);
-  doc.text(doc.splitTextToSize("Local infrastructure, environmental, and community impact insights for your area.", PW - M*2), M, y);
+  doc.text("Local infrastructure, environmental, and community impact insights for your area.", PW / 2, y, { align: "center" });
 
   y += 50;
   doc.setFillColor(241, 245, 249); doc.rect(M, y - 20, PW - M*2, 130, "F");
@@ -1541,17 +1570,71 @@ async function buildAreaReportPdf({ searchAddress, facsNear, radiusKm = 100, fac
     });
   }
 
-  // ═══ UNDERSTANDING YOUR RESULTS
+  // ═══ UNDERSTANDING YOUR RESULTS (personalized)
   doc.addPage();
   drawTopBand("Understanding Your Results");
 
   y = 80;
   doc.setFont("helvetica", "bold"); doc.setFontSize(22);
   setText(15, 23, 42); doc.text("Understanding Your Results", M, y);
-  y += 28;
+  y += 30;
+
+  // Nearest facility and the facility in the highest exposure tier (ties
+  // broken by distance) drive the personalized lines below.
+  const tierRank = (t) => t === "HIGH" ? 0 : t === "MODERATE" ? 1 : t === "LOW" ? 2 : 3;
+  const nearestFac = facsNear.length ? facsNear[0] : null;
+  const topFac = facsNear.length
+    ? [...facsNear].sort((a, b) =>
+        tierRank(exposureTier(a.Risk_Level)) - tierRank(exposureTier(b.Risk_Level)) || a._km - b._km)[0]
+    : null;
+
+  const sectionHeading = (txt) => {
+    if (y + 46 > PH - 80) { doc.addPage(); drawTopBand("Understanding Your Results"); y = 80; }
+    doc.setFont("helvetica", "bold"); doc.setFontSize(15);
+    setText(15, 23, 42); doc.text(txt, M, y);
+    y += 20;
+  };
+  const bullet = (txt) => {
+    if (y + 40 > PH - 80) { doc.addPage(); drawTopBand("Understanding Your Results"); y = 80; }
+    doc.setFont("helvetica", "bold"); doc.setFontSize(11);
+    setText(249, 115, 22); doc.text("-", M, y);
+    doc.setFont("helvetica", "normal"); doc.setFontSize(11);
+    setText(71, 85, 105);
+    const lines = doc.splitTextToSize(txt, PW - M*2 - 16);
+    doc.text(lines, M + 16, y);
+    y += lines.length * 14 + 7;
+  };
+
+  // ── PART A: Your Area at a Glance
+  sectionHeading("Your Area at a Glance");
+  bullet(`Your search found ${totalFound} ${totalFound === 1 ? "facility" : "facilities"} within ${radiusLbl} of ${searchAddress}.`);
+  if (nearestFac) {
+    bullet(`The closest facility is ${nearestFac.Name || "an unnamed facility"} at ${nearestFac._km.toFixed(1)}km.`);
+  }
+  if (topFac) {
+    bullet(`The highest exposure category facility near you is ${topFac.Name || "an unnamed facility"} at ${topFac._km.toFixed(1)}km drawing ${fmtNum(resolvePower(topFac))}MW of power.`);
+  }
+  bullet(`Combined estimated power draw of all facilities within ${radiusLbl}: ${fmtMW(totalPower)}.`);
+  bullet(`Combined estimated daily water draw: ${fmtNum(totalWater)} gallons.`);
+  bullet(`Combined estimated annual CO2 impact: ${fmtNum(totalCO2)} tons.`);
+  y += 12;
+
+  // ── PART B: Exposure by Distance
+  sectionHeading("Exposure by Distance");
+  [10, 25, 50, 100].forEach((km) => {
+    const within = facsNear.filter((f) => f._km <= km);
+    const h = within.filter((f) => exposureTier(f.Risk_Level) === "HIGH").length;
+    const m = within.filter((f) => exposureTier(f.Risk_Level) === "MODERATE").length;
+    const l = within.filter((f) => exposureTier(f.Risk_Level) === "LOW").length;
+    bullet(`Within ${km}km: ${within.length} ${within.length === 1 ? "facility" : "facilities"} (${h} HIGH, ${m} MODERATE, ${l} LOW exposure).`);
+  });
+  y += 12;
+
+  // ── PART C: What This Means
+  sectionHeading("What This Means");
 
   const writePara = (txt) => {
-    if (y + 80 > PH - 80) { doc.addPage(); drawTopBand("Understanding Your Results"); y = 80; }
+    if (y + 70 > PH - 80) { doc.addPage(); drawTopBand("Understanding Your Results"); y = 80; }
     doc.setFont("helvetica", "normal"); doc.setFontSize(11);
     setText(71, 85, 105);
     const lines = doc.splitTextToSize(txt, PW - M*2);
@@ -1559,10 +1642,14 @@ async function buildAreaReportPdf({ searchAddress, facsNear, radiusKm = 100, fac
     y += lines.length * 14 + 12;
   };
 
-  writePara("EMF exposure. Power-frequency electromagnetic fields from data center substations and feeder lines have been studied in relation to childhood leukemia by the WHO and IARC. Published research has identified elevated risk where homes are exposed to power-frequency fields above roughly 3 to 4 milligauss on a sustained basis. The EMF figures in this report show modeled values both at the facility fence and at 100 meters so you can see how exposure changes with distance.");
-  writePara("Noise impact. Data centers operate around the clock and emit a continuous low-frequency hum from cooling systems and transformers. Low-frequency sound below 200 Hz penetrates walls and windows with far less attenuation than higher frequencies, which is why residents living within a few kilometers of large facilities consistently report sleep disruption, headaches and chronic background stress. Monthly backup generator tests add diesel exhaust on top of the steady noise.");
-  writePara(`Water and CO2. Evaporative cooling at hyperscale facilities removes large volumes of fresh water from the local cycle every single day. Combined with the grid emissions associated with around-the-clock electricity demand, the regional environmental footprint of multiple nearby facilities compounds rapidly. The figures in this report sum the modeled draw across every facility within ${radiusLbl} of your address.`);
+  const emfClosing = nearestFac
+    ? ` The closest facility to your address is ${nearestFac.Name || "an unnamed facility"} at ${nearestFac._km.toFixed(1)}km.`
+    : "";
+  writePara("EMF exposure. Power-frequency electromagnetic fields from data center substations and feeder lines have been studied in relation to childhood leukemia by the WHO and IARC. Published research has identified elevated risk where homes are exposed to power-frequency fields above roughly 3 to 4 milligauss on a sustained basis. The EMF figures in this report show modeled values both at the facility fence and at 100 meters so you can see how exposure changes with distance." + emfClosing);
+  writePara("Noise impact. Data centers operate around the clock and emit a continuous low-frequency hum from cooling systems and transformers. Low-frequency sound below 200 Hz penetrates walls and windows with far less attenuation than higher frequencies, which is why residents living within a few kilometers of large facilities consistently report sleep disruption, headaches and chronic background stress. Facilities operating within 5km of a residence typically produce continuous ambient noise.");
+  writePara(`Water and CO2. Evaporative cooling at hyperscale facilities removes large volumes of fresh water from the local cycle every single day. Combined with the grid emissions associated with around-the-clock electricity demand, the regional environmental footprint of multiple nearby facilities compounds rapidly. The combined daily water draw of facilities within ${radiusLbl} of your address is estimated at ${fmtNum(totalWater)} gallons.`);
 
+  // ── PART D: What You Can Do
   y += 4;
   if (y + 30 > PH - 80) { doc.addPage(); drawTopBand("Understanding Your Results"); y = 80; }
   doc.setFont("helvetica", "bold"); doc.setFontSize(16);
@@ -1627,11 +1714,11 @@ async function buildAreaReportPdf({ searchAddress, facsNear, radiusKm = 100, fac
   const submitPrefix = "Submit your resident report at: ";
   setText(15, 23, 42); doc.text(submitPrefix, M, y);
   setText(249, 115, 22);
-  doc.textWithLink("humzones.com", M + doc.getTextWidth(submitPrefix), y, { url: "https://humzones.com" });
+  doc.textWithLink("humzones.com/submit-report", M + doc.getTextWidth(submitPrefix), y, { url: "https://humzones.com/submit-report" });
   setText(71, 85, 105);
   y += 22;
 
-  sharePara("Click on Submit Your Report in the navigation menu. Reports are reviewed and published with your permission only. Your personal information is never shared.");
+  sharePara("Visit humzones.com/submit-report to share your experience. Reports are reviewed and published with your permission only. Your personal information is never shared.");
   sharePara("Together we can build the most comprehensive community health database for data center proximity in the world.");
 
   if (y + 30 > PH - 80) { doc.addPage(); drawTopBand("Share Your Experience"); y = 80; }
@@ -1699,11 +1786,32 @@ function pdfFilenameSafe(address) {
 }
 
 // ─── SAMPLE REPORT PDF ───────────────────────────────────────────────────────
-// Builds the downloadable sample report offered on the /business page. Every
-// page carries a diagonal light-grey SAMPLE watermark and all facilities and
-// figures are placeholder data, so it can never be confused with a paid
-// area report. Returns the jsPDF doc for the caller to save.
-async function buildSampleReportPdf() {
+// Builds a downloadable sample report. Every page carries a diagonal light-grey
+// SAMPLE watermark and all facilities and figures are placeholder data, so it
+// can never be confused with a paid area report. Callers pass an opts object to
+// control the cover, executive summary and sample facilities; the defaults
+// produce the generic sample used on the /business page. Returns the jsPDF doc.
+async function buildSampleReportPdf(opts = {}) {
+  const {
+    subtitle = "A demonstration of the infrastructure intelligence included in every HumZones professional report. All facilities and figures shown are placeholder sample data.",
+    address = "Sample Address, Sample City, Sample Region",
+    summaryRows = [
+      ["Total facilities within 100km", "12"],
+      ["HIGH exposure category facilities", "3"],
+      ["MODERATE exposure category facilities", "5"],
+      ["LOW exposure category facilities", "4"],
+      ["Combined estimated power draw", "612 MW"],
+      ["Combined estimated daily water draw", "2,140,000 gallons"],
+      ["Combined estimated annual CO2 impact", "1,180,000 tons"],
+    ],
+    summaryParagraph = "This sample report identifies 12 placeholder data center facilities within 100km of a sample address. Of these, 3 are in the HIGH infrastructure exposure category, 5 are MODERATE and 4 are LOW, based on power scale, proximity to residential areas and cooling type. A full HumZones report lists every facility near a real searched address with the same depth of detail shown on the following pages.",
+    facilities = [
+      { name:"SAMPLE Data Center Alpha", company:"Sample Operator LLC", city:"Sample City, Sample Region", dist:"2.4 km", cat:"HIGH", power:"95 MW", noise:"68 dB", emfFence:"6 mG", emf100:"3 mG", co2:"310,000 tons per year", water:"680,000 gallons per day", cooling:"Evaporative", opened:"2022" },
+      { name:"SAMPLE Data Center Beta", company:"Example Infrastructure Group", city:"Sample Town, Sample Region", dist:"11.8 km", cat:"MODERATE", power:"38 MW", noise:"64 dB", emfFence:"3 mG", emf100:"1 mG", co2:"120,000 tons per year", water:"210,000 gallons per day", cooling:"Chilled water", opened:"2020" },
+      { name:"SAMPLE Data Center Gamma", company:"Placeholder Hosting Inc.", city:"Sample Village, Sample Region", dist:"46.2 km", cat:"LOW", power:"12 MW", noise:"60 dB", emfFence:"1 mG", emf100:"below 1 mG", co2:"Near zero", water:"Minimal", cooling:"Air-cooled", opened:"2019" },
+    ],
+  } = opts;
+
   const jsPDFModule = await import("jspdf");
   const { jsPDF } = jsPDFModule;
   const doc = new jsPDF({ unit: "pt", format: "letter" });
@@ -1738,7 +1846,7 @@ async function buildSampleReportPdf() {
     setText(15, 23, 42);
   };
 
-  const catColor = (cat) => cat === "HIGH" ? [239,68,68] : cat === "MODERATE" ? [249,115,22] : [59,130,246];
+  const catColor = (cat) => cat === "HIGH" ? [239,68,68] : cat === "MODERATE" ? [249,115,22] : [34,197,94];
 
   // ═══ PAGE 1: COVER
   stampSample();
@@ -1754,7 +1862,7 @@ async function buildSampleReportPdf() {
   y += 30;
   doc.setFont("helvetica", "normal"); doc.setFontSize(12);
   setText(100, 116, 139);
-  doc.text(doc.splitTextToSize("A demonstration of the infrastructure intelligence included in every HumZones professional report. All facilities and figures shown are placeholder sample data.", PW - M*2), M, y);
+  doc.text(doc.splitTextToSize(subtitle, PW - M*2), M, y);
 
   y += 74;
   doc.setFillColor(241, 245, 249); doc.rect(M, y - 22, PW - M*2, 82, "F");
@@ -1762,7 +1870,7 @@ async function buildSampleReportPdf() {
   doc.setFont("helvetica", "bold"); doc.setFontSize(11);
   setText(100, 116, 139); doc.text("SAMPLE LOCATION", M + 20, y);
   doc.setFont("helvetica", "bold"); doc.setFontSize(13);
-  setText(15, 23, 42); doc.text("Sample Address, Sample City, Sample Region", M + 20, y + 22);
+  setText(15, 23, 42); doc.text(address, M + 20, y + 22);
   doc.setFont("helvetica", "normal"); doc.setFontSize(11);
   setText(100, 116, 139); doc.text("This is not a real address. No real location data is shown.", M + 20, y + 44);
 
@@ -1780,15 +1888,6 @@ async function buildSampleReportPdf() {
   doc.setFont("helvetica", "bold"); doc.setFontSize(22);
   setText(15, 23, 42); doc.text("Executive Summary", M, y);
   y += 36;
-  const summaryRows = [
-    ["Total facilities within 100km", "12"],
-    ["HIGH exposure category facilities", "3"],
-    ["MODERATE exposure category facilities", "5"],
-    ["LOW exposure category facilities", "4"],
-    ["Combined estimated power draw", "612 MW"],
-    ["Combined daily water consumption", "2,140,000 gallons"],
-    ["Combined CO2 per year", "1,180,000 tons"],
-  ];
   summaryRows.forEach((r, idx) => {
     if (idx % 2 === 0) { doc.setFillColor(248,250,252); doc.rect(M, y-14, PW-M*2, 28, "F"); }
     doc.setFont("helvetica", "normal"); doc.setFontSize(12);
@@ -1800,23 +1899,18 @@ async function buildSampleReportPdf() {
   y += 22;
   doc.setFont("helvetica", "normal"); doc.setFontSize(11);
   setText(71,85,105);
-  doc.text(doc.splitTextToSize("This sample report identifies 12 placeholder data center facilities within 100km of a sample address. Of these, 3 are in the HIGH infrastructure exposure category, 5 are MODERATE and 4 are LOW, based on power scale, proximity to residential areas and cooling type. A full HumZones report lists every facility near a real searched address with the same depth of detail shown on the following pages.", PW - M*2), M, y);
+  doc.text(doc.splitTextToSize(summaryParagraph, PW - M*2), M, y);
 
-  // ═══ PAGES 3-5: SAMPLE FACILITIES
-  const sampleFacs = [
-    { name:"SAMPLE Data Center Alpha", company:"Sample Operator LLC",          city:"Sample City, Sample Region",    dist:"2.4 km",  cat:"HIGH",     power:"95 MW", noise:"68 dB", emfFence:"6 mG", emf100:"3 mG",       co2:"310,000 tons per year", water:"680,000 gallons per day", cooling:"Evaporative",   opened:"2022" },
-    { name:"SAMPLE Data Center Beta",  company:"Example Infrastructure Group",  city:"Sample Town, Sample Region",    dist:"11.8 km", cat:"MODERATE", power:"38 MW", noise:"64 dB", emfFence:"3 mG", emf100:"1 mG",       co2:"120,000 tons per year", water:"210,000 gallons per day", cooling:"Chilled water", opened:"2020" },
-    { name:"SAMPLE Data Center Gamma", company:"Placeholder Hosting Inc.",      city:"Sample Village, Sample Region", dist:"46.2 km", cat:"LOW",      power:"12 MW", noise:"60 dB", emfFence:"1 mG", emf100:"below 1 mG", co2:"Near zero",             water:"Minimal",                 cooling:"Air-cooled",    opened:"2019" },
-  ];
-  sampleFacs.forEach((f, i) => {
-    doc.addPage(); stampSample(); drawTopBand(`Sample Facility ${i+1} of 3`);
+  // ═══ SAMPLE FACILITY PAGES
+  facilities.forEach((f, i) => {
+    doc.addPage(); stampSample(); drawTopBand(`Sample Facility ${i+1} of ${facilities.length}`);
     y = 80;
     doc.setFont("helvetica", "bold"); doc.setFontSize(20);
     setText(15,23,42); doc.text(f.name, M, y);
     y += 22;
     doc.setFont("helvetica", "normal"); doc.setFontSize(11);
-    setText(100,116,139); doc.text(f.company, M, y);
-    y += 16;
+    setText(100,116,139);
+    if (f.company) { doc.text(f.company, M, y); y += 16; }
     doc.text(f.city, M, y);
     y += 26;
     doc.setFont("helvetica", "bold"); doc.setFontSize(11);
@@ -1833,9 +1927,9 @@ async function buildSampleReportPdf() {
       ["Estimated water draw", f.water],
       ["Modeled EMF at fence", f.emfFence],
       ["Modeled EMF at 100m",  f.emf100],
-      ["Cooling type",         f.cooling],
-      ["Opened",               f.opened],
     ];
+    if (f.cooling) facStats.push(["Cooling type", f.cooling]);
+    if (f.opened)  facStats.push(["Opened", f.opened]);
     const colW = (PW - M*2) / 2;
     facStats.forEach((s, idx) => {
       const col = idx % 2;
@@ -1852,7 +1946,7 @@ async function buildSampleReportPdf() {
     y += 20;
     doc.setFont("helvetica", "italic"); doc.setFontSize(10);
     setText(148,163,184);
-    doc.text(doc.splitTextToSize("Sample data shown for demonstration only. This facility does not exist and these figures do not describe any real location.", PW - M*2), M, y);
+    doc.text(doc.splitTextToSize("Sample data shown for demonstration only. These figures are illustrative placeholder values and do not describe any real facility or location.", PW - M*2), M, y);
   });
 
   // ═══ INFRASTRUCTURE AND COMMUNITY IMPACT CONSIDERATIONS
@@ -1915,17 +2009,113 @@ async function buildSampleReportPdf() {
 // coordinates, generates a multi-page PDF with jsPDF, triggers download, and
 // silently records the purchase in the Emails capture table.
 const ReportSuccessPage = ({ onBack, onNavigate }) => {
-  // status: loading -> generating -> ready / error / no_credits
+  // status: loading -> need_email -> generating -> ready / error
   const [status, setStatus] = useState("loading");
   const [stepMsg, setStepMsg] = useState("Fetching your facility data...");
   const [progress, setProgress] = useState(10);
   const [errMsg, setErrMsg] = useState("");
+  const [emailInput, setEmailInput] = useState("");
+  const [emailErr, setEmailErr] = useState("");
 
-  // Guard against React 18 StrictMode double-invocation in dev: the PDF
-  // generator must run exactly once so the buyer is not served two downloads.
+  // Guard against React 18 StrictMode double-invocation: setup runs once.
   const startedRef = useRef(false);
+  // Resolved report context, populated once by the setup effect and read by
+  // generate() whether it runs automatically or after the buyer confirms.
+  const ctxRef = useRef(null);
+  // Guards generate() so a re-render or double click cannot produce two PDFs.
+  const generatedRef = useRef(false);
 
-  const get = (k) => { try { return localStorage.getItem(k) || ""; } catch { return ""; } };
+  const goHome = () => {
+    if (onNavigate) onNavigate("/");
+    else if (onBack) onBack();
+  };
+
+  // Saves the buyer to the Airtable Emails table, then builds and downloads
+  // the PDF, then sends the purchase confirmation email. The email is saved
+  // BEFORE the PDF is generated, per the report capture flow.
+  const generate = async (email) => {
+    if (generatedRef.current) return;
+    generatedRef.current = true;
+    const ctx = ctxRef.current;
+    if (!ctx) {
+      setErrMsg("We lost your report details. Please refresh this page.");
+      setStatus("error");
+      return;
+    }
+    const { searchAddress, searchLat, searchLng, facilities100, highRisk, facsNear } = ctx;
+    try {
+      setStatus("generating");
+      setStepMsg("Saving your report details...");
+      setProgress(48);
+
+      const facCount  = facsNear.length;
+      const highCount = facsNear.filter(f => exposureTier(f.Risk_Level) === "HIGH").length;
+      const datePart  = new Date().toISOString().slice(0, 10);
+
+      // ─── Save the buyer to the Airtable Emails table (before the PDF) ─────
+      try {
+        const captureFields = {
+          [EMAIL_FIELD.Email]:            email,
+          [EMAIL_FIELD.Source]:           "PaidReport",
+          [EMAIL_FIELD.Address]:          searchAddress,
+          [EMAIL_FIELD.Radius_KM]:        100,
+          [EMAIL_FIELD.Facilities_Count]: facCount,
+          [EMAIL_FIELD.High_Risk_Count]:  highCount,
+          [EMAIL_FIELD.Date]:             datePart,
+        };
+        if (Number.isFinite(searchLat)) captureFields[EMAIL_FIELD.Latitude]  = searchLat;
+        if (Number.isFinite(searchLng)) captureFields[EMAIL_FIELD.Longitude] = searchLng;
+        const capRes = await fetch(`${APIURL}/${EMAILS_TABLE}`, {
+          method: "POST",
+          headers: HDR,
+          body: JSON.stringify({ fields: captureFields }),
+        });
+        if (!capRes.ok) console.warn("[HumZones] Emails capture responded", capRes.status);
+      } catch (e) { console.warn("[HumZones] Emails capture failed:", e); }
+
+      // ─── Generate the PDF via the shared builder ─────────────────────────
+      setStepMsg("Generating your personalized report...");
+      setProgress(75);
+      const { doc, datePart: dp } = await buildAreaReportPdf({
+        searchAddress,
+        facsNear,
+        radiusKm: 100,
+        facilities100km: facilities100,
+        highRisk,
+      });
+
+      // ─── Trigger the download ────────────────────────────────────────────
+      setStepMsg("Downloading your report...");
+      setProgress(95);
+      doc.save(`HumZones-Report-${pdfFilenameSafe(searchAddress)}-${dp || datePart}.pdf`);
+
+      // ─── Send the purchase confirmation email (non-blocking) ─────────────
+      fetch("/api/send-purchase-confirmation", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, address: searchAddress }),
+      }).catch(e => console.warn("[HumZones] purchase confirmation email failed:", e));
+
+      setProgress(100);
+      setStepMsg("Done.");
+      setStatus("ready");
+    } catch (e) {
+      console.error("[HumZones] Report generation failed:", e);
+      generatedRef.current = false;
+      setErrMsg(e.message || "We hit a snag generating your PDF. Please refresh this page or contact support and we will deliver it manually.");
+      setStatus("error");
+    }
+  };
+
+  const confirmEmail = () => {
+    const email = emailInput.trim();
+    if (!/^\S+@\S+\.\S+$/.test(email)) {
+      setEmailErr("Please enter a valid email address.");
+      return;
+    }
+    setEmailErr("");
+    generate(email);
+  };
 
   useEffect(() => {
     if (startedRef.current) return;
@@ -1933,47 +2123,13 @@ const ReportSuccessPage = ({ onBack, onNavigate }) => {
 
     const run = async () => {
       try {
-        // ─── 1. Pull search context from localStorage with URL-param fallback ─
-        // The buy flow writes the context to localStorage before redirecting
-        // to the Stripe Payment Link. URL params are kept as a fallback for
-        // browsers (Safari ITP, strict third-party-cookie blockers) that may
-        // wipe localStorage across the Stripe redirect.
-        console.log("localStorage dump:", {
-          searchLat:       localStorage.getItem("searchLat"),
-          searchLng:       localStorage.getItem("searchLng"),
-          searchAddress:   localStorage.getItem("searchAddress"),
-          facilities100km: localStorage.getItem("facilities100km"),
-          highRiskCount:   localStorage.getItem("highRiskCount"),
-          facilitiesFound: localStorage.getItem("facilitiesFound"),
-          selectedRadius:  localStorage.getItem("selectedRadius"),
-        });
+        // ─── 1. Pull search context (localStorage with URL-param fallback) ──
         const params = new URLSearchParams(window.location.search);
-        console.log("URL params dump:", {
-          session_id: params.get("session_id"),
-          lat:        params.get("lat"),
-          lng:        params.get("lng"),
-          address:    params.get("address"),
-          r100:       params.get("r100"),
-          high:       params.get("high"),
-          found:      params.get("found"),
-          radius:     params.get("radius"),
-        });
-
-        const searchAddress   = localStorage.getItem("searchAddress") || params.get("address") || "Your area";
-        const searchLat       = parseFloat(localStorage.getItem("searchLat") || params.get("lat"));
-        const searchLng       = parseFloat(localStorage.getItem("searchLng") || params.get("lng"));
-        const facilities100   = parseInt(localStorage.getItem("facilities100km") || params.get("r100"),   10);
-        const highRisk        = parseInt(localStorage.getItem("highRiskCount")   || params.get("high"),   10);
-        const facilitiesFound = parseInt(localStorage.getItem("facilitiesFound") || params.get("found"),  10);
-        const selectedRadius  = parseInt(localStorage.getItem("selectedRadius")  || params.get("radius"), 10);
-        console.log("[HumZones] /report-success resolved inputs:", { searchAddress, searchLat, searchLng, facilities100, highRisk, facilitiesFound, selectedRadius });
-
-        // We no longer hit a serverless function to read the Stripe session;
-        // the buy flow redirects directly to a Stripe Payment Link, so the
-        // buyer email is not available client-side after the redirect back.
-        // The PDF and the Airtable Emails capture leave the Email field
-        // blank when we cannot derive it.
-        const buyerEmail = "";
+        const searchAddress = localStorage.getItem("searchAddress")        || params.get("address") || "Your area";
+        const searchLat     = parseFloat(localStorage.getItem("searchLat") || params.get("lat"));
+        const searchLng     = parseFloat(localStorage.getItem("searchLng") || params.get("lng"));
+        const facilities100 = parseInt(localStorage.getItem("facilities100km") || params.get("r100"), 10);
+        const highRisk      = parseInt(localStorage.getItem("highRiskCount")   || params.get("high"), 10);
 
         // ─── 2. Fetch every facility from Airtable ──────────────────────────
         setStepMsg("Fetching your facility data...");
@@ -1986,7 +2142,6 @@ const ReportSuccessPage = ({ onBack, onNavigate }) => {
         let allFacs = [];
         try {
           allFacs = await apiFetch("Facilities", {"fields[]": reportFields});
-          console.log(`[HumZones] Airtable returned ${allFacs.length} facilities`);
         } catch (e) {
           console.error("[HumZones] Airtable fetch failed:", e);
           throw new Error("Could not load facility data. Please refresh to try again.");
@@ -1997,11 +2152,8 @@ const ReportSuccessPage = ({ onBack, onNavigate }) => {
 
         // ─── 3. Haversine filter to <=100km, sorted nearest first ───────────
         setStepMsg("Calculating distances...");
-        setProgress(50);
+        setProgress(38);
         const hasCoords = Number.isFinite(searchLat) && Number.isFinite(searchLng);
-        if (!hasCoords) {
-          console.warn("[HumZones] Missing searchLat/searchLng in localStorage AND URL params. Report will show 0 facilities.");
-        }
         const facsNear = hasCoords
           ? allFacs
               .map(f => {
@@ -2012,67 +2164,28 @@ const ReportSuccessPage = ({ onBack, onNavigate }) => {
               .filter(f => f && f._km <= 100)
               .sort((a, b) => a._km - b._km)
           : [];
-        console.log(`[HumZones] ${facsNear.length} facilities within 100km of (${searchLat}, ${searchLng})`);
 
-        // ─── 4. Generate the PDF via the shared builder ─────────────────────
-        setStepMsg("Generating your personalized report...");
-        setStatus("generating");
-        setProgress(72);
+        ctxRef.current = { searchAddress, searchLat, searchLng, facilities100, highRisk, facsNear };
 
-        const { doc, datePart, totalFound, counts } = await buildAreaReportPdf({
-          searchAddress,
-          facsNear,
-          radiusKm: 100,
-          facilities100km: facilities100,
-          highRisk,
-        });
-
-        // ─── 5. Trigger the download ────────────────────────────────────────
-        setStepMsg("Downloading your report...");
-        setProgress(95);
-        const filename = `HumZones-Report-${pdfFilenameSafe(searchAddress)}-${datePart}.pdf`;
-        doc.save(filename);
-
-        // ─── 6. Record the purchase in the Airtable Emails table ────────────
-        // Written with verified field IDs. The saved coordinates and radius
-        // let a buyer regenerate their PDF later from /my-report.
-        try {
-          const captureFields = {
-            [EMAIL_FIELD.Email]:            buyerEmail || "",
-            [EMAIL_FIELD.Source]:           "PaidReport",
-            [EMAIL_FIELD.Address]:          searchAddress,
-            [EMAIL_FIELD.Radius_KM]:        100,
-            [EMAIL_FIELD.Facilities_Count]: Number.isFinite(facilities100) ? facilities100 : totalFound,
-            [EMAIL_FIELD.High_Risk_Count]:  Number.isFinite(highRisk) ? highRisk : counts.HIGH,
-            [EMAIL_FIELD.Date]:             datePart,
-          };
-          if (Number.isFinite(searchLat)) captureFields[EMAIL_FIELD.Latitude] = searchLat;
-          if (Number.isFinite(searchLng)) captureFields[EMAIL_FIELD.Longitude] = searchLng;
-          const capRes = await fetch(`${APIURL}/${EMAILS_TABLE}`, {
-            method: "POST",
-            headers: HDR,
-            body: JSON.stringify({ fields: captureFields }),
-          });
-          if (!capRes.ok) console.warn("[HumZones] Emails capture responded", capRes.status);
-        } catch (e) { console.warn("[HumZones] Emails capture failed:", e); }
-
-        setProgress(100);
-        setStepMsg("Done.");
-        setStatus("ready");
+        // ─── 4. Resolve the buyer email ─────────────────────────────────────
+        // Stripe Payment Links collect the buyer email at checkout. When the
+        // success URL is configured to pass it back we use it directly;
+        // otherwise we ask the buyer to confirm it before generating the PDF.
+        const urlEmail = (params.get("email") || params.get("customer_email") || "").trim();
+        if (urlEmail && /^\S+@\S+\.\S+$/.test(urlEmail)) {
+          generate(urlEmail);
+        } else {
+          setStatus("need_email");
+        }
       } catch (e) {
-        console.error("[HumZones] Report generation failed:", e);
-        setErrMsg(e.message || "We hit a snag generating your PDF. Please refresh this page or contact support and we will deliver it manually.");
+        console.error("[HumZones] Report setup failed:", e);
+        setErrMsg(e.message || "We hit a snag. Please refresh this page or contact support.");
         setStatus("error");
       }
     };
 
     run();
   }, []);
-
-  const goHome = () => {
-    if (onNavigate) onNavigate("/");
-    else if (onBack) onBack();
-  };
 
   return (
     <div style={{minHeight:"100vh",background:"linear-gradient(150deg,#020c1b 0%,#0f172a 50%,#1e0535 100%)",width:"100%",maxWidth:"100vw",overflowX:"hidden",color:"#fff"}}>
@@ -2098,6 +2211,39 @@ const ReportSuccessPage = ({ onBack, onNavigate }) => {
               <div className="hz-progress-fill" style={{transform:`scaleX(${progress/100})`}}/>
             </div>
             <p style={{fontSize:12,color:"rgba(255,255,255,.5)",letterSpacing:".10em",textTransform:"uppercase",fontWeight:700}}>Please keep this tab open</p>
+          </>
+        )}
+
+        {status === "need_email" && (
+          <>
+            <div style={{width:84,height:84,borderRadius:"50%",background:"linear-gradient(135deg,#10b981,#059669)",margin:"24px auto 22px",display:"flex",alignItems:"center",justifyContent:"center",boxShadow:"0 18px 50px rgba(16,185,129,.4)"}}>
+              <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <polyline points="20 6 9 17 4 12"/>
+              </svg>
+            </div>
+            <h1 style={{fontSize:30,fontWeight:900,letterSpacing:"-.01em",marginBottom:10,color:"#fff"}}>Payment Confirmed!</h1>
+            <p style={{fontSize:16,color:"rgba(255,255,255,.78)",lineHeight:1.6,marginBottom:24,maxWidth:480,marginLeft:"auto",marginRight:"auto"}}>
+              Please confirm your email address to save your report for future access.
+            </p>
+            <div style={{maxWidth:440,margin:"0 auto",background:"rgba(255,255,255,.06)",border:"1px solid rgba(255,255,255,.12)",borderRadius:16,padding:"26px 24px",textAlign:"left"}}>
+              <label style={{fontSize:12,fontWeight:800,letterSpacing:".08em",textTransform:"uppercase",color:"rgba(255,255,255,.6)",display:"block",marginBottom:8}}>Email Address</label>
+              <input
+                className="email-gate-input"
+                value={emailInput}
+                onChange={e=>{ setEmailInput(e.target.value); if (emailErr) setEmailErr(""); }}
+                onKeyDown={e=>{ if (e.key === "Enter") confirmEmail(); }}
+                type="email"
+                placeholder="you@example.com"
+                style={{width:"100%",padding:"14px 16px",borderRadius:12,border:`1.5px solid ${emailErr?"rgba(239,68,68,.7)":"rgba(255,255,255,.18)"}`,background:"rgba(255,255,255,.08)",color:"#fff",fontSize:16,outline:"none",fontFamily:"inherit",boxSizing:"border-box"}}
+              />
+              {emailErr && <div style={{fontSize:13,color:"#fca5a5",marginTop:8}}>{emailErr}</div>}
+              <button onClick={confirmEmail} style={{width:"100%",marginTop:16,padding:"15px 24px",borderRadius:12,border:"none",background:"linear-gradient(135deg,#ef4444,#f97316)",color:"#fff",fontSize:16,fontWeight:900,letterSpacing:".02em",cursor:"pointer",fontFamily:"inherit",boxShadow:"0 10px 28px rgba(249,115,22,.4)"}}>
+                Confirm and Generate My Report
+              </button>
+              <div style={{fontSize:12,color:"rgba(255,255,255,.5)",marginTop:12,lineHeight:1.6}}>
+                This allows you to retrieve your report anytime at humzones.com/my-report
+              </div>
+            </div>
           </>
         )}
 
@@ -2552,7 +2698,7 @@ const BusinessFooter = ({ onNavigate }) => (
       <div style={{display:"flex",justifyContent:"center",gap:18,flexWrap:"wrap",marginBottom:22}}>
         <a href="/" onClick={e=>{e.preventDefault();onNavigate("/");}} className="ext-link" style={{color:"#f97316",fontSize:14,fontWeight:700,textDecoration:"none",letterSpacing:".02em"}}>Home</a>
         <a href="/methodology" onClick={e=>{e.preventDefault();onNavigate("/methodology");}} className="ext-link" style={{color:"#f97316",fontSize:14,fontWeight:700,textDecoration:"none",letterSpacing:".02em"}}>Methodology</a>
-        <a href="/" onClick={e=>{e.preventDefault();onNavigate("/");}} className="ext-link" style={{color:"#f97316",fontSize:14,fontWeight:700,textDecoration:"none",letterSpacing:".02em"}}>Submit Your Report</a>
+        <a href="/submit-report" onClick={e=>{e.preventDefault();onNavigate("/submit-report");}} className="ext-link" style={{color:"#f97316",fontSize:14,fontWeight:700,textDecoration:"none",letterSpacing:".02em"}}>Submit Your Report</a>
         <a href="/business" onClick={e=>{e.preventDefault();onNavigate("/business");}} className="ext-link" style={{color:"#f97316",fontSize:14,fontWeight:700,textDecoration:"none",letterSpacing:".02em"}}>Business Plans</a>
         <a href="/my-report" onClick={e=>{e.preventDefault();onNavigate("/my-report");}} className="ext-link" style={{color:"#f97316",fontSize:14,fontWeight:700,textDecoration:"none",letterSpacing:".02em"}}>Retrieve My Report</a>
         <a href="/privacy" onClick={e=>{e.preventDefault();onNavigate("/privacy");}} className="ext-link" style={{color:"#f97316",fontSize:14,fontWeight:700,textDecoration:"none",letterSpacing:".02em"}}>Privacy Policy</a>
@@ -4623,6 +4769,283 @@ const MyReportPage = ({ onNavigate }) => {
   );
 };
 
+// ─── /submit-report: STANDALONE RESIDENT REPORT PAGE ─────────────────────────
+// A dedicated page for submitting a resident report from anywhere on the site.
+// Loads the Facilities table, lets the visitor narrow by country/region/city,
+// pick a facility, and submit through the same verification flow as the
+// in-facility form (honeypot, 15-second gate, /api/send-verification).
+const SubmitReportPage = ({ onNavigate }) => {
+  const [facs, setFacs]       = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [country, setCountry] = useState("");
+  const [region, setRegion]   = useState("");
+  const [city, setCity]       = useState("");
+  const [found, setFound]     = useState(null); // null until Find Facilities runs
+
+  const [facilityName, setFacilityName]     = useState("");
+  const [facilityLocked, setFacilityLocked] = useState(false);
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName]   = useState("");
+  const [email, setEmail]         = useState("");
+  const [duration, setDuration]   = useState("");
+  const [symptoms, setSymptoms]   = useState("");
+  const [reportText, setReportText] = useState("");
+  const [human, setHuman]         = useState(false);
+  const [hp, setHp]               = useState(""); // honeypot ("website" field)
+  const [sending, setSending]     = useState(false);
+  const [sent, setSent]           = useState(false);
+  const [sentEmail, setSentEmail] = useState("");
+
+  const formRef = useRef(null);
+  // Form-load timestamp for the 15-second minimum gate.
+  const formLoadTimeRef = useRef(Date.now());
+  const MAX_REPORT_CHARS = 3000;
+
+  useEffect(() => {
+    let alive = true;
+    cachedFetch("Facilities", { "fields[]": FACILITY_LIST_FIELDS })
+      .then(rows => { if (alive) { setFacs(rows); setLoading(false); } })
+      .catch(() => { if (alive) setLoading(false); });
+    return () => { alive = false; };
+  }, []);
+
+  const countries = [...new Set(facs.map(f => f.Country).filter(Boolean))].sort();
+  const regions   = country
+    ? [...new Set(facs.filter(f => f.Country === country).map(f => f.State_Region).filter(Boolean))].sort()
+    : [];
+  const cities    = country
+    ? [...new Set(facs.filter(f => f.Country === country && (!region || f.State_Region === region)).map(f => f.City).filter(Boolean))].sort()
+    : [];
+
+  const findFacilities = () => {
+    if (!country) return;
+    const matches = facs
+      .filter(f => f.Country === country && (!region || f.State_Region === region) && (!city || f.City === city))
+      .sort((a, b) => (a.Name || "").localeCompare(b.Name || ""));
+    setFound(matches);
+  };
+
+  const pickFacility = (name) => {
+    setFacilityName(name);
+    setFacilityLocked(true);
+    setTimeout(() => { if (formRef.current) formRef.current.scrollIntoView({ behavior: "smooth", block: "start" }); }, 60);
+  };
+
+  const canSubmit = facilityName.trim() && firstName.trim() && email.trim() && reportText.trim() && human;
+
+  const submit = async () => {
+    if (!canSubmit) return;
+    // Honeypot: bots fill the hidden "website" field. Silently accept so they
+    // get no feedback.
+    if (hp) { setSentEmail(email.trim()); setSent(true); return; }
+    // 15-second minimum: a human cannot meaningfully fill the form faster.
+    if (Date.now() - (formLoadTimeRef.current || 0) < 15000) { setSentEmail(email.trim()); setSent(true); return; }
+
+    setSending(true);
+    const addr = [city, region, country].filter(Boolean).join(", ");
+    try {
+      const r = await fetch("/api/send-verification", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email:        email.trim(),
+          firstName:    firstName.trim(),
+          lastName:     lastName.trim(),
+          facilityName: facilityName.trim(),
+          reportText,
+          address:      addr,
+          city:         city || "",
+          country:      country || "",
+          symptoms:     symptoms.trim(),
+          duration:     duration.trim(),
+        }),
+      });
+      if (!r.ok) {
+        const err = await r.json().catch(() => ({}));
+        throw new Error(err.error || `Could not send verification email (${r.status})`);
+      }
+      setSentEmail(email.trim());
+      setSent(true);
+    } catch (e) {
+      console.error("send-verification failed:", e);
+      window.alert("We could not send the verification email. Please try again, or contact us if it keeps failing.");
+    } finally {
+      setSending(false);
+    }
+  };
+
+  const selStyle = {
+    width:"100%", padding:"15px 16px", fontSize:15, fontFamily:"inherit",
+    borderRadius:12, border:"1.5px solid rgba(255,255,255,.18)",
+    background:"#1e293b", color:"#fff", outline:"none", cursor:"pointer", boxSizing:"border-box",
+  };
+  const lbl = { fontSize:13, fontWeight:700, color:"#374151", display:"block", marginBottom:6 };
+  const inp = (v) => ({
+    width:"100%", padding:"13px 16px", borderRadius:10,
+    border:`1.5px solid ${v && v.trim() ? "#3b82f6" : "#e2e8f0"}`,
+    fontSize:15, boxSizing:"border-box", outline:"none", fontFamily:"inherit", color:"#1e293b",
+  });
+
+  return (
+    <div style={{minHeight:"100vh",background:"#f1f5f9",width:"100%",maxWidth:"100vw",overflowX:"hidden"}}>
+      {/* HERO */}
+      <section style={{background:"linear-gradient(150deg,#020c1b 0%,#0f172a 45%,#1e0535 100%)",padding:"22px 24px 56px"}}>
+        <div style={{maxWidth:1080,margin:"0 auto"}}>
+          <a href="/" onClick={e=>{e.preventDefault();onNavigate("/");}} style={{textDecoration:"none",display:"inline-block",marginBottom:34}}>
+            <span style={{fontSize:22,fontWeight:900,letterSpacing:".08em",background:"linear-gradient(90deg,#ef4444,#f97316)",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent"}}>HumZones</span>
+            <sup style={{fontSize:12,color:"#f97316",fontWeight:700,verticalAlign:"super",marginLeft:2}}>TM</sup>
+          </a>
+          <div style={{textAlign:"center",maxWidth:760,margin:"0 auto 30px"}}>
+            <h1 style={{fontSize:"clamp(30px,5vw,46px)",fontWeight:900,letterSpacing:"-.02em",color:"#fff",lineHeight:1.15,marginBottom:16}}>Submit Your Resident Report</h1>
+            <p style={{fontSize:17,color:"rgba(255,255,255,.72)",lineHeight:1.65}}>Have you experienced the effects of living or working near a data center? Your report helps others in your community understand what life is really like near these facilities.</p>
+          </div>
+          <div style={{maxWidth:820,margin:"0 auto"}}>
+            <div style={{display:"flex",gap:12,flexWrap:"wrap"}}>
+              <div style={{flex:"1 1 200px"}}>
+                <select value={country} onChange={e=>{setCountry(e.target.value);setRegion("");setCity("");setFound(null);}} style={selStyle} disabled={loading}>
+                  <option value="">{loading?"Loading countries...":"Select a country"}</option>
+                  {countries.map(c=><option key={c} value={c}>{c}</option>)}
+                </select>
+              </div>
+              <div style={{flex:"1 1 200px"}}>
+                <select value={region} onChange={e=>{setRegion(e.target.value);setCity("");}} style={{...selStyle,opacity:country?1:.5,cursor:country?"pointer":"not-allowed"}} disabled={!country}>
+                  <option value="">{country?"All states / provinces":"Select country first"}</option>
+                  {regions.map(r=><option key={r} value={r}>{r}</option>)}
+                </select>
+              </div>
+              <div style={{flex:"1 1 200px"}}>
+                <select value={city} onChange={e=>setCity(e.target.value)} style={{...selStyle,opacity:country?1:.5,cursor:country?"pointer":"not-allowed"}} disabled={!country}>
+                  <option value="">{country?"All cities":"Select country first"}</option>
+                  {cities.map(c=><option key={c} value={c}>{c}</option>)}
+                </select>
+              </div>
+            </div>
+            <div style={{textAlign:"center",marginTop:18}}>
+              <button onClick={findFacilities} disabled={!country} style={{padding:"15px 42px",borderRadius:12,border:"none",background:country?"linear-gradient(135deg,#ef4444,#f97316)":"rgba(255,255,255,.12)",color:country?"#fff":"rgba(255,255,255,.4)",fontSize:16,fontWeight:900,letterSpacing:".02em",cursor:country?"pointer":"default",fontFamily:"inherit",boxShadow:country?"0 10px 28px rgba(249,115,22,.4)":"none"}}>
+                Find Facilities
+              </button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* RESULTS */}
+      {found !== null && (
+        <section style={{maxWidth:1080,margin:"0 auto",padding:"40px 24px 8px"}}>
+          <h2 style={{fontSize:22,fontWeight:900,color:"#0f172a",marginBottom:6}}>
+            {found.length} {found.length===1?"facility":"facilities"} found
+          </h2>
+          <p style={{fontSize:15,color:"#64748b",marginBottom:22,lineHeight:1.6}}>Select a facility to submit a report about it, or scroll down to type a facility name yourself.</p>
+          {found.length===0 ? (
+            <div style={{background:"#fff",border:"1px solid #e2e8f0",borderRadius:14,padding:"22px",fontSize:15,color:"#64748b",lineHeight:1.65}}>No facilities found for that selection. You can still submit a report by typing the facility name in the form below.</div>
+          ) : (
+            <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(280px,1fr))",gap:16}}>
+              {found.map(f=>(
+                <div key={f.id} style={{background:"#fff",border:"1px solid #e2e8f0",borderRadius:16,padding:"20px",boxShadow:"0 2px 12px rgba(0,0,0,.05)",display:"flex",flexDirection:"column",gap:9}}>
+                  <div style={{fontSize:16,fontWeight:800,color:"#0f172a",lineHeight:1.3}}>{f.Name||"Unnamed facility"}</div>
+                  {f.Company && <div style={{fontSize:13,color:"#64748b"}}>{f.Company}</div>}
+                  <div style={{fontSize:13,color:"#94a3b8"}}>{[f.City,f.State_Region].filter(Boolean).join(", ")||"Location not on file"}</div>
+                  <div><Chip label={exposureLabel(f.Risk_Level)} color={exposureColor(f.Risk_Level)} small/></div>
+                  <button onClick={()=>pickFacility(f.Name||"")} style={{marginTop:"auto",padding:"11px 16px",borderRadius:10,border:"none",background:"#f97316",color:"#fff",fontSize:14,fontWeight:800,cursor:"pointer",fontFamily:"inherit"}}>
+                    Submit Report for This Facility
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </section>
+      )}
+
+      {/* REPORT FORM */}
+      <section ref={formRef} style={{maxWidth:760,margin:"0 auto",padding:"40px 24px 72px"}}>
+        <div style={{background:"#fff",border:"1px solid #e2e8f0",borderRadius:18,padding:"32px 32px 34px",boxShadow:"0 4px 24px rgba(0,0,0,.07)"}}>
+          <h2 style={{fontSize:24,fontWeight:900,color:"#0f172a",marginBottom:8}}>Your Report</h2>
+          {sent ? (
+            <div style={{background:"#f0fdf4",border:"2px solid #bbf7d0",borderRadius:14,padding:"22px"}}>
+              <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:8}}>
+                <Icon name="check" size={22} color="#15803d"/>
+                <div style={{fontSize:18,fontWeight:800,color:"#15803d"}}>Almost done!</div>
+              </div>
+              <p style={{fontSize:15,color:"#166534",lineHeight:1.7,margin:0}}>We sent a verification email to <strong>{sentEmail||"your inbox"}</strong>. Click the link in that email to publish your report. Check your spam folder if you do not see it within a few minutes.</p>
+            </div>
+          ) : (
+            <>
+              <p style={{fontSize:15,color:"#64748b",lineHeight:1.7,marginBottom:22}}>Fields marked with an asterisk are required. Reports are reviewed by HumZones and may be shared with regulatory bodies as part of our verified resident registry.</p>
+              {/* Honeypot field, hidden from humans, visible to bots. */}
+              <input type="text" name="website" value={hp} onChange={e=>setHp(e.target.value)} tabIndex="-1" autoComplete="off" aria-hidden="true" style={{display:"none"}}/>
+
+              <div style={{marginBottom:16}}>
+                <label style={lbl}>Facility Name *</label>
+                <input value={facilityName} onChange={e=>setFacilityName(e.target.value)} readOnly={facilityLocked}
+                  placeholder="Name of the data center facility"
+                  style={{...inp(facilityName),background:facilityLocked?"#f1f5f9":"#fff"}}/>
+                {facilityLocked && (
+                  <button onClick={()=>setFacilityLocked(false)} style={{marginTop:6,background:"transparent",border:"none",color:"#f97316",fontSize:13,fontWeight:700,cursor:"pointer",fontFamily:"inherit",padding:0}}>
+                    Edit facility name
+                  </button>
+                )}
+              </div>
+
+              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:6}}>
+                <div>
+                  <label style={lbl}>First Name *</label>
+                  <input value={firstName} onChange={e=>setFirstName(e.target.value)} placeholder="Your first name" style={inp(firstName)}/>
+                </div>
+                <div>
+                  <label style={lbl}>Last Name</label>
+                  <input value={lastName} onChange={e=>setLastName(e.target.value)} placeholder="Optional" style={inp(lastName)}/>
+                </div>
+              </div>
+              <div style={{fontSize:12,color:"#94a3b8",lineHeight:1.5,marginBottom:16}}>
+                Only your first name will be displayed with your published report. Your last name is kept private.
+              </div>
+
+              <div style={{marginBottom:16}}>
+                <label style={lbl}>Email Address *</label>
+                <input type="email" value={email} onChange={e=>setEmail(e.target.value)} placeholder="Required to verify your report" style={inp(email)}/>
+                <div style={{fontSize:11,color:"#94a3b8",marginTop:4}}>Not displayed publicly. Verification only.</div>
+              </div>
+
+              <div style={{marginBottom:16}}>
+                <label style={lbl}>How long have you lived or worked near this facility?</label>
+                <input value={duration} onChange={e=>setDuration(e.target.value)} placeholder="e.g. 2 years, 6 months" style={inp(duration)}/>
+              </div>
+
+              <div style={{marginBottom:16}}>
+                <label style={lbl}>Symptoms</label>
+                <textarea value={symptoms} onChange={e=>setSymptoms(e.target.value)} rows={3}
+                  placeholder="List any symptoms or effects you have experienced, such as headaches, sleep disruption, noise or diesel exhaust."
+                  style={{...inp(symptoms),resize:"vertical",lineHeight:1.6}}/>
+              </div>
+
+              <div style={{marginBottom:16}}>
+                <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}}>
+                  <label style={{...lbl,marginBottom:0}}>Describe your experience *</label>
+                  <span style={{fontSize:12,fontWeight:600,color:reportText.length>MAX_REPORT_CHARS*0.9?"#ef4444":"#94a3b8"}}>{reportText.length.toLocaleString()} / {MAX_REPORT_CHARS.toLocaleString()}</span>
+                </div>
+                <textarea value={reportText} onChange={e=>{if(e.target.value.length<=MAX_REPORT_CHARS)setReportText(e.target.value);}} rows={6}
+                  placeholder="Describe what you have experienced living or working near this facility. Include when it started, how often it occurs, and whether it improves when you leave the area."
+                  style={{...inp(reportText),resize:"vertical",lineHeight:1.7}}/>
+              </div>
+
+              <div onClick={()=>setHuman(v=>!v)} style={{display:"flex",alignItems:"center",gap:12,padding:"14px 16px",borderRadius:12,border:`2px solid ${human?"#f97316":"#e2e8f0"}`,background:human?"#fff7ed":"#f8fafc",cursor:"pointer",marginBottom:20}}>
+                <div style={{width:22,height:22,borderRadius:5,border:`2px solid ${human?"#f97316":"#94a3b8"}`,background:human?"#f97316":"transparent",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
+                  {human && <Icon name="check" size={13} color="#fff"/>}
+                </div>
+                <div style={{fontSize:14,color:"#374151",fontWeight:human?600:400}}>I confirm I am a human and not a bot</div>
+              </div>
+
+              <button onClick={submit} disabled={sending||!canSubmit} style={{padding:"15px 38px",borderRadius:12,border:"none",background:canSubmit?"#f97316":"#e2e8f0",color:canSubmit?"#fff":"#94a3b8",fontSize:16,fontWeight:800,cursor:canSubmit?"pointer":"default",fontFamily:"inherit",boxShadow:canSubmit?"0 4px 20px rgba(249,115,22,.4)":"none"}}>
+                {sending?"Submitting...":"Submit My Report"}
+              </button>
+            </>
+          )}
+        </div>
+      </section>
+    </div>
+  );
+};
+
 // ─── MAIN APP ─────────────────────────────────────────────────────────────────
 export default function App() {
   // Lightweight client-side routing: track pathname, listen for back/forward,
@@ -5257,6 +5680,8 @@ export default function App() {
         <UnsubscribePage onNavigate={navigate}/>
       ) : path === "/my-report" ? (
         <MyReportPage onNavigate={navigate}/>
+      ) : path === "/submit-report" ? (
+        <SubmitReportPage onNavigate={navigate}/>
       ) : (
       <div style={{minHeight:"100vh",background:"#f1f5f9",width:"100%",maxWidth:"100vw",overflowX:"hidden"}}>
 
@@ -5758,7 +6183,7 @@ export default function App() {
                     return (
                       <button key={t.id}
                         className={isSubmit ? "tab-btn tab-btn-submit" : "tab-btn"}
-                        onClick={()=>setTab(t.id)}
+                        onClick={()=>{ if (isSubmit) navigate("/submit-report"); else setTab(t.id); }}
                         style={{
                           display:"flex",
                           alignItems:"center",
@@ -6151,7 +6576,7 @@ export default function App() {
                     {reps.length===0 && (
                       <div style={{background:"#fff",border:"1px solid #e2e8f0",borderRadius:16,padding:"24px",marginBottom:12}}>
                         <p style={{fontSize:16,color:"#94a3b8",fontStyle:"italic",margin:0,marginBottom:14}}>No reports yet for this facility. Be the first to share your experience.</p>
-                        <button onClick={()=>setTab("submit")} style={{padding:"10px 22px",borderRadius:10,border:"none",background:rc,color:"#fff",fontSize:14,fontWeight:800,cursor:"pointer",fontFamily:"inherit",boxShadow:`0 4px 14px ${rc}44`}}>Submit Your Report</button>
+                        <button onClick={()=>navigate("/submit-report")} style={{padding:"10px 22px",borderRadius:10,border:"none",background:rc,color:"#fff",fontSize:14,fontWeight:800,cursor:"pointer",fontFamily:"inherit",boxShadow:`0 4px 14px ${rc}44`}}>Submit Your Report</button>
                       </div>
                     )}
                     {reps.map((r,i)=>{
@@ -6205,7 +6630,7 @@ export default function App() {
                     {reps.length>0 && (
                       <div style={{marginTop:18,paddingTop:18,borderTop:"1px solid #e2e8f0",display:"flex",alignItems:"center",justifyContent:"space-between",gap:16,flexWrap:"wrap"}}>
                         <div style={{fontSize:14,color:"#64748b",lineHeight:1.6}}>Have your own experience to add to this registry?</div>
-                        <button onClick={()=>setTab("submit")} style={{padding:"12px 24px",borderRadius:10,border:"none",background:rc,color:"#fff",fontSize:14,fontWeight:800,cursor:"pointer",fontFamily:"inherit",boxShadow:`0 4px 14px ${rc}44`}}>Submit Your Report</button>
+                        <button onClick={()=>navigate("/submit-report")} style={{padding:"12px 24px",borderRadius:10,border:"none",background:rc,color:"#fff",fontSize:14,fontWeight:800,cursor:"pointer",fontFamily:"inherit",boxShadow:`0 4px 14px ${rc}44`}}>Submit Your Report</button>
                       </div>
                     )}
                   </div>
@@ -6269,6 +6694,9 @@ export default function App() {
             </a>
             <a href="/business" onClick={e=>{e.preventDefault();navigate("/business");}} className="ext-link" style={{color:"#f97316",fontSize:14,fontWeight:700,textDecoration:"none",letterSpacing:".02em"}}>
               Business Plans
+            </a>
+            <a href="/submit-report" onClick={e=>{e.preventDefault();navigate("/submit-report");}} className="ext-link" style={{color:"#f97316",fontSize:14,fontWeight:700,textDecoration:"none",letterSpacing:".02em"}}>
+              Submit Your Report
             </a>
             <a href="/my-report" onClick={e=>{e.preventDefault();navigate("/my-report");}} className="ext-link" style={{color:"#f97316",fontSize:14,fontWeight:700,textDecoration:"none",letterSpacing:".02em"}}>
               Retrieve My Report
