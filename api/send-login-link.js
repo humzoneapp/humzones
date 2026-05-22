@@ -113,8 +113,15 @@ module.exports = async (req, res) => {
             '<p style="color: #94a3b8; font-size: 13px; margin-top: 20px;">If the button does not work copy and paste this link into your browser:</p>' +
             '<p style="color: #f97316; font-size: 12px; word-break: break-all;">' + loginUrl + '</p>' +
           '</div>' +
-          '<div style="text-align: center;">' +
-            '<p style="color: #94a3b8; font-size: 12px;">HumZones Technologies Inc. | Global Data Center Health &amp; Infrastructure Registry | humzones.com</p>' +
+          '<div style="text-align:center;padding:20px;border-top:1px solid #e2e8f0;margin-top:30px;">' +
+            '<p style="color:#94a3b8;font-size:11px;margin:0;">' +
+              'You are receiving this email because you signed up at humzones.com.<br>' +
+              'To unsubscribe click here: ' +
+              '<a href="https://humzones.com/unsubscribe?email=' + encodeURIComponent(accountEmail) + '" style="color:#f97316;">Unsubscribe</a>' +
+            '</p>' +
+            '<p style="color:#94a3b8;font-size:11px;margin:8px 0 0 0;">' +
+              'HumZones Technologies Inc. | Global Data Center Health &amp; Infrastructure Registry | humzones.com' +
+            '</p>' +
           '</div>' +
         '</div>',
     });

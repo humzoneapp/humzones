@@ -1788,14 +1788,19 @@ const ReportSuccessPage = ({ onBack, onNavigate }) => {
         doc.save(filename);
 
         // ─── 6. Silently record the purchase in Airtable Emails ─────────────
+        // These fields back the /my-report retrieval page: the saved
+        // coordinates and radius let a buyer regenerate their PDF later.
         try {
           await postEmail({
             Email: buyerEmail || "",
             Date: datePart,
             Source: "PaidReport",
             Address: searchAddress,
-            Facilities_100km: Number.isFinite(facilities100) ? facilities100 : totalFound,
+            Latitude: Number.isFinite(searchLat) ? searchLat : "",
+            Longitude: Number.isFinite(searchLng) ? searchLng : "",
+            Facilities_Count: Number.isFinite(facilities100) ? facilities100 : totalFound,
             High_Risk_Count: Number.isFinite(highRisk) ? highRisk : counts.HIGH,
+            Radius_KM: 100,
           });
         } catch (e) { console.warn("[HumZones] Emails capture failed:", e); }
 
@@ -2277,6 +2282,7 @@ const BusinessFooter = ({ onNavigate }) => (
         <a href="/methodology" onClick={e=>{e.preventDefault();onNavigate("/methodology");}} className="ext-link" style={{color:"#f97316",fontSize:14,fontWeight:700,textDecoration:"none",letterSpacing:".02em"}}>Methodology</a>
         <a href="/" onClick={e=>{e.preventDefault();onNavigate("/");}} className="ext-link" style={{color:"#f97316",fontSize:14,fontWeight:700,textDecoration:"none",letterSpacing:".02em"}}>Submit Your Report</a>
         <a href="/business" onClick={e=>{e.preventDefault();onNavigate("/business");}} className="ext-link" style={{color:"#f97316",fontSize:14,fontWeight:700,textDecoration:"none",letterSpacing:".02em"}}>Business Plans</a>
+        <a href="/privacy" onClick={e=>{e.preventDefault();onNavigate("/privacy");}} className="ext-link" style={{color:"#f97316",fontSize:14,fontWeight:700,textDecoration:"none",letterSpacing:".02em"}}>Privacy Policy</a>
       </div>
       <div style={{fontSize:13,color:"#94a3b8",borderTop:"1px solid #1e293b",paddingTop:18,lineHeight:1.8}}>
         <div>HumZones<sup style={{fontSize:".55em",color:"#f97316",fontWeight:700,verticalAlign:"super",marginLeft:1,marginRight:4}}>TM</sup>Technologies Inc.</div>
@@ -3731,6 +3737,414 @@ const BusinessProfilePage = ({ onNavigate }) => {
   );
 };
 
+// ─── COOKIE CONSENT BANNER ───────────────────────────────────────────────────
+// Shown once, fixed to the bottom, until the visitor accepts or declines.
+// The choice is persisted in localStorage so the banner never reappears.
+const COOKIE_CONSENT_KEY = "humzones_cookie_consent";
+
+const CookieConsent = ({ onNavigate }) => {
+  const [visible, setVisible] = useState(() => {
+    try { return !localStorage.getItem(COOKIE_CONSENT_KEY); } catch { return false; }
+  });
+  if (!visible) return null;
+
+  const choose = (val) => {
+    try { localStorage.setItem(COOKIE_CONSENT_KEY, val); } catch {}
+    setVisible(false);
+  };
+
+  return (
+    <div style={{position:"fixed",left:0,right:0,bottom:0,zIndex:10000,background:"#0a1628",borderTop:"1px solid rgba(249,115,22,.4)",boxShadow:"0 -10px 40px rgba(0,0,0,.5)"}}>
+      <style>{`
+        @media (max-width: 640px) {
+          .hz-cookie-row { flex-direction: column; align-items: stretch !important; }
+          .hz-cookie-btns { flex-direction: column; }
+          .hz-cookie-btns button { width: 100%; }
+        }
+      `}</style>
+      <div className="hz-cookie-row" style={{maxWidth:1100,margin:"0 auto",padding:"16px 20px",display:"flex",alignItems:"center",gap:18}}>
+        <div style={{flexShrink:0}}>
+          <span style={{fontSize:18,fontWeight:900,letterSpacing:".06em",background:"linear-gradient(90deg,#ef4444,#f97316)",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent"}}>HumZones</span>
+        </div>
+        <p style={{flex:1,fontSize:13,color:"rgba(255,255,255,.78)",lineHeight:1.6,margin:0}}>
+          We use cookies and local storage to improve your experience and remember your preferences. By continuing to use HumZones you agree to our use of cookies.{" "}
+          <a href="/privacy" onClick={e=>{e.preventDefault();onNavigate("/privacy");}} style={{color:"#f97316",fontWeight:700,textDecoration:"none"}}>Privacy Policy</a>
+        </p>
+        <div className="hz-cookie-btns" style={{display:"flex",gap:10,flexShrink:0}}>
+          <button onClick={()=>choose("accepted")} style={{padding:"11px 22px",borderRadius:10,border:"none",cursor:"pointer",fontFamily:"inherit",fontSize:14,fontWeight:800,background:"linear-gradient(135deg,#ef4444,#f97316)",color:"#fff",boxShadow:"0 8px 22px rgba(249,115,22,.4)"}}>Accept All</button>
+          <button onClick={()=>choose("declined")} style={{padding:"11px 22px",borderRadius:10,border:"1px solid rgba(255,255,255,.3)",cursor:"pointer",fontFamily:"inherit",fontSize:14,fontWeight:800,background:"transparent",color:"rgba(255,255,255,.8)"}}>Decline</button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// ─── /privacy: PRIVACY POLICY ────────────────────────────────────────────────
+const PrivacyPolicyPage = ({ onNavigate }) => {
+  // Each section is a list of blocks: {p} renders a paragraph, {ul} a list.
+  const sections = [
+    { n:1, title:"Who We Are", blocks:[
+      { p:"HumZones Technologies Inc. operates humzones.com, the Global Data Center Health & Infrastructure Registry. We are committed to protecting your privacy and being transparent about how we collect and use your data. For privacy questions contact hello@humzones.com" },
+    ]},
+    { n:2, title:"Information We Collect", blocks:[
+      { p:"We collect the following information:" },
+      { ul:[
+        "Email address when you unlock search results, submit a community report or purchase a report",
+        "Name and company name when you create a business account",
+        "Address or location coordinates when you use the Find Data Centers Near Me feature",
+        "Payment information processed securely by Stripe. We never see or store your full card details.",
+        "Usage data including pages visited and search queries to improve our service",
+        "Cookies and local storage data to remember your preferences and session",
+      ]},
+    ]},
+    { n:3, title:"How We Use Your Information", blocks:[
+      { p:"We use your information to:" },
+      { ul:[
+        "Deliver reports and services you have purchased",
+        "Send verification and account emails",
+        "Improve our database and research",
+        "Send occasional updates about new features (you can unsubscribe at any time)",
+        "Comply with legal obligations",
+      ]},
+    ]},
+    { n:4, title:"Who We Share Your Information With", blocks:[
+      { p:"We share data with these trusted service providers only:" },
+      { ul:[
+        "Stripe (stripe.com) for payment processing",
+        "Airtable (airtable.com) for secure data storage",
+        "Vercel (vercel.com) for website hosting",
+        "Namecheap Private Email for sending emails",
+      ]},
+      { p:"We do not sell your personal data to any third party under any circumstances." },
+    ]},
+    { n:5, title:"Data Retention", blocks:[
+      { p:"We retain your data for as long as your account is active or as needed to provide services. You may request deletion of your data at any time by contacting hello@humzones.com. We will delete your data within 30 days of your request." },
+    ]},
+    { n:6, title:"Your Rights", blocks:[
+      { p:"Depending on your location you may have the right to:" },
+      { ul:[
+        "Access the personal data we hold about you",
+        "Correct inaccurate data",
+        "Request deletion of your data",
+        "Withdraw consent at any time",
+        "Lodge a complaint with your local data protection authority",
+      ]},
+      { p:"To exercise any of these rights contact hello@humzones.com" },
+    ]},
+    { n:7, title:"Cookies and Local Storage", blocks:[
+      { p:"We use cookies and browser local storage to:" },
+      { ul:[
+        "Remember your search preferences",
+        "Keep you logged in to your business account",
+        "Remember your cookie consent choice",
+        "Cache facility data for faster loading",
+      ]},
+      { p:"You can clear cookies and local storage at any time through your browser settings." },
+    ]},
+    { n:8, title:"International Visitors", blocks:[
+      { p:"HumZones is operated from Canada and serves visitors worldwide including the European Union, United Kingdom, United States and other countries. By using our site you consent to your data being processed in accordance with this policy. We comply with GDPR, CASL and applicable data protection laws." },
+    ]},
+    { n:9, title:"Children", blocks:[
+      { p:"HumZones is not directed at children under the age of 16. We do not knowingly collect personal data from children." },
+    ]},
+    { n:10, title:"Changes to This Policy", blocks:[
+      { p:"We may update this privacy policy from time to time. We will notify registered users of significant changes by email. Continued use of the site after changes constitutes acceptance of the updated policy." },
+    ]},
+    { n:11, title:"Contact", blocks:[
+      { p:"For any privacy questions or data requests contact:" },
+      { p:"HumZones Technologies Inc.\nhello@humzones.com\nhumzones.com" },
+    ]},
+  ];
+
+  return (
+    <div style={{minHeight:"100vh",background:"linear-gradient(150deg,#020c1b 0%,#0f172a 50%,#1e0535 100%)",color:"#fff"}}>
+      <div style={{padding:"22px 24px",maxWidth:820,margin:"0 auto"}}>
+        <a href="/" onClick={e=>{e.preventDefault();onNavigate("/");}} style={{textDecoration:"none"}}>
+          <span style={{fontSize:22,fontWeight:900,letterSpacing:".08em",background:"linear-gradient(90deg,#ef4444,#f97316)",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent"}}>HumZones</span>
+          <sup style={{fontSize:12,color:"#f97316",fontWeight:700,verticalAlign:"super",marginLeft:2}}>TM</sup>
+        </a>
+      </div>
+
+      <main style={{maxWidth:820,margin:"0 auto",padding:"16px 24px 80px"}}>
+        <h1 style={{fontSize:"clamp(32px,5vw,44px)",fontWeight:900,letterSpacing:"-.02em",marginBottom:8}}>Privacy Policy</h1>
+        <p style={{fontSize:14,color:"rgba(255,255,255,.55)",marginBottom:32}}>Last updated: May 2026</p>
+
+        {sections.map(s => (
+          <section key={s.n} style={{marginBottom:30}}>
+            <h2 style={{fontSize:20,fontWeight:800,color:"#f97316",marginBottom:12}}>{s.n}. {s.title}</h2>
+            {s.blocks.map((b, i) => b.ul ? (
+              <ul key={i} style={{listStyle:"none",padding:0,margin:"0 0 12px 0",display:"flex",flexDirection:"column",gap:8}}>
+                {b.ul.map(item => (
+                  <li key={item} style={{display:"flex",alignItems:"flex-start",gap:10,fontSize:15,color:"rgba(255,255,255,.82)",lineHeight:1.6}}>
+                    <span style={{flexShrink:0,width:6,height:6,borderRadius:"50%",background:"#f97316",marginTop:8}}/>
+                    <span>{item}</span>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p key={i} style={{fontSize:15,color:"rgba(255,255,255,.82)",lineHeight:1.7,marginBottom:12,whiteSpace:"pre-line"}}>{b.p}</p>
+            ))}
+          </section>
+        ))}
+
+        <button onClick={()=>onNavigate("/")} style={{marginTop:12,padding:"14px 26px",borderRadius:12,border:"none",cursor:"pointer",fontFamily:"inherit",fontSize:15,fontWeight:900,background:"linear-gradient(135deg,#ef4444,#f97316)",color:"#fff",boxShadow:"0 10px 28px rgba(249,115,22,.4)"}}>Back to HumZones</button>
+      </main>
+    </div>
+  );
+};
+
+// Best-effort creation of the Unsubscribed checkbox field on the Emails and
+// Business_Accounts tables. Requires a key with schema scope; any failure
+// (no scope, field already exists) is swallowed so the unsubscribe flow
+// still proceeds.
+async function ensureUnsubscribedField() {
+  try {
+    const res = await fetch(`https://api.airtable.com/v0/meta/bases/${BASE}/tables`, { headers: HDR });
+    if (!res.ok) return;
+    const schema = await res.json();
+    for (const t of (schema.tables || [])) {
+      if (t.name !== "Emails" && t.id !== BUSINESS_TABLE) continue;
+      if ((t.fields || []).some(f => f.name === "Unsubscribed")) continue;
+      await fetch(`https://api.airtable.com/v0/meta/bases/${BASE}/tables/${t.id}/fields`, {
+        method: "POST",
+        headers: HDR,
+        body: JSON.stringify({ name: "Unsubscribed", type: "checkbox", options: { icon: "check", color: "greenBright" } }),
+      }).catch(() => {});
+    }
+  } catch (e) {
+    console.warn("ensureUnsubscribedField skipped:", e);
+  }
+}
+
+// ─── /unsubscribe: EMAIL OPT-OUT ─────────────────────────────────────────────
+const UnsubscribePage = ({ onNavigate }) => {
+  const email = (new URLSearchParams(window.location.search).get("email") || "").trim();
+  const [status, setStatus] = useState(email ? "confirm" : "noemail"); // confirm | working | done | noemail
+
+  const confirm = async () => {
+    setStatus("working");
+    const lc = email.toLowerCase().replace(/'/g, "\\'");
+    await ensureUnsubscribedField();
+    // Emails table: flag every row matching this address.
+    try {
+      const rows = await apiFetch("Emails", { filterByFormula: `LOWER({Email}) = '${lc}'` });
+      for (const row of rows) {
+        await fetch(`${APIURL}/Emails/${row.id}`, {
+          method: "PATCH",
+          headers: HDR,
+          body: JSON.stringify({ fields: { Unsubscribed: true } }),
+        }).catch(e => console.warn("Emails unsubscribe patch failed:", e));
+      }
+    } catch (e) { console.warn("Emails unsubscribe lookup failed:", e); }
+    // Business_Accounts: flag the account if one exists.
+    try {
+      const rec = await fetchBusinessAccountByEmail(email);
+      if (rec) await patchBusinessAccount(rec.id, { Unsubscribed: true });
+    } catch (e) { console.warn("Business unsubscribe failed:", e); }
+    setStatus("done");
+  };
+
+  return (
+    <div style={{minHeight:"100vh",background:"linear-gradient(150deg,#020c1b 0%,#0f172a 50%,#1e0535 100%)",color:"#fff"}}>
+      <div style={{padding:"22px 24px",textAlign:"center"}}>
+        <a href="/" onClick={e=>{e.preventDefault();onNavigate("/");}} style={{textDecoration:"none"}}>
+          <span style={{fontSize:22,fontWeight:900,letterSpacing:".08em",background:"linear-gradient(90deg,#ef4444,#f97316)",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent"}}>HumZones</span>
+          <sup style={{fontSize:12,color:"#f97316",fontWeight:700,verticalAlign:"super",marginLeft:2}}>TM</sup>
+        </a>
+      </div>
+
+      <main style={{maxWidth:520,margin:"0 auto",padding:"40px 24px 80px",textAlign:"center"}}>
+        {status === "noemail" && (
+          <>
+            <h1 style={{fontSize:26,fontWeight:900,marginBottom:14}}>Unsubscribe</h1>
+            <p style={{fontSize:15,color:"rgba(255,255,255,.72)",lineHeight:1.65,marginBottom:24}}>No email address was provided. Please use the unsubscribe link from one of our emails.</p>
+            <button onClick={()=>onNavigate("/")} style={{padding:"14px 26px",borderRadius:12,border:"none",cursor:"pointer",fontFamily:"inherit",fontSize:15,fontWeight:900,background:"linear-gradient(135deg,#ef4444,#f97316)",color:"#fff",boxShadow:"0 10px 28px rgba(249,115,22,.4)"}}>Back to HumZones</button>
+          </>
+        )}
+
+        {(status === "confirm" || status === "working") && (
+          <>
+            <h1 style={{fontSize:26,fontWeight:900,marginBottom:16,lineHeight:1.3}}>
+              Are you sure you want to unsubscribe {email} from HumZones emails?
+            </h1>
+            <div style={{display:"flex",gap:12,justifyContent:"center",flexWrap:"wrap",marginTop:24}}>
+              <button onClick={confirm} disabled={status === "working"} style={{padding:"14px 24px",borderRadius:12,border:"none",cursor:status==="working"?"wait":"pointer",fontFamily:"inherit",fontSize:15,fontWeight:900,background:"linear-gradient(135deg,#dc2626,#ef4444)",color:"#fff",boxShadow:"0 10px 28px rgba(239,68,68,.4)"}}>
+                {status === "working" ? "Unsubscribing..." : "Yes, Unsubscribe Me"}
+              </button>
+              <button onClick={()=>onNavigate("/")} disabled={status === "working"} style={{padding:"14px 24px",borderRadius:12,border:"none",cursor:"pointer",fontFamily:"inherit",fontSize:15,fontWeight:900,background:"linear-gradient(135deg,#ef4444,#f97316)",color:"#fff",boxShadow:"0 10px 28px rgba(249,115,22,.4)"}}>
+                No, Keep Me Subscribed
+              </button>
+            </div>
+          </>
+        )}
+
+        {status === "done" && (
+          <>
+            <div style={{width:72,height:72,borderRadius:"50%",background:"linear-gradient(135deg,#10b981,#059669)",margin:"10px auto 22px",display:"flex",alignItems:"center",justifyContent:"center"}}>
+              <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>
+            </div>
+            <h1 style={{fontSize:26,fontWeight:900,marginBottom:14}}>You have been unsubscribed</h1>
+            <p style={{fontSize:15,color:"rgba(255,255,255,.72)",lineHeight:1.65,marginBottom:24}}>You will no longer receive emails from HumZones.</p>
+            <button onClick={()=>onNavigate("/")} style={{padding:"14px 26px",borderRadius:12,border:"none",cursor:"pointer",fontFamily:"inherit",fontSize:15,fontWeight:900,background:"linear-gradient(135deg,#ef4444,#f97316)",color:"#fff",boxShadow:"0 10px 28px rgba(249,115,22,.4)"}}>Back to HumZones</button>
+          </>
+        )}
+      </main>
+    </div>
+  );
+};
+
+// ─── /my-report: PAID REPORT RETRIEVAL ───────────────────────────────────────
+// Lets a one-time ($14.99) report buyer look up their purchases by email and
+// regenerate any PDF from the coordinates saved on the Emails capture row.
+const MyReportPage = ({ onNavigate }) => {
+  const [email, setEmail] = useState("");
+  const [status, setStatus] = useState("idle"); // idle | searching | results | none | error
+  const [reports, setReports] = useState([]);
+  const [downloadingId, setDownloadingId] = useState(null);
+  const [toast, setToast] = useState("");
+
+  const showToast = (msg) => {
+    setToast(msg);
+    setTimeout(() => setToast(""), 4000);
+  };
+
+  const findReports = async () => {
+    if (!email.trim() || status === "searching") return;
+    setStatus("searching");
+    try {
+      const lc = email.trim().toLowerCase().replace(/'/g, "\\'");
+      const rows = await apiFetch("Emails", {
+        filterByFormula: `AND(LOWER({Email}) = '${lc}', {Source} = 'PaidReport')`,
+      });
+      if (!rows.length) {
+        setReports([]);
+        setStatus("none");
+        return;
+      }
+      const mapped = rows.map(r => ({
+        id:        r.id,
+        address:   r.Address || "Your area",
+        date:      r.Date || "",
+        count:     r.Facilities_Count != null ? r.Facilities_Count : r.Facilities_100km,
+        highRisk:  r.High_Risk_Count,
+        lat:       Number(r.Latitude),
+        lng:       Number(r.Longitude),
+        radius:    Number(r.Radius_KM) || 100,
+      }));
+      mapped.sort((a, b) => (a.date < b.date ? 1 : -1));
+      setReports(mapped);
+      setStatus("results");
+    } catch (e) {
+      console.error("Report lookup failed:", e);
+      setStatus("error");
+    }
+  };
+
+  const redownload = async (row) => {
+    if (downloadingId) return;
+    if (!Number.isFinite(row.lat) || !Number.isFinite(row.lng)) {
+      window.alert("This report is missing the coordinates needed to regenerate it. Please contact hello@humzones.com.");
+      return;
+    }
+    setDownloadingId(row.id);
+    try {
+      const reportFields = [
+        "Name","Company","City","State_Region","Country","Address","Facility_Status",
+        "Risk_Level","Power_MW","Noise_DB","CO2_Tons_Year","Water_Gal_Day",
+        "EMF_Fence_High","EMF_100m","Cooling","Opened","Latitude","Longitude",
+      ];
+      const allFacs = await apiFetch("Facilities", { "fields[]": reportFields });
+      const facsNear = allFacs
+        .map(f => {
+          const flat = parseFloat(f.Latitude), flng = parseFloat(f.Longitude);
+          if (!Number.isFinite(flat) || !Number.isFinite(flng)) return null;
+          return { ...f, _km: distanceKm(row.lat, row.lng, flat, flng) };
+        })
+        .filter(f => f && f._km <= row.radius)
+        .sort((a, b) => a._km - b._km);
+      const highRiskCount = facsNear.filter(f => String(f.Risk_Level || "").toUpperCase() === "HIGH").length;
+      const { doc, datePart } = await buildAreaReportPdf({
+        searchAddress: row.address,
+        facsNear,
+        radiusKm: row.radius,
+        facilities100km: facsNear.length,
+        highRisk: highRiskCount,
+      });
+      doc.save(`HumZones-Report-${pdfFilenameSafe(row.address)}-${datePart}.pdf`);
+      showToast("Your report is downloading");
+    } catch (e) {
+      console.error("Re-download failed:", e);
+      window.alert("Something went wrong regenerating your report. Please try again.");
+    } finally {
+      setDownloadingId(null);
+    }
+  };
+
+  return (
+    <div style={{minHeight:"100vh",background:"linear-gradient(150deg,#020c1b 0%,#0f172a 50%,#1e0535 100%)",color:"#fff"}}>
+      <div style={{padding:"22px 24px"}}>
+        <a href="/" onClick={e=>{e.preventDefault();onNavigate("/");}} style={{textDecoration:"none"}}>
+          <span style={{fontSize:22,fontWeight:900,letterSpacing:".08em",background:"linear-gradient(90deg,#ef4444,#f97316)",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent"}}>HumZones</span>
+          <sup style={{fontSize:12,color:"#f97316",fontWeight:700,verticalAlign:"super",marginLeft:2}}>TM</sup>
+        </a>
+      </div>
+
+      <main style={{maxWidth:560,margin:"0 auto",padding:"24px 24px 80px"}}>
+        <div style={{background:"rgba(15,23,42,.55)",border:"1px solid rgba(255,255,255,.1)",borderRadius:16,padding:"28px",marginBottom:22}}>
+          <h1 style={{fontSize:26,fontWeight:900,letterSpacing:"-.01em",marginBottom:8}}>Retrieve Your Report</h1>
+          <p style={{fontSize:15,color:"rgba(255,255,255,.72)",lineHeight:1.6,marginBottom:18}}>Enter the email address you used when purchasing your report.</p>
+          <input
+            type="email"
+            value={email}
+            onChange={e=>setEmail(e.target.value)}
+            onKeyDown={e=>{ if (e.key === "Enter") findReports(); }}
+            placeholder="Your email address"
+            style={{width:"100%",padding:"13px 16px",borderRadius:10,border:`1.5px solid ${email.trim()?"#f97316":"rgba(255,255,255,.18)"}`,fontSize:15,boxSizing:"border-box",outline:"none",fontFamily:"inherit",color:"#fff",background:"rgba(255,255,255,.06)",marginBottom:14}}
+          />
+          <button onClick={findReports} disabled={!email.trim() || status === "searching"} style={{width:"100%",padding:"15px 22px",borderRadius:12,border:"none",cursor:(!email.trim()||status==="searching")?"not-allowed":"pointer",fontFamily:"inherit",fontSize:15,fontWeight:900,letterSpacing:".04em",background:email.trim()?"linear-gradient(135deg,#ef4444,#f97316)":"rgba(255,255,255,.1)",color:"#fff",boxShadow:email.trim()?"0 10px 28px rgba(249,115,22,.4)":"none"}}>
+            {status === "searching" ? "Searching..." : "Find My Report"}
+          </button>
+          <p style={{fontSize:12,color:"rgba(255,255,255,.5)",marginTop:12}}>We will show you all reports purchased with this email address.</p>
+        </div>
+
+        {status === "none" && (
+          <div style={{padding:"18px 20px",borderRadius:14,background:"rgba(239,68,68,.1)",border:"1px solid rgba(239,68,68,.35)",color:"#fecaca",fontSize:14,lineHeight:1.6}}>
+            No reports found for this email address. If you believe this is an error contact hello@humzones.com
+          </div>
+        )}
+        {status === "error" && (
+          <div style={{padding:"18px 20px",borderRadius:14,background:"rgba(239,68,68,.1)",border:"1px solid rgba(239,68,68,.35)",color:"#fecaca",fontSize:14}}>
+            Something went wrong looking up your reports. Please try again.
+          </div>
+        )}
+
+        {status === "results" && (
+          <div style={{display:"flex",flexDirection:"column",gap:12}}>
+            {reports.map(r => (
+              <div key={r.id} style={{background:"rgba(15,23,42,.55)",border:"1px solid rgba(255,255,255,.08)",borderRadius:14,padding:"18px 20px"}}>
+                <div style={{fontSize:15,fontWeight:800,color:"#fff",marginBottom:6,wordBreak:"break-word"}}>{r.address}</div>
+                <div style={{fontSize:13,color:"rgba(255,255,255,.6)",display:"flex",gap:14,flexWrap:"wrap",marginBottom:14}}>
+                  {r.date && <span>Purchased {r.date}</span>}
+                  {r.count != null && <span>{r.count} facilities</span>}
+                </div>
+                <button onClick={()=>redownload(r)} disabled={downloadingId === r.id} style={{padding:"11px 20px",borderRadius:10,border:"none",cursor:downloadingId === r.id ? "not-allowed" : "pointer",fontFamily:"inherit",fontSize:14,fontWeight:800,background:"linear-gradient(135deg,#ef4444,#f97316)",color:"#fff",boxShadow:"0 6px 18px rgba(249,115,22,.34)"}}>
+                  {downloadingId === r.id ? "Generating..." : "Re-download Report"}
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+      </main>
+
+      {toast && (
+        <div role="status" style={{position:"fixed",top:24,left:"50%",transform:"translateX(-50%)",padding:"12px 22px",borderRadius:30,background:"#0f172a",border:"1px solid rgba(249,115,22,.5)",color:"#fff",fontWeight:700,fontSize:14,zIndex:100,boxShadow:"0 18px 50px rgba(0,0,0,.45)"}}>
+          {toast}
+        </div>
+      )}
+    </div>
+  );
+};
+
 // ─── MAIN APP ─────────────────────────────────────────────────────────────────
 export default function App() {
   // Lightweight client-side routing: track pathname, listen for back/forward,
@@ -4359,6 +4773,12 @@ export default function App() {
         <BusinessDashboardPage onNavigate={navigate}/>
       ) : path === "/business-profile" ? (
         <BusinessProfilePage onNavigate={navigate}/>
+      ) : path === "/privacy" ? (
+        <PrivacyPolicyPage onNavigate={navigate}/>
+      ) : path === "/unsubscribe" ? (
+        <UnsubscribePage onNavigate={navigate}/>
+      ) : path === "/my-report" ? (
+        <MyReportPage onNavigate={navigate}/>
       ) : (
       <div style={{minHeight:"100vh",background:"#f1f5f9",width:"100%",maxWidth:"100vw",overflowX:"hidden"}}>
 
@@ -5372,6 +5792,12 @@ export default function App() {
             <a href="/business" onClick={e=>{e.preventDefault();navigate("/business");}} className="ext-link" style={{color:"#f97316",fontSize:14,fontWeight:700,textDecoration:"none",letterSpacing:".02em"}}>
               Business Plans
             </a>
+            <a href="/my-report" onClick={e=>{e.preventDefault();navigate("/my-report");}} className="ext-link" style={{color:"#f97316",fontSize:14,fontWeight:700,textDecoration:"none",letterSpacing:".02em"}}>
+              Retrieve My Report
+            </a>
+            <a href="/privacy" onClick={e=>{e.preventDefault();navigate("/privacy");}} className="ext-link" style={{color:"#f97316",fontSize:14,fontWeight:700,textDecoration:"none",letterSpacing:".02em"}}>
+              Privacy Policy
+            </a>
             <a href="https://humzones.com" className="ext-link" style={{color:"#94a3b8",fontSize:14,fontWeight:600,textDecoration:"none",letterSpacing:".02em"}}>
               humzones.com
             </a>
@@ -5404,6 +5830,7 @@ export default function App() {
 
       </div>
       )}
+      <CookieConsent onNavigate={navigate}/>
     </>
   );
 }
