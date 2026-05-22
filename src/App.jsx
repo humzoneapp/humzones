@@ -588,15 +588,21 @@ const CSS = `
     .hz-map-wrap{height:350px}
   }
   .leaflet-container{font-family:inherit}
-  /* Facility marker popup: force a solid white card so the content is never
-     shown over a transparent Leaflet wrapper. */
+  /* Facility marker popup: force a solid white card with !important so the
+     bundled Leaflet styles can never leave the popup transparent. */
   .leaflet-popup-content-wrapper{
-    background:#ffffff;
-    border-radius:8px;
-    box-shadow:0 4px 20px rgba(0,0,0,0.15);
+    background-color:#ffffff !important;
+    border-radius:8px !important;
+    box-shadow:0 4px 20px rgba(0,0,0,0.15) !important;
+    border:none !important;
   }
-  .leaflet-popup-content{margin:0;padding:12px}
-  .leaflet-popup-tip{background:#ffffff}
+  .leaflet-popup-tip-container .leaflet-popup-tip{
+    background-color:#ffffff !important;
+  }
+  .leaflet-popup-content{
+    background-color:#ffffff !important;
+    margin:12px !important;
+  }
 
   /* AI chat widget: floating button hover and the typing indicator. The
      bottom transition animates the lift above the cookie banner. */
@@ -959,7 +965,7 @@ const MapSection = ({ facilities, loading, onSelectFacility }) => {
           >
             <Tooltip>{f.Name || "Unnamed facility"}</Tooltip>
             <Popup>
-              <div style={{minWidth:190}}>
+              <div style={{minWidth:190,background:"#ffffff",padding:"12px"}}>
                 <div style={{fontSize:14,fontWeight:800,color:"#0f172a",lineHeight:1.3,marginBottom:4}}>{f.Name || "Unnamed facility"}</div>
                 {f.Company && <div style={{fontSize:12,color:"#64748b",marginBottom:2}}>{f.Company}</div>}
                 <div style={{fontSize:12,color:"#94a3b8",marginBottom:9}}>{[f.City,f.State_Region].filter(Boolean).join(", ") || "Location not on file"}</div>
