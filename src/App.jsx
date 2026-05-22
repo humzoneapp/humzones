@@ -4788,8 +4788,9 @@ const SubmitReportPage = ({ onNavigate }) => {
   const [lastName, setLastName]   = useState("");
   const [email, setEmail]         = useState("");
   const [duration, setDuration]   = useState("");
-  const [symptoms, setSymptoms]   = useState("");
+  const [symptoms, setSymptoms]   = useState([]);
   const [reportText, setReportText] = useState("");
+  const [declared, setDeclared]   = useState(false);
   const [human, setHuman]         = useState(false);
   const [hp, setHp]               = useState(""); // honeypot ("website" field)
   const [sending, setSending]     = useState(false);
@@ -4800,6 +4801,11 @@ const SubmitReportPage = ({ onNavigate }) => {
   // Form-load timestamp for the 15-second minimum gate.
   const formLoadTimeRef = useRef(Date.now());
   const MAX_REPORT_CHARS = 3000;
+  const SYMPTOM_OPTIONS = [
+    "Headaches","Sleep disruption","Dizziness or vertigo","Nausea",
+    "Ear ringing (tinnitus)","Anxiety or panic","Diesel exhaust smell","Chest pressure or tightness",
+  ];
+  const toggleSymptom = (s) => setSymptoms(prev => prev.includes(s) ? prev.filter(x => x !== s) : [...prev, s]);
 
   useEffect(() => {
     let alive = true;
@@ -4831,7 +4837,7 @@ const SubmitReportPage = ({ onNavigate }) => {
     setTimeout(() => { if (formRef.current) formRef.current.scrollIntoView({ behavior: "smooth", block: "start" }); }, 60);
   };
 
-  const canSubmit = facilityName.trim() && firstName.trim() && email.trim() && reportText.trim() && human;
+  const canSubmit = facilityName.trim() && firstName.trim() && email.trim() && reportText.trim() && declared && human;
 
   const submit = async () => {
     if (!canSubmit) return;
@@ -4856,7 +4862,7 @@ const SubmitReportPage = ({ onNavigate }) => {
           address:      addr,
           city:         city || "",
           country:      country || "",
-          symptoms:     symptoms.trim(),
+          symptoms:     symptoms.join(", "),
           duration:     duration.trim(),
         }),
       });
@@ -4970,10 +4976,12 @@ const SubmitReportPage = ({ onNavigate }) => {
             </div>
           ) : (
             <>
-              <p style={{fontSize:15,color:"#64748b",lineHeight:1.7,marginBottom:22}}>Fields marked with an asterisk are required. Reports are reviewed by HumZones and may be shared with regulatory bodies as part of our verified resident registry.</p>
+              <p style={{fontSize:15,color:"#0f172a",fontWeight:800,marginBottom:8}}>Fields marked with an asterisk are required</p>
+              <p style={{fontSize:14,color:"#64748b",lineHeight:1.7,marginBottom:24}}>Reports submitted here are reviewed by HumZones and may be shared with regulatory bodies as part of our verified resident health registry. A verified email address and signed declaration make your report credible to regulators and public health authorities.</p>
               {/* Honeypot field, hidden from humans, visible to bots. */}
               <input type="text" name="website" value={hp} onChange={e=>setHp(e.target.value)} tabIndex="-1" autoComplete="off" aria-hidden="true" style={{display:"none"}}/>
 
+              {/* 1. Facility Name */}
               <div style={{marginBottom:16}}>
                 <label style={lbl}>Facility Name *</label>
                 <input value={facilityName} onChange={e=>setFacilityName(e.target.value)} readOnly={facilityLocked}
@@ -4986,6 +4994,7 @@ const SubmitReportPage = ({ onNavigate }) => {
                 )}
               </div>
 
+              {/* 2 + 3. First and Last Name */}
               <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:6}}>
                 <div>
                   <label style={lbl}>First Name *</label>
@@ -5000,27 +5009,41 @@ const SubmitReportPage = ({ onNavigate }) => {
                 Only your first name will be displayed with your published report. Your last name is kept private.
               </div>
 
+              {/* 4. Email Address */}
               <div style={{marginBottom:16}}>
                 <label style={lbl}>Email Address *</label>
                 <input type="email" value={email} onChange={e=>setEmail(e.target.value)} placeholder="Required to verify your report" style={inp(email)}/>
                 <div style={{fontSize:11,color:"#94a3b8",marginTop:4}}>Not displayed publicly. Verification only.</div>
               </div>
 
+              {/* 5. Duration */}
               <div style={{marginBottom:16}}>
                 <label style={lbl}>How long have you lived or worked near this facility?</label>
                 <input value={duration} onChange={e=>setDuration(e.target.value)} placeholder="e.g. 2 years, 6 months" style={inp(duration)}/>
               </div>
 
+              {/* 6. Symptoms checkboxes */}
               <div style={{marginBottom:16}}>
-                <label style={lbl}>Symptoms</label>
-                <textarea value={symptoms} onChange={e=>setSymptoms(e.target.value)} rows={3}
-                  placeholder="List any symptoms or effects you have experienced, such as headaches, sleep disruption, noise or diesel exhaust."
-                  style={{...inp(symptoms),resize:"vertical",lineHeight:1.6}}/>
+                <label style={{...lbl,marginBottom:8}}>Which of these have you experienced? <span style={{color:"#94a3b8",fontWeight:400}}>(select all that apply)</span></label>
+                <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
+                  {SYMPTOM_OPTIONS.map(s=>{
+                    const checked = symptoms.includes(s);
+                    return (
+                      <div key={s} onClick={()=>toggleSymptom(s)} style={{display:"flex",alignItems:"center",gap:10,padding:"11px 14px",borderRadius:10,border:`1.5px solid ${checked?"#f97316":"#e2e8f0"}`,background:checked?"#fff7ed":"#f8fafc",cursor:"pointer",transition:"all .15s"}}>
+                        <div style={{width:18,height:18,borderRadius:4,border:`2px solid ${checked?"#f97316":"#cbd5e1"}`,background:checked?"#f97316":"transparent",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,transition:"all .15s"}}>
+                          {checked && <Icon name="check" size={11} color="#fff"/>}
+                        </div>
+                        <span style={{fontSize:13,fontWeight:checked?600:400,color:checked?"#c2410c":"#374151"}}>{s}</span>
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
 
+              {/* 7. Your Report */}
               <div style={{marginBottom:16}}>
                 <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}}>
-                  <label style={{...lbl,marginBottom:0}}>Describe your experience *</label>
+                  <label style={{...lbl,marginBottom:0}}>Your Report *</label>
                   <span style={{fontSize:12,fontWeight:600,color:reportText.length>MAX_REPORT_CHARS*0.9?"#ef4444":"#94a3b8"}}>{reportText.length.toLocaleString()} / {MAX_REPORT_CHARS.toLocaleString()}</span>
                 </div>
                 <textarea value={reportText} onChange={e=>{if(e.target.value.length<=MAX_REPORT_CHARS)setReportText(e.target.value);}} rows={6}
@@ -5028,6 +5051,15 @@ const SubmitReportPage = ({ onNavigate }) => {
                   style={{...inp(reportText),resize:"vertical",lineHeight:1.7}}/>
               </div>
 
+              {/* 8. Declaration */}
+              <div onClick={()=>setDeclared(v=>!v)} style={{display:"flex",alignItems:"flex-start",gap:12,padding:"16px",borderRadius:12,border:`2px solid ${declared?"#f97316":"#e2e8f0"}`,background:declared?"#fff7ed":"#f8fafc",cursor:"pointer",marginBottom:14}}>
+                <div style={{width:22,height:22,borderRadius:5,border:`2px solid ${declared?"#f97316":"#94a3b8"}`,background:declared?"#f97316":"transparent",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,marginTop:1}}>
+                  {declared && <Icon name="check" size={13} color="#fff"/>}
+                </div>
+                <div style={{fontSize:14,color:"#374151",lineHeight:1.7,fontWeight:declared?600:400}}>I declare that I am a real resident living near this facility and that the information in this report is truthful to the best of my knowledge. I understand this report may be shared with public health authorities and regulatory bodies.</div>
+              </div>
+
+              {/* 9. Human verification */}
               <div onClick={()=>setHuman(v=>!v)} style={{display:"flex",alignItems:"center",gap:12,padding:"14px 16px",borderRadius:12,border:`2px solid ${human?"#f97316":"#e2e8f0"}`,background:human?"#fff7ed":"#f8fafc",cursor:"pointer",marginBottom:20}}>
                 <div style={{width:22,height:22,borderRadius:5,border:`2px solid ${human?"#f97316":"#94a3b8"}`,background:human?"#f97316":"transparent",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
                   {human && <Icon name="check" size={13} color="#fff"/>}
@@ -5036,8 +5068,9 @@ const SubmitReportPage = ({ onNavigate }) => {
               </div>
 
               <button onClick={submit} disabled={sending||!canSubmit} style={{padding:"15px 38px",borderRadius:12,border:"none",background:canSubmit?"#f97316":"#e2e8f0",color:canSubmit?"#fff":"#94a3b8",fontSize:16,fontWeight:800,cursor:canSubmit?"pointer":"default",fontFamily:"inherit",boxShadow:canSubmit?"0 4px 20px rgba(249,115,22,.4)":"none"}}>
-                {sending?"Submitting...":"Submit My Report"}
+                {sending?"Submitting...":"Submit Verified Report"}
               </button>
+              <div style={{fontSize:13,color:"#94a3b8",lineHeight:1.55,marginTop:12}}>Reports reviewed within 48 hours. Email used for verification only, never displayed publicly.</div>
             </>
           )}
         </div>
