@@ -3366,6 +3366,7 @@ const Footer = ({ onNavigate }) => {
               {navLink("Contact Us","/contact")}
               {navLink("Privacy Policy","/privacy")}
               {navLink("Terms of Service","/terms")}
+              {navLink("Legal Disclaimer","/disclaimer")}
               <a href="mailto:hello@humzones.com" className="hz-foot-link" style={{...linkBase,color:"#f97316"}}>hello@humzones.com</a>
             </div>
           </div>
@@ -3380,6 +3381,8 @@ const Footer = ({ onNavigate }) => {
             <a href="/privacy" onClick={e=>{e.preventDefault();go("/privacy");}} className="hz-foot-link" style={{color:"#64748b",textDecoration:"none"}}>Privacy Policy</a>
             <span aria-hidden="true">|</span>
             <a href="/terms" onClick={e=>{e.preventDefault();go("/terms");}} className="hz-foot-link" style={{color:"#64748b",textDecoration:"none"}}>Terms of Service</a>
+            <span aria-hidden="true">|</span>
+            <a href="/disclaimer" onClick={e=>{e.preventDefault();go("/disclaimer");}} className="hz-foot-link" style={{color:"#64748b",textDecoration:"none"}}>Legal Disclaimer</a>
             <span aria-hidden="true">|</span>
             <a href="/methodology" onClick={e=>{e.preventDefault();go("/methodology");}} className="hz-foot-link" style={{color:"#64748b",textDecoration:"none"}}>Methodology</a>
           </div>
@@ -5051,6 +5054,9 @@ const PrivacyPolicyPage = ({ onNavigate }) => {
           </section>
         ))}
 
+        <p style={{fontSize:14,color:"rgba(255,255,255,.7)",lineHeight:1.7,margin:"4px 0 18px"}}>
+          See also our full <a href="/disclaimer" onClick={e=>{e.preventDefault();onNavigate("/disclaimer");}} style={{color:"#f97316",fontWeight:700,textDecoration:"none"}}>Legal Disclaimer</a> at humzones.com/disclaimer
+        </p>
         <button onClick={()=>onNavigate("/")} style={{marginTop:12,padding:"14px 26px",borderRadius:12,border:"none",cursor:"pointer",fontFamily:"inherit",fontSize:15,fontWeight:900,background:"linear-gradient(135deg,#ef4444,#f97316)",color:"#fff",boxShadow:"0 10px 28px rgba(249,115,22,.4)"}}>Back to HumZones</button>
       </main>
       <Footer onNavigate={onNavigate}/>
@@ -6260,6 +6266,53 @@ const TermsPage = ({ onNavigate }) => (
           </section>
         ))}
         <div style={{borderTop:"1px solid #e2e8f0",marginTop:36,paddingTop:24,textAlign:"center"}}>
+          <p style={{fontSize:14,color:"#475569",lineHeight:1.7,marginBottom:18}}>
+            See also our full <a href="/disclaimer" onClick={e=>{e.preventDefault();onNavigate("/disclaimer");}} style={{color:"#f97316",fontWeight:700,textDecoration:"none"}}>Legal Disclaimer</a> at humzones.com/disclaimer
+          </p>
+          <button onClick={()=>onNavigate("/")} style={{padding:"14px 28px",borderRadius:12,border:"none",background:"linear-gradient(135deg,#ef4444,#f97316)",color:"#fff",fontSize:15,fontWeight:900,cursor:"pointer",fontFamily:"inherit",boxShadow:"0 10px 28px rgba(249,115,22,.4)"}}>Back to HumZones</button>
+        </div>
+      </div>
+    </section>
+
+    <Footer onNavigate={onNavigate}/>
+  </div>
+);
+
+// ─── /disclaimer: LEGAL DISCLAIMER ───────────────────────────────────────────
+const DISCLAIMER_SECTIONS = [
+  { h:"Informational Purpose Only", b:"All information published on humzones.com including facility data, modeled estimates, infrastructure exposure categories and report content is provided for general informational and public awareness purposes only. Nothing on this platform constitutes medical, legal, scientific, environmental, financial or real estate advice. You should consult appropriately qualified professionals before making any decision that relies on information obtained from this platform." },
+  { h:"No Certified Measurements", b:"None of the figures published on humzones.com represent certified field measurements. All power draw, noise level, water consumption, CO2 and electromagnetic field figures are modeled estimates derived from publicly available information using documented formulas. Actual values may vary significantly by facility design, operating conditions and season.\n\nThe electromagnetic field exposure ranges published on this platform are modeled estimates only. They are not the result of any instrumentation, on-site testing, or certified measurement process. The term modeled EMF exposure range means a calculated approximation based on facility power draw and distance, not a reading from any measuring device. These ranges should not be cited as measured values in any legal, regulatory, medical or scientific context." },
+  { h:"No Health Claims", b:"HumZones Technologies Inc. makes no claim that any facility listed on this platform causes, contributes to, or is associated with any health condition or outcome. Infrastructure exposure categories are relative indicators of facility scale and proximity, not medical, scientific or regulatory determinations of harm.\n\nReferences on this platform to published research by organizations such as the World Health Organization (WHO), the International Agency for Research on Cancer (IARC), or other bodies are provided for general context only. Such references do not constitute an endorsement by those organizations of HumZones or any claim made on this platform. HumZones Technologies Inc. does not represent that any published research applies to any specific facility listed in our database." },
+  { h:"Community Reports", b:"Community reports published on humzones.com are submitted by individual members of the public and represent solely the personal opinions, experiences and beliefs of their authors. HumZones Technologies Inc.:\n\n- Does not verify the accuracy of any statement made in a community report\n- Does not adopt or endorse any statement made in a community report\n- Does not represent that any community report reflects the views of HumZones Technologies Inc.\n- Does not guarantee that community reports are free from error, bias or inaccuracy\n- Reserves the right to decline to publish or to remove any community report at its sole discretion\n\nCommunity reports are published as a public service to facilitate community awareness and dialogue. They are not evidence of any wrongdoing by any facility operator and should not be characterized as such. Any person who believes a published community report contains false or defamatory information may contact hello@humzones.com to request review and removal." },
+  { h:"Fair Comment and Public Interest", b:"The information published on humzones.com is published in the public interest for the purpose of promoting transparency about infrastructure development in residential communities. HumZones Technologies Inc. asserts its right to publish factual information compiled from public sources and to facilitate public discourse about matters of community concern.\n\nAll information published on this platform that was obtained from public sources is believed to be accurate at the time of publication. HumZones Technologies Inc. relies on the defense of fair comment, honest opinion, and responsible communication in publishing this information and facilitating community reports about matters of public interest.\n\nNothing in this disclaimer shall be construed as an admission that any information published on this platform is false, misleading or defamatory." },
+  { h:"No Liability", b:"To the maximum extent permitted by applicable law, HumZones Technologies Inc. shall not be liable for any direct, indirect, incidental, special, consequential or punitive damages arising from your access to or use of this platform, or from your reliance on any information published here, whether based in contract, tort or any other legal theory.\n\nIn no event shall the total aggregate liability of HumZones Technologies Inc. to you for all claims arising from your use of this platform exceed the greater of (a) the total amount paid by you to HumZones Technologies Inc. in the twelve months preceding the claim or (b) one hundred Canadian dollars (CAD $100)." },
+  { h:"No Partnership or Affiliation", b:"HumZones Technologies Inc. is not affiliated with, endorsed by, or in any way connected to any data center operator, technology company, utility company, real estate company, government agency or regulatory body mentioned on this platform. The listing of any facility on this platform does not imply any relationship between HumZones Technologies Inc. and the facility operator." },
+  { h:"Accuracy of Publicly Available Information", b:"All facility information published on this platform including facility names, addresses, operator names and operational status has been compiled from sources that were publicly available at the time of compilation. HumZones Technologies Inc. has made reasonable efforts to ensure the accuracy of this information. However we cannot guarantee that all information is current, complete or free from error.\n\nFacility operators who believe their facility information is inaccurate are encouraged to contact us at hello@humzones.com. We will review and update information promptly upon receiving credible evidence of an inaccuracy. The existence of an inaccuracy does not give rise to any legal claim against HumZones Technologies Inc. provided we correct the inaccuracy within a reasonable time after receiving notice." },
+  { h:"Assumption of Risk", b:"By accessing and using humzones.com you acknowledge that:\n\n1. You have read and understood this disclaimer in full\n2. You understand that all figures are modeled estimates not certified measurements\n3. You understand that infrastructure exposure categories are relative indicators not scientific or medical determinations\n4. You will not rely on information from this platform as the sole basis for any medical, legal, financial, real estate or other significant decision without consulting qualified professionals\n5. You assume full responsibility for how you use and interpret information obtained from this platform\n6. You will not use information from this platform to harass, defame or make false accusations against any facility operator or individual" },
+  { h:"Governing Law", b:"This disclaimer and your use of humzones.com are governed by the laws of Canada, without regard to its conflict of law provisions. Any dispute arising from or relating to this platform shall be resolved in the courts of Canada.\n\nYou agree that any claim against HumZones Technologies Inc. must be brought within one year of the date the claim arose or be forever barred. Class action lawsuits against HumZones Technologies Inc. are expressly waived to the maximum extent permitted by applicable law." },
+  { h:"DMCA and Content Removal", b:"If you believe that content published on humzones.com infringes your intellectual property rights or contains false and defamatory statements about you or your organization please contact us immediately at hello@humzones.com with:\n\n- Your full name and contact information\n- A description of the content you believe is problematic\n- The specific URL where the content appears\n- A description of the basis for your claim\n\nWe will review all such requests within 5 business days and take appropriate action where warranted." },
+];
+
+const DisclaimerPage = ({ onNavigate }) => (
+  <div style={{minHeight:"100vh",background:"#f1f5f9",width:"100%",maxWidth:"100vw",overflowX:"hidden"}}>
+    <BackNav onNavigate={onNavigate}/>
+    <PageHero onNavigate={onNavigate} title="Legal Disclaimer" subtitle="Last updated: May 2026"/>
+
+    <section style={{background:"#fff",padding:"54px 24px"}}>
+      <div style={{maxWidth:820,margin:"0 auto"}}>
+        {DISCLAIMER_SECTIONS.map((s,i)=>(
+          <section key={s.h} style={{marginBottom:30}}>
+            <div style={{display:"flex",alignItems:"baseline",gap:12,marginBottom:10}}>
+              <div style={{fontSize:13,fontWeight:900,color:"#ef4444",letterSpacing:".06em",minWidth:26}}>{String(i+1).padStart(2,"0")}</div>
+              <h2 style={{fontSize:15,color:"#0f172a",letterSpacing:".10em",textTransform:"uppercase",fontWeight:800,margin:0,lineHeight:1.4}}>{s.h}</h2>
+            </div>
+            <p style={{fontSize:16,color:"#475569",lineHeight:1.8,marginLeft:38,whiteSpace:"pre-line"}}>{s.b}</p>
+          </section>
+        ))}
+        <div style={{borderTop:"1px solid #e2e8f0",marginTop:36,paddingTop:24,textAlign:"center"}}>
+          <p style={{fontSize:14,color:"#475569",lineHeight:1.7,marginBottom:18}}>
+            Questions about this disclaimer? Contact us at <a href="mailto:hello@humzones.com" style={{color:"#f97316",fontWeight:700,textDecoration:"none"}}>hello@humzones.com</a>
+          </p>
           <button onClick={()=>onNavigate("/")} style={{padding:"14px 28px",borderRadius:12,border:"none",background:"linear-gradient(135deg,#ef4444,#f97316)",color:"#fff",fontSize:15,fontWeight:900,cursor:"pointer",fontFamily:"inherit",boxShadow:"0 10px 28px rgba(249,115,22,.4)"}}>Back to HumZones</button>
         </div>
       </div>
@@ -6871,6 +6924,8 @@ export default function App() {
         <FaqPage onNavigate={navigate} facilityCount={facs.length}/>
       ) : path === "/terms" ? (
         <TermsPage onNavigate={navigate}/>
+      ) : path === "/disclaimer" ? (
+        <DisclaimerPage onNavigate={navigate}/>
       ) : (
       <div style={{minHeight:"100vh",background:"#f1f5f9",width:"100%",maxWidth:"100vw",overflowX:"hidden"}}>
 
