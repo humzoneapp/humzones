@@ -7976,14 +7976,15 @@ export default function App() {
           )}
         </main>
 
-        {/* SCROLL TO TOP BUTTON */}
+        {/* SCROLL TO TOP BUTTON. Pinned to the bottom left so it never
+           collides with the chat bubble in the bottom right corner. */}
         {showScrollTop && (
           <button
             onClick={()=>window.scrollTo({top:0,behavior:"smooth"})}
             style={{
               position:"fixed",
-              bottom:28,
-              right:28,
+              bottom:24,
+              left:24,
               width:48,
               height:48,
               borderRadius:"50%",
