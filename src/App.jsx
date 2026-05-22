@@ -591,20 +591,42 @@ const CSS = `
     .hz-map-wrap{height:350px}
   }
   .leaflet-container{font-family:inherit}
-  /* Facility marker popup: force a solid white card with !important so the
-     bundled Leaflet styles can never leave the popup transparent. */
-  .leaflet-popup-content-wrapper{
-    background-color:#ffffff !important;
-    border-radius:8px !important;
-    box-shadow:0 4px 20px rgba(0,0,0,0.15) !important;
-    border:none !important;
+  /* Facility marker popup: scoped via the humzones-popup className passed to
+     the react-leaflet Popup so we never fight the bundled Leaflet rules. */
+  .humzones-popup .leaflet-popup-content-wrapper {
+    background: #ffffff !important;
+    border-radius: 12px !important;
+    overflow: hidden !important;
+    border: none !important;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.15) !important;
+    padding: 0 !important;
   }
-  .leaflet-popup-tip-container .leaflet-popup-tip{
-    background-color:#ffffff !important;
+  .humzones-popup .leaflet-popup-content {
+    margin: 0 !important;
+    padding: 16px !important;
+    background: #ffffff !important;
+    border-radius: 12px !important;
   }
-  .leaflet-popup-content{
-    background-color:#ffffff !important;
-    margin:12px !important;
+  .humzones-popup .leaflet-popup-tip {
+    background: #ffffff !important;
+  }
+  .humzones-popup .leaflet-popup-tip-container {
+    margin-top: -1px !important;
+  }
+  /* Facility marker tooltip: scoped via the humzones-tooltip className passed
+     to the react-leaflet Tooltip. */
+  .humzones-tooltip {
+    background: #ffffff !important;
+    border: 1px solid #e2e8f0 !important;
+    border-radius: 6px !important;
+    padding: 6px 12px !important;
+    font-size: 13px !important;
+    color: #1e293b !important;
+    font-weight: 600 !important;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1) !important;
+  }
+  .humzones-tooltip::before {
+    border-top-color: #ffffff !important;
   }
 
   /* AI chat widget: floating button hover and the typing indicator. The
@@ -966,8 +988,8 @@ const MapSection = ({ facilities, loading, onSelectFacility }) => {
               mouseout:  e => e.target.setRadius(6),
             }}
           >
-            <Tooltip>{f.Name || "Unnamed facility"}</Tooltip>
-            <Popup>
+            <Tooltip className="humzones-tooltip">{f.Name || "Unnamed facility"}</Tooltip>
+            <Popup className="humzones-popup">
               <div style={{minWidth:190,background:"#ffffff",padding:"12px"}}>
                 <div style={{fontSize:14,fontWeight:800,color:"#0f172a",lineHeight:1.3,marginBottom:4}}>{f.Name || "Unnamed facility"}</div>
                 {f.Company && <div style={{fontSize:12,color:"#64748b",marginBottom:2}}>{f.Company}</div>}
