@@ -3300,7 +3300,6 @@ const REPORT_INCLUDES = [
   "Infrastructure and community impact considerations",
   "Legal disclaimer and methodology reference",
   "Instant PDF download professionally formatted",
-  "Dedicated dashboard where all your reports are stored, saved and available for re-download at any time",
 ];
 
 // ─── SITE FOOTER ──────────────────────────────────────────────────────────────
@@ -3438,6 +3437,7 @@ const BusinessPlansPage = ({ onNavigate, facilityCount }) => {
       features: [
         "10 report credits per month",
         "Credits reset monthly",
+        "Dedicated dashboard where all your reports are stored, saved and available for re-download at any time",
         "Instant PDF download",
         "Full 100km radius coverage",
         "Email support",
@@ -3453,6 +3453,7 @@ const BusinessPlansPage = ({ onNavigate, facilityCount }) => {
       features: [
         "30 report credits per month",
         "Credits reset monthly",
+        "Dedicated dashboard where all your reports are stored, saved and available for re-download at any time",
         "Instant PDF download",
         "Full 100km radius coverage",
         "Priority email support",
@@ -3468,6 +3469,7 @@ const BusinessPlansPage = ({ onNavigate, facilityCount }) => {
       popular: false,
       features: [
         "Unlimited reports",
+        "Dedicated dashboard where all your reports are stored, saved and available for re-download at any time",
         "Instant PDF download",
         "Full 100km radius coverage",
         "Priority email support",
