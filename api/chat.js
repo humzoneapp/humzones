@@ -41,13 +41,24 @@ module.exports = async (req, res) => {
   res.setHeader("Access-Control-Allow-Headers", "Content-Type");
   if (req.method === "OPTIONS") { res.status(200).end(); return; }
 
-  if (req.method !== "POST") {
-    res.setHeader("Allow", "POST");
-    return res.status(405).json({ error: "Method not allowed" });
-  }
-
   try {
-    const body = req.body || {};
+    if (req.method !== "POST") {
+      res.setHeader("Allow", "POST");
+      return res.status(405).json({ error: "Method not allowed" });
+    }
+
+    const apiKey = process.env.ANTHROPIC_API_KEY;
+    if (!apiKey) {
+      console.error("ANTHROPIC_API_KEY not set");
+      return res.status(500).json({ error: "The assistant is not configured. The ANTHROPIC_API_KEY environment variable is missing." });
+    }
+
+    // Vercel normally parses JSON bodies, but fall back to parsing a raw
+    // string so an unexpected content type does not silently drop the input.
+    let body = req.body || {};
+    if (typeof body === "string") {
+      try { body = JSON.parse(body); } catch { body = {}; }
+    }
     const incoming = Array.isArray(body.messages) ? body.messages : [];
 
     // Keep only valid user/assistant turns, cap at the last 10, and make sure
@@ -60,12 +71,6 @@ module.exports = async (req, res) => {
 
     if (messages.length === 0) {
       return res.status(400).json({ error: "No messages provided" });
-    }
-
-    const apiKey = process.env.ANTHROPIC_API_KEY;
-    if (!apiKey) {
-      console.error("ANTHROPIC_API_KEY is not configured");
-      return res.status(503).json({ error: "The assistant is not configured yet. Please contact hello@humzones.com." });
     }
 
     const r = await fetch("https://api.anthropic.com/v1/messages", {
@@ -85,8 +90,9 @@ module.exports = async (req, res) => {
 
     const data = await r.json().catch(() => ({}));
     if (!r.ok) {
+      const detail = (data && data.error && data.error.message) ? data.error.message : `HTTP ${r.status}`;
       console.error("Anthropic API error:", r.status, JSON.stringify(data));
-      return res.status(502).json({ error: "The assistant could not respond right now. Please try again in a moment." });
+      return res.status(502).json({ error: `The assistant could not respond: ${detail}` });
     }
 
     const reply = Array.isArray(data.content)
@@ -95,7 +101,7 @@ module.exports = async (req, res) => {
 
     res.status(200).json({ reply: reply || "Sorry, I did not catch that. Could you rephrase your question?" });
   } catch (error) {
-    console.error("Chat handler error:", error && error.message);
-    res.status(500).json({ error: "Something went wrong. Please try again." });
+    console.error("Chat API error:", error.message, error.stack);
+    res.status(500).json({ error: error.message });
   }
 };
