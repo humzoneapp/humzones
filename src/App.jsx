@@ -6039,10 +6039,76 @@ const SubmitReportPage = ({ onNavigate }) => {
   const [sending, setSending]     = useState(false);
   const [sent, setSent]           = useState(false);
   const [sentEmail, setSentEmail] = useState("");
+  // Loading flag while the Reports-table duplicate query is in flight, plus
+  // the result of that query when the user has already filed a report for
+  // this facility within the last 3 months.
+  const [checking, setChecking]               = useState(false);
+  const [duplicateInfo, setDuplicateInfo]     = useState(null);
 
   const formRef = useRef(null);
   // Form-load timestamp for the 15-second minimum gate.
   const formLoadTimeRef = useRef(Date.now());
+
+  // Reset every form field, drop any submission flags, restart the 15-second
+  // gate, and smooth-scroll to the top of the page. Wired to the "Submit
+  // Another Report" button that appears under the success card.
+  const resetAll = () => {
+    setCountry(""); setRegion(""); setCity(""); setFound(null);
+    setFCountry(""); setFState(""); setFCity(""); setSelectedFacility(null);
+    setFirstName(""); setLastName(""); setEmail("");
+    setDuration(""); setSymptoms([]); setReportText("");
+    setDeclared(false); setHuman(false); setHp("");
+    setSending(false); setSent(false); setSentEmail("");
+    setChecking(false); setDuplicateInfo(null);
+    formLoadTimeRef.current = Date.now();
+    if (typeof window !== "undefined") window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
+  // Reset just the facility selectors and the duplicate banner so the user
+  // can pick a different facility without re-typing their name or email.
+  const resetFacilityOnly = () => {
+    setCountry(""); setRegion(""); setCity(""); setFound(null);
+    setFCountry(""); setFState(""); setFCity(""); setSelectedFacility(null);
+    setDuplicateInfo(null);
+    formLoadTimeRef.current = Date.now();
+    setTimeout(() => { if (formRef.current) formRef.current.scrollIntoView({ behavior: "smooth", block: "start" }); }, 60);
+  };
+
+  // Query the Reports table for an existing row with the same email AND the
+  // same facility name. Returns { date } when a row exists and was submitted
+  // less than 3 months ago, or null in every other case (no row, older row,
+  // or lookup failure - we fail open so a transient Airtable hiccup never
+  // blocks a legitimate submission).
+  const checkDuplicate = async () => {
+    const eRaw = email.trim();
+    const facName = selectedFacility ? (selectedFacility.Name || "") : "";
+    if (!eRaw || !facName) return null;
+    const eEsc = eRaw.toLowerCase().replace(/'/g, "\\'");
+    const fEsc = facName.replace(/'/g, "\\'");
+    const formula = encodeURIComponent(`AND(LOWER({Email})='${eEsc}',{Facility_Name}='${fEsc}')`);
+    const url = `${APIURL}/tblBBaQ4NFCdaS6Tk?filterByFormula=${formula}&maxRecords=1&returnFieldsByFieldId=true`;
+    try {
+      const r = await fetch(url, { headers: HDR });
+      if (!r.ok) {
+        console.warn("[submit-report] duplicate-check non-ok:", r.status);
+        return null;
+      }
+      const data = await r.json();
+      const rec = (data.records || [])[0];
+      if (!rec) return null;
+      const dateStr = rec.fields && rec.fields["fldmqFjSvXE3dPMhx"];
+      if (!dateStr) return null;
+      const submittedAt = new Date(dateStr);
+      if (Number.isNaN(submittedAt.getTime())) return null;
+      const cutoff = new Date();
+      cutoff.setMonth(cutoff.getMonth() - 3);
+      if (submittedAt < cutoff) return null;
+      return { date: dateStr };
+    } catch (e) {
+      console.warn("[submit-report] duplicate-check threw:", e);
+      return null;
+    }
+  };
   const MAX_REPORT_CHARS = 3000;
   const SYMPTOM_OPTIONS = [
     "Headaches","Sleep disruption","Dizziness or vertigo","Nausea",
@@ -6111,6 +6177,13 @@ const SubmitReportPage = ({ onNavigate }) => {
     if (hp) { setSentEmail(email.trim()); setSent(true); return; }
     // 15-second minimum: a human cannot meaningfully fill the form faster.
     if (Date.now() - (formLoadTimeRef.current || 0) < 15000) { setSentEmail(email.trim()); setSent(true); return; }
+
+    // Duplicate guard: one report per email per facility every 3 months. The
+    // check fails open so an Airtable outage cannot block a real submission.
+    setChecking(true);
+    const dup = await checkDuplicate();
+    setChecking(false);
+    if (dup) { setDuplicateInfo(dup); return; }
 
     setSending(true);
     // Facility name, full address, city and country all come from the chosen
@@ -6241,14 +6314,38 @@ const SubmitReportPage = ({ onNavigate }) => {
       <section ref={formRef} style={{maxWidth:760,margin:"0 auto",padding:"40px 24px 72px"}}>
         <div style={{background:"#fff",border:"1px solid #e2e8f0",borderRadius:18,padding:"32px 32px 34px",boxShadow:"0 4px 24px rgba(0,0,0,.07)"}}>
           <h2 style={{fontSize:24,fontWeight:900,color:"#0f172a",marginBottom:8}}>Your Report</h2>
-          {sent ? (
-            <div style={{background:"#f0fdf4",border:"2px solid #bbf7d0",borderRadius:14,padding:"22px"}}>
-              <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:8}}>
-                <Icon name="check" size={22} color="#15803d"/>
-                <div style={{fontSize:18,fontWeight:800,color:"#15803d"}}>Almost done!</div>
+          {duplicateInfo ? (
+            <>
+              <div style={{background:"#fff7ed",borderLeft:"4px solid #f97316",border:"1px solid #fed7aa",borderRadius:12,padding:"22px 22px 24px"}}>
+                <div style={{fontSize:18,fontWeight:800,color:"#9a3412",marginBottom:10}}>Report Already Received</div>
+                <p style={{fontSize:15,color:"#7c2d12",lineHeight:1.75,margin:"0 0 12px"}}>
+                  Thank you for your commitment to your community. We have already received a report from your email address for this facility. Your voice has been heard and your report is part of our verified resident registry. We appreciate everything you are doing to raise awareness.
+                </p>
+                <p style={{fontSize:15,color:"#7c2d12",lineHeight:1.75,margin:0}}>
+                  If your situation has changed significantly you are welcome to submit a new report in 3 months.
+                </p>
               </div>
-              <p style={{fontSize:15,color:"#166534",lineHeight:1.7,margin:0}}>We sent a verification email to <strong>{sentEmail||"your inbox"}</strong>. Click the link in that email to publish your report. Check your spam folder if you do not see it within a few minutes.</p>
-            </div>
+              <div style={{marginTop:18}}>
+                <button onClick={resetFacilityOnly} style={{padding:"14px 28px",borderRadius:12,border:"none",background:"#f97316",color:"#fff",fontSize:15,fontWeight:800,cursor:"pointer",fontFamily:"inherit",boxShadow:"0 4px 18px rgba(249,115,22,.35)"}}>
+                  Submit Report for a Different Facility
+                </button>
+              </div>
+            </>
+          ) : sent ? (
+            <>
+              <div style={{background:"#f0fdf4",border:"2px solid #bbf7d0",borderRadius:14,padding:"22px"}}>
+                <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:8}}>
+                  <Icon name="check" size={22} color="#15803d"/>
+                  <div style={{fontSize:18,fontWeight:800,color:"#15803d"}}>Almost done!</div>
+                </div>
+                <p style={{fontSize:15,color:"#166534",lineHeight:1.7,margin:0}}>We sent a verification email to <strong>{sentEmail||"your inbox"}</strong>. Click the link in that email to publish your report. Check your spam folder if you do not see it within a few minutes.</p>
+              </div>
+              <div style={{marginTop:18}}>
+                <button onClick={resetAll} style={{padding:"13px 26px",borderRadius:12,border:"2px solid #f97316",background:"transparent",color:"#f97316",fontSize:15,fontWeight:800,cursor:"pointer",fontFamily:"inherit"}}>
+                  Submit Another Report
+                </button>
+              </div>
+            </>
           ) : (
             <>
               <p style={{fontSize:15,color:"#0f172a",fontWeight:800,marginBottom:8}}>Fields marked with an asterisk are required</p>
@@ -6412,8 +6509,11 @@ const SubmitReportPage = ({ onNavigate }) => {
                 <div style={{fontSize:14,color:"#374151",fontWeight:human?600:400}}>I confirm I am a human and not a bot</div>
               </div>
 
-              <button onClick={submit} disabled={sending||!canSubmit} style={{padding:"15px 38px",borderRadius:12,border:"none",background:canSubmit?"#f97316":"#e2e8f0",color:canSubmit?"#fff":"#94a3b8",fontSize:16,fontWeight:800,cursor:canSubmit?"pointer":"default",fontFamily:"inherit",boxShadow:canSubmit?"0 4px 20px rgba(249,115,22,.4)":"none"}}>
-                {sending?"Submitting...":"Submit Verified Report"}
+              <button onClick={submit} disabled={sending||checking||!canSubmit} style={{padding:"15px 38px",borderRadius:12,border:"none",background:canSubmit?"#f97316":"#e2e8f0",color:canSubmit?"#fff":"#94a3b8",fontSize:16,fontWeight:800,cursor:(canSubmit&&!sending&&!checking)?"pointer":"default",fontFamily:"inherit",boxShadow:canSubmit?"0 4px 20px rgba(249,115,22,.4)":"none",display:"inline-flex",alignItems:"center",gap:10}}>
+                {(checking||sending) && (
+                  <span className="spinning" style={{width:16,height:16,border:"2px solid rgba(255,255,255,.35)",borderTop:"2px solid #fff",borderRadius:"50%",display:"inline-block"}}/>
+                )}
+                {checking ? "Checking previous reports..." : sending ? "Submitting..." : "Submit Verified Report"}
               </button>
               <div style={{fontSize:13,color:"#94a3b8",lineHeight:1.55,marginTop:12}}>Reports reviewed within 48 hours. Email used for verification only, never displayed publicly.</div>
             </>
