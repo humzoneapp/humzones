@@ -4080,52 +4080,101 @@ const BusinessGeneratePage = ({ onNavigate }) => {
       const filename = `HumZones-Business-Report-${pdfFilenameSafe(results.address)}-${datePart}.pdf`;
       doc.save(filename);
 
-      // Write the report to Business_Reports. Field IDs only so the row goes
-      // to the right columns regardless of display-name drift.
-      const reportName = `HumZones-Business-Report-${pdfFilenameSafe(results.address)}-${datePart}`;
+      // Re-read the live Business_Accounts row by email so the deduction is
+      // based on the authoritative Credits_Remaining rather than a stale
+      // localStorage snapshot. The fresh record also gives us the right
+      // recordId for the PATCH below.
+      let liveRec = null;
       try {
-        await fetch(`${APIURL}/${BUSINESS_REPORTS_TABLE}?returnFieldsByFieldId=true`, {
+        liveRec = await fetchBusinessAccountByEmail(account.email);
+        console.log("[business-generate] fetched live account:", liveRec);
+      } catch (e) {
+        console.error("[business-generate] live account fetch failed:", e);
+      }
+      const liveFields  = (liveRec && liveRec.fields) || {};
+      const liveId      = (liveRec && liveRec.id) || account.id;
+      const liveCredits = Number(liveFields[BIZ_FIELD.Credits_Remaining] || account.creditsRemaining || 0);
+      const liveMonthly = Number(liveFields[BIZ_FIELD.Credits_Monthly] || account.creditsMonthly || 0);
+      const liveGenerated = Number(liveFields[BIZ_FIELD.Reports_Generated] || account.reportsGenerated || 0);
+      const planIsUnlimited = liveMonthly >= 999999 || isUnlimited;
+
+      // Write the report row to Business_Reports. Uses field IDs so the row
+      // lands in the right columns regardless of any display-name drift.
+      const reportName = `HumZones-Business-Report-${pdfFilenameSafe(results.address)}-${datePart}`;
+      const reportPayload = {
+        fields: {
+          [BIZ_REP_FIELD.Email]:            account.email,
+          [BIZ_REP_FIELD.Address]:          results.address,
+          [BIZ_REP_FIELD.Date_Generated]:   datePart,
+          [BIZ_REP_FIELD.Facilities_Count]: results.facilities.length,
+          [BIZ_REP_FIELD.High_Risk_Count]:  highRiskCount,
+          [BIZ_REP_FIELD.Radius_KM]:        radius,
+          [BIZ_REP_FIELD.Latitude]:         results.lat,
+          [BIZ_REP_FIELD.Longitude]:        results.lng,
+          [BIZ_REP_FIELD.Plan]:             account.plan || "",
+          [BIZ_REP_FIELD.Report_Name]:      reportName,
+        },
+      };
+      try {
+        console.log("[business-generate] POST Business_Reports payload:", reportPayload);
+        const repRes = await fetch(`${APIURL}/${BUSINESS_REPORTS_TABLE}?returnFieldsByFieldId=true`, {
           method: "POST",
           headers: HDR,
-          body: JSON.stringify({
-            fields: {
-              [BIZ_REP_FIELD.Email]:            account.email,
-              [BIZ_REP_FIELD.Address]:          results.address,
-              [BIZ_REP_FIELD.Date_Generated]:   datePart,
-              [BIZ_REP_FIELD.Facilities_Count]: results.facilities.length,
-              [BIZ_REP_FIELD.High_Risk_Count]:  highRiskCount,
-              [BIZ_REP_FIELD.Radius_KM]:        radius,
-              [BIZ_REP_FIELD.Latitude]:         results.lat,
-              [BIZ_REP_FIELD.Longitude]:        results.lng,
-              [BIZ_REP_FIELD.Plan]:             account.plan || "",
-              [BIZ_REP_FIELD.Report_Name]:      reportName,
+          body: JSON.stringify(reportPayload),
+        });
+        const repBody = await repRes.json().catch(() => ({}));
+        console.log("[business-generate] POST Business_Reports response:", repRes.status, repBody);
+        if (!repRes.ok) {
+          console.error("[business-generate] Business_Reports write failed:", repRes.status, repBody);
+        }
+      } catch (e) {
+        console.error("[business-generate] Business_Reports write threw:", e);
+      }
+
+      // Deduct one credit on metered plans. Unlimited plans only increment
+      // Reports_Generated; Credits_Remaining is left untouched.
+      const newRemaining = planIsUnlimited
+        ? liveCredits
+        : Math.max(0, liveCredits - 1);
+      const newGenerated = liveGenerated + 1;
+      const acctPayload = {
+        fields: planIsUnlimited
+          ? { [BIZ_FIELD.Reports_Generated]: newGenerated }
+          : {
+              [BIZ_FIELD.Credits_Remaining]: newRemaining,
+              [BIZ_FIELD.Reports_Generated]: newGenerated,
             },
-          }),
-        });
-      } catch (e) {
-        console.warn("Business_Reports write failed:", e);
-      }
-
-      // Deduct one credit on metered plans. Unlimited only increments the
-      // generated counter; credits are never debited.
-      const newRemaining = isUnlimited
-        ? account.creditsRemaining
-        : Math.max(0, account.creditsRemaining - 1);
-      const newGenerated = (account.reportsGenerated || 0) + 1;
+      };
       try {
-        await patchBusinessAccount(account.id, {
-          [BIZ_FIELD.Credits_Remaining]: newRemaining,
-          [BIZ_FIELD.Reports_Generated]: newGenerated,
+        console.log("[business-generate] PATCH Business_Accounts id:", liveId, "payload:", acctPayload);
+        const acctRes = await fetch(`${APIURL}/${BUSINESS_TABLE}/${liveId}?returnFieldsByFieldId=true`, {
+          method: "PATCH",
+          headers: HDR,
+          body: JSON.stringify(acctPayload),
         });
+        const acctBody = await acctRes.json().catch(() => ({}));
+        console.log("[business-generate] PATCH Business_Accounts response:", acctRes.status, acctBody);
+        if (!acctRes.ok) {
+          console.error("[business-generate] Credit deduction failed:", acctRes.status, acctBody);
+        }
       } catch (e) {
-        console.error("Credit deduction failed:", e);
+        console.error("[business-generate] Credit deduction threw:", e);
       }
 
-      const next = { ...account, creditsRemaining: newRemaining, reportsGenerated: newGenerated };
+      // Reflect the new counts in the on-screen badge immediately and
+      // persist them so other tabs pick up the same values without needing
+      // a refresh.
+      const next = {
+        ...account,
+        id: liveId,
+        creditsRemaining: newRemaining,
+        creditsMonthly:   liveMonthly || account.creditsMonthly,
+        reportsGenerated: newGenerated,
+      };
       writeBusinessAccount(next);
       setAccount(next);
 
-      const remainingLabel = isUnlimited ? "Unlimited" : `${newRemaining}`;
+      const remainingLabel = planIsUnlimited ? "Unlimited" : `${newRemaining}`;
       showToast(`Report downloaded. ${remainingLabel} credits remaining.`);
     } catch (e) {
       console.error("Business report download failed:", e);
