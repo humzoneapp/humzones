@@ -2747,12 +2747,13 @@ const VerifyReportPage = ({ onNavigate }) => {
         const reportText   = params.get("report")    || "";
         const cityParam    = params.get("city")      || "";
         const countryParam = params.get("country")   || "";
+        const addressParam = params.get("address")   || "";
         const symptoms     = params.get("symptoms")  || "";
         const duration     = params.get("duration")  || "";
 
         console.log("[HumZones] /verify-report params:", {
           token, email, firstName, lastName, facilityName,
-          reportText, city: cityParam, country: countryParam,
+          reportText, address: addressParam, city: cityParam, country: countryParam,
           symptoms, duration,
         });
 
@@ -5280,6 +5281,62 @@ const MyReportPage = ({ onNavigate }) => {
   );
 };
 
+// ─── CASCADING DROPDOWN ──────────────────────────────────────────────────────
+// One styled dropdown used by the cascading Country / State / City / Facility
+// selector on the resident report form. Each option can carry an optional
+// sublabel (the facility address) shown in smaller grey text below the label.
+const CascadeSelect = ({ label, placeholder, options, value, onChange, disabled }) => {
+  const [open, setOpen] = useState(false);
+  const ref = useRef(null);
+  useEffect(() => {
+    if (!open) return;
+    const onDoc = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
+    document.addEventListener("mousedown", onDoc);
+    return () => document.removeEventListener("mousedown", onDoc);
+  }, [open]);
+  const selected = options.find(o => o.value === value) || null;
+  const filled = !!selected;
+  return (
+    <div ref={ref} style={{marginBottom:16,position:"relative"}}>
+      <label style={{fontSize:13,fontWeight:700,color:"#374151",display:"block",marginBottom:6}}>{label}</label>
+      <button
+        type="button"
+        onClick={()=>{ if(!disabled) setOpen(o=>!o); }}
+        disabled={disabled}
+        style={{
+          width:"100%",padding:"13px 16px",borderRadius:10,
+          border:`1.5px solid ${filled?"#3b82f6":"#e2e8f0"}`,
+          fontSize:15,boxSizing:"border-box",outline:"none",fontFamily:"inherit",
+          background:disabled?"#f1f5f9":"#fff",
+          color:filled?"#1e293b":"#94a3b8",
+          cursor:disabled?"not-allowed":"pointer",
+          display:"flex",alignItems:"center",justifyContent:"space-between",gap:10,textAlign:"left",
+        }}
+      >
+        <span style={{overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{selected?selected.label:placeholder}</span>
+        <span style={{fontSize:11,color:"#94a3b8",flexShrink:0}}>{open?"▲":"▼"}</span>
+      </button>
+      {open && !disabled && (
+        <div style={{position:"absolute",top:"100%",left:0,right:0,marginTop:4,background:"#fff",border:"1px solid #e2e8f0",borderRadius:10,boxShadow:"0 12px 32px rgba(0,0,0,.14)",maxHeight:264,overflowY:"auto",zIndex:50}}>
+          {options.length===0 ? (
+            <div style={{padding:"13px 16px",fontSize:14,color:"#94a3b8"}}>No options available</div>
+          ) : options.map(o=>(
+            <div
+              key={o.value}
+              onClick={()=>{ onChange(o.value); setOpen(false); }}
+              className="drop-item"
+              style={{padding:"11px 16px",cursor:"pointer",borderBottom:"1px solid #f1f5f9"}}
+            >
+              <div style={{fontSize:14,fontWeight:600,color:"#1e293b",lineHeight:1.35}}>{o.label}</div>
+              {o.sublabel && <div style={{fontSize:12,color:"#94a3b8",marginTop:2,lineHeight:1.4}}>{o.sublabel}</div>}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
+
 // ─── /submit-report: STANDALONE RESIDENT REPORT PAGE ─────────────────────────
 // A dedicated page for submitting a resident report from anywhere on the site.
 // Loads the Facilities table, lets the visitor narrow by country/region/city,
@@ -5293,8 +5350,12 @@ const SubmitReportPage = ({ onNavigate }) => {
   const [city, setCity]       = useState("");
   const [found, setFound]     = useState(null); // null until Find Facilities runs
 
-  const [facilityName, setFacilityName]     = useState("");
-  const [facilityLocked, setFacilityLocked] = useState(false);
+  // Cascading Country / State / City / Facility selector for the form. The
+  // hero search above writes into the same state via pickFacility.
+  const [fCountry, setFCountry] = useState("");
+  const [fState, setFState]     = useState("");
+  const [fCity, setFCity]       = useState("");
+  const [selectedFacility, setSelectedFacility] = useState(null);
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName]   = useState("");
   const [email, setEmail]         = useState("");
@@ -5320,7 +5381,7 @@ const SubmitReportPage = ({ onNavigate }) => {
 
   useEffect(() => {
     let alive = true;
-    cachedFetch("Facilities", { "fields[]": FACILITY_LIST_FIELDS })
+    cachedFetch("Facilities", { "fields[]": [...FACILITY_LIST_FIELDS, "Address"] })
       .then(rows => { if (alive) { setFacs(rows); setLoading(false); } })
       .catch(() => { if (alive) setLoading(false); });
     return () => { alive = false; };
@@ -5342,13 +5403,30 @@ const SubmitReportPage = ({ onNavigate }) => {
     setFound(matches);
   };
 
-  const pickFacility = (name) => {
-    setFacilityName(name);
-    setFacilityLocked(true);
+  // Option lists for the cascading form selector, each filtered by the
+  // selections above it.
+  const formStates = fCountry
+    ? [...new Set(facs.filter(f => f.Country === fCountry).map(f => f.State_Region).filter(Boolean))].sort()
+    : [];
+  const formCities = (fCountry && fState)
+    ? [...new Set(facs.filter(f => f.Country === fCountry && f.State_Region === fState).map(f => f.City).filter(Boolean))].sort()
+    : [];
+  const formFacilities = (fCountry && fState && fCity)
+    ? facs.filter(f => f.Country === fCountry && f.State_Region === fState && f.City === fCity)
+          .sort((a, b) => (a.Name || "").localeCompare(b.Name || ""))
+    : [];
+
+  // Selecting a facility, whether from the hero results or the cascading
+  // dropdowns, fills the whole selector and scrolls to the form.
+  const pickFacility = (f) => {
+    setFCountry(f.Country || "");
+    setFState(f.State_Region || "");
+    setFCity(f.City || "");
+    setSelectedFacility(f);
     setTimeout(() => { if (formRef.current) formRef.current.scrollIntoView({ behavior: "smooth", block: "start" }); }, 60);
   };
 
-  const canSubmit = facilityName.trim() && firstName.trim() && email.trim() && reportText.trim() && declared && human;
+  const canSubmit = !!selectedFacility && firstName.trim() && email.trim() && reportText.trim() && declared && human;
 
   const submit = async () => {
     if (!canSubmit) return;
@@ -5359,7 +5437,13 @@ const SubmitReportPage = ({ onNavigate }) => {
     if (Date.now() - (formLoadTimeRef.current || 0) < 15000) { setSentEmail(email.trim()); setSent(true); return; }
 
     setSending(true);
-    const addr = [city, region, country].filter(Boolean).join(", ");
+    // Facility name, full address, city and country all come from the chosen
+    // facility record so the verification email and the Reports table row
+    // stay consistent with our database.
+    const facName    = selectedFacility ? (selectedFacility.Name || "") : "";
+    const facAddress = selectedFacility ? buildLocationString(selectedFacility) : "";
+    const facCity    = selectedFacility ? (selectedFacility.City || "") : "";
+    const facCountry = selectedFacility ? (selectedFacility.Country || "") : "";
     try {
       const r = await fetch("/api/send-verification", {
         method: "POST",
@@ -5368,11 +5452,11 @@ const SubmitReportPage = ({ onNavigate }) => {
           email:        email.trim(),
           firstName:    firstName.trim(),
           lastName:     lastName.trim(),
-          facilityName: facilityName.trim(),
+          facilityName: facName,
           reportText,
-          address:      addr,
-          city:         city || "",
-          country:      country || "",
+          address:      facAddress,
+          city:         facCity,
+          country:      facCountry,
           symptoms:     symptoms.join(", "),
           duration:     duration.trim(),
         }),
@@ -5402,6 +5486,12 @@ const SubmitReportPage = ({ onNavigate }) => {
     border:`1.5px solid ${v && v.trim() ? "#3b82f6" : "#e2e8f0"}`,
     fontSize:15, boxSizing:"border-box", outline:"none", fontFamily:"inherit", color:"#1e293b",
   });
+  // Read-only confirmation field: looks like a filled form input but is locked.
+  const roInp = {
+    width:"100%", padding:"13px 16px", borderRadius:10, border:"1.5px solid #e2e8f0",
+    fontSize:15, boxSizing:"border-box", outline:"none", fontFamily:"inherit",
+    color:"#1e293b", background:"#f1f5f9",
+  };
 
   return (
     <div style={{minHeight:"100vh",background:"#f1f5f9",width:"100%",maxWidth:"100vw",overflowX:"hidden"}}>
@@ -5457,9 +5547,9 @@ const SubmitReportPage = ({ onNavigate }) => {
           <h2 style={{fontSize:22,fontWeight:900,color:"#0f172a",marginBottom:6}}>
             {found.length} {found.length===1?"facility":"facilities"} found
           </h2>
-          <p style={{fontSize:15,color:"#64748b",marginBottom:22,lineHeight:1.6}}>Select a facility to submit a report about it, or scroll down to type a facility name yourself.</p>
+          <p style={{fontSize:15,color:"#64748b",marginBottom:22,lineHeight:1.6}}>Select a facility to submit a report about it, or choose one using the dropdowns in the form below.</p>
           {found.length===0 ? (
-            <div style={{background:"#fff",border:"1px solid #e2e8f0",borderRadius:14,padding:"22px",fontSize:15,color:"#64748b",lineHeight:1.65}}>No facilities found for that selection. You can still submit a report by typing the facility name in the form below.</div>
+            <div style={{background:"#fff",border:"1px solid #e2e8f0",borderRadius:14,padding:"22px",fontSize:15,color:"#64748b",lineHeight:1.65}}>No facilities found for that selection. If your facility is missing, contact us at <a href="mailto:hello@humzones.com" style={{color:"#f97316",fontWeight:700,textDecoration:"none"}}>hello@humzones.com</a> and we will add it to our database.</div>
           ) : (
             <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(280px,1fr))",gap:16}}>
               {found.map(f=>(
@@ -5468,7 +5558,7 @@ const SubmitReportPage = ({ onNavigate }) => {
                   {f.Company && <div style={{fontSize:13,color:"#64748b"}}>{f.Company}</div>}
                   <div style={{fontSize:13,color:"#94a3b8"}}>{[f.City,f.State_Region].filter(Boolean).join(", ")||"Location not on file"}</div>
                   <div><Chip label={exposureLabel(f.Risk_Level)} color={exposureColor(f.Risk_Level)} small/></div>
-                  <button onClick={()=>pickFacility(f.Name||"")} style={{marginTop:"auto",padding:"11px 16px",borderRadius:10,border:"none",background:"#f97316",color:"#fff",fontSize:14,fontWeight:800,cursor:"pointer",fontFamily:"inherit"}}>
+                  <button onClick={()=>pickFacility(f)} style={{marginTop:"auto",padding:"11px 16px",borderRadius:10,border:"none",background:"#f97316",color:"#fff",fontSize:14,fontWeight:800,cursor:"pointer",fontFamily:"inherit"}}>
                     Submit Report for This Facility
                   </button>
                 </div>
@@ -5497,18 +5587,88 @@ const SubmitReportPage = ({ onNavigate }) => {
               {/* Honeypot field, hidden from humans, visible to bots. */}
               <input type="text" name="website" value={hp} onChange={e=>setHp(e.target.value)} tabIndex="-1" autoComplete="off" aria-hidden="true" style={{display:"none"}}/>
 
-              {/* 1. Facility Name */}
-              <div style={{marginBottom:16}}>
-                <label style={lbl}>Facility Name *</label>
-                <input value={facilityName} onChange={e=>setFacilityName(e.target.value)} readOnly={facilityLocked}
-                  placeholder="Name of the data center facility"
-                  style={{...inp(facilityName),background:facilityLocked?"#f1f5f9":"#fff"}}/>
-                {facilityLocked && (
-                  <button onClick={()=>setFacilityLocked(false)} style={{marginTop:6,background:"transparent",border:"none",color:"#f97316",fontSize:13,fontWeight:700,cursor:"pointer",fontFamily:"inherit",padding:0}}>
-                    Edit facility name
-                  </button>
-                )}
-              </div>
+              {/* 1. Cascading facility selector: Country, State, City, Facility */}
+              <CascadeSelect
+                label="Country *"
+                placeholder={loading ? "Loading countries..." : "Select a country"}
+                options={countries.map(c=>({ value:c, label:c }))}
+                value={fCountry}
+                disabled={loading}
+                onChange={v=>{ setFCountry(v); setFState(""); setFCity(""); setSelectedFacility(null); }}
+              />
+
+              {fCountry && (
+                <CascadeSelect
+                  label="State / Province *"
+                  placeholder="Select a state or province"
+                  options={formStates.map(s=>({ value:s, label:s }))}
+                  value={fState}
+                  onChange={v=>{ setFState(v); setFCity(""); setSelectedFacility(null); }}
+                />
+              )}
+
+              {fCountry && fState && (
+                <CascadeSelect
+                  label="City *"
+                  placeholder="Select a city"
+                  options={formCities.map(c=>({ value:c, label:c }))}
+                  value={fCity}
+                  onChange={v=>{ setFCity(v); setSelectedFacility(null); }}
+                />
+              )}
+
+              {fCountry && fState && fCity && (
+                <>
+                  <CascadeSelect
+                    label="Select Your Facility *"
+                    placeholder="Select a facility"
+                    options={formFacilities.map(f=>({
+                      value:    f.id,
+                      label:    f.Name || "Unnamed facility",
+                      sublabel: buildLocationString(f) || undefined,
+                    }))}
+                    value={selectedFacility ? selectedFacility.id : ""}
+                    onChange={v=>setSelectedFacility(facs.find(f=>f.id===v) || null)}
+                  />
+                  <div style={{fontSize:13,color:"#64748b",lineHeight:1.6,margin:"-6px 0 16px"}}>
+                    Cannot find your facility?{" "}
+                    <a href="mailto:hello@humzones.com" style={{color:"#f97316",fontWeight:700,textDecoration:"none"}}>Contact us at hello@humzones.com</a>{" "}
+                    and we will add it to our database.
+                  </div>
+                </>
+              )}
+
+              {/* Read-only confirmation of the chosen facility */}
+              {selectedFacility && (
+                <div style={{background:"#f8fafc",border:"1.5px solid #e2e8f0",borderRadius:14,padding:"18px 18px 20px",marginBottom:18}}>
+                  <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:10,marginBottom:14,flexWrap:"wrap"}}>
+                    <div style={{fontSize:13,fontWeight:800,color:"#0f172a",letterSpacing:".08em",textTransform:"uppercase"}}>Selected Facility</div>
+                    <Chip label={exposureLabel(selectedFacility.Risk_Level)} color={exposureColor(selectedFacility.Risk_Level)} small/>
+                  </div>
+                  <div style={{marginBottom:12}}>
+                    <label style={lbl}>Facility Name</label>
+                    <input value={selectedFacility.Name || ""} readOnly style={roInp}/>
+                  </div>
+                  <div style={{marginBottom:12}}>
+                    <label style={lbl}>Facility Address</label>
+                    <input value={buildLocationString(selectedFacility) || "Address not on file"} readOnly style={roInp}/>
+                  </div>
+                  <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:12}}>
+                    <div>
+                      <label style={lbl}>City</label>
+                      <input value={selectedFacility.City || ""} readOnly style={roInp}/>
+                    </div>
+                    <div>
+                      <label style={lbl}>State / Province</label>
+                      <input value={selectedFacility.State_Region || ""} readOnly style={roInp}/>
+                    </div>
+                  </div>
+                  <div>
+                    <label style={lbl}>Country</label>
+                    <input value={selectedFacility.Country || ""} readOnly style={roInp}/>
+                  </div>
+                </div>
+              )}
 
               {/* 2 + 3. First and Last Name */}
               <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:6}}>
