@@ -419,10 +419,10 @@ const CSS = `
   .share-bubble{width:44px;height:44px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;transition:transform .2s ease, box-shadow .2s ease;animation:shareBob 3.4s ease-in-out infinite;will-change:transform;flex-shrink:0}
   .share-link:hover .share-bubble{transform:scale(1.1);box-shadow:0 10px 26px var(--share-glow, rgba(15,23,42,.18));animation-play-state:paused}
   .share-label{font-size:11px;font-weight:700;letter-spacing:.04em;color:#94a3b8;text-transform:uppercase;white-space:nowrap}
-  .share-section{padding:24px 16px}
+  .share-section{padding:26px 26px 22px}
   @keyframes shareBob{0%,100%{transform:translateY(0)}50%{transform:translateY(-5px)}}
   @media(max-width:640px){
-    .share-section{padding:20px 8px}
+    .share-section{padding:22px 16px 18px}
     .share-row{gap:8px}
     .share-bubble{width:32px;height:32px}
     .share-label{font-size:9px;letter-spacing:.02em}
@@ -819,7 +819,7 @@ const SHARE_TARGETS = [
 ];
 
 const ShareSection = () => (
-  <section aria-label="Share HumZones" className="share-section" style={{background:"#fff",textAlign:"center",borderBottom:"1px solid #f1f5f9"}}>
+  <section aria-label="Share HumZones" className="share-section" style={{background:"#fff",textAlign:"center",borderRadius:16,boxShadow:"0 20px 60px rgba(0,0,0,0.2)",marginBottom:28}}>
     <p style={{fontSize:13,color:"#94a3b8",margin:0,marginBottom:14,fontWeight:600,letterSpacing:".02em"}}>
       Know someone who should check this?
     </p>
