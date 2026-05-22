@@ -526,14 +526,20 @@ const CSS = `
     .tab-btn{padding:9px 14px!important;font-size:13px!important}
     .tab-content{padding:20px 16px 28px!important}
     .fac-header{padding:20px 16px!important}
-    .main{padding:20px 16px 96px!important}
     .rings{display:none!important}
     .stat-val{font-size:20px!important}
     .addr-bar{flex-direction:column!important;align-items:flex-start!important;gap:10px!important;padding:14px 16px!important}
-    .near-panel{padding:22px 16px 18px!important}
     .near-status-row{flex-direction:column!important;align-items:flex-start!important;gap:10px!important}
     .near-card{padding:16px!important}
     .near-card .near-right{margin-left:auto!important}
+    /* Uniform 24px vertical rhythm between the main-page cards on mobile:
+       24px above the first card, then each card carries a 24px bottom margin.
+       The map section also drops its own top and bottom padding so it does
+       not stack extra space onto the gaps. */
+    .main{padding:24px 16px 24px!important}
+    .near-panel{padding:22px 16px 18px!important;margin-bottom:24px!important}
+    .hz-map-section{padding:0!important;margin-bottom:24px!important}
+    .share-section{margin-bottom:0!important}
   }
   @media(max-width:480px){
     .hero h1{font-size:38px!important}
@@ -946,7 +952,7 @@ const MapSection = ({ facilities, loading, onSelectFacility }) => {
   ];
 
   return (
-    <section aria-label="Data center world map" style={{padding:"6px 0 32px"}}>
+    <section aria-label="Data center world map" className="hz-map-section" style={{padding:"6px 0 32px"}}>
       {/* Heading */}
       <div style={{textAlign:"center",maxWidth:760,margin:"0 auto 22px"}}>
         <div style={{fontSize:12,fontWeight:800,letterSpacing:".16em",color:"#94a3b8",textTransform:"uppercase",marginBottom:9}}>
