@@ -268,7 +268,22 @@ const STATUS = {
   PROPOSED:  { label:"Proposed",           color:"#3b82f6" },
   APPROVED:  { label:"Approved",           color:"#8b5cf6" },
 };
-const RISK_C = { HIGH:"#ef4444", MODERATE:"#f97316", "LOW-MODERATE":"#3b82f6" };
+// Exposure colors: HIGH red, MODERATE orange, LOW green. There is deliberately
+// no blue "LOW-MODERATE" tier; exposureTier() folds that legacy value into
+// MODERATE so no blue exposure chip is ever rendered anywhere on the site.
+const RISK_C = { HIGH:"#ef4444", MODERATE:"#f97316", LOW:"#22c55e" };
+
+// Normalize a stored Risk_Level into the exposure tier shown to users. The
+// legacy "LOW-MODERATE" value displays as MODERATE so no blue tier remains.
+const exposureTier = (lvl) => {
+  const v = String(lvl || "").toUpperCase();
+  if (v === "HIGH") return "HIGH";
+  if (v === "LOW")  return "LOW";
+  if (v === "MODERATE" || v === "LOW-MODERATE") return "MODERATE";
+  return v || "UNKNOWN";
+};
+const exposureColor = (lvl) => RISK_C[exposureTier(lvl)] || "#64748b";
+const exposureLabel = (lvl) => `${exposureTier(lvl)} EXPOSURE`;
 
 const SYMPTOMS = {
   HIGH:[
@@ -601,7 +616,7 @@ const FacilityMapImage = ({ dc, rc }) => {
       {/* Status/risk badges */}
       <div style={{position:"absolute",bottom:18,left:20,display:"flex",gap:8,flexWrap:"wrap"}}>
         <Chip label={STATUS[dc.Facility_Status]?.label || dc.Facility_Status} color={STATUS[dc.Facility_Status]?.color || "#64748b"}/>
-        <Chip label={`${dc.Risk_Level} EXPOSURE`} color={rc}/>
+        <Chip label={exposureLabel(dc.Risk_Level)} color={rc}/>
       </div>
     </div>
   );
@@ -1467,13 +1482,13 @@ async function buildAreaReportPdf({ searchAddress, facsNear, radiusKm = 100, fac
       doc.setFont("helvetica", "bold"); doc.setFontSize(10);
       setText(15, 23, 42);
       doc.text(`Distance: ${Number(f._km).toFixed(1)} km from your address`, M, y);
-      const rc = String(f.Risk_Level).toUpperCase() === "HIGH"
-        ? [239, 68, 68]
-        : String(f.Risk_Level).toUpperCase() === "MODERATE"
-          ? [249, 115, 22]
-          : [59, 130, 246];
+      const tier = exposureTier(f.Risk_Level);
+      const rc = tier === "HIGH"     ? [239, 68, 68]
+               : tier === "MODERATE" ? [249, 115, 22]
+               : tier === "LOW"      ? [34, 197, 94]
+               : [100, 116, 139];
       setText(rc[0], rc[1], rc[2]);
-      doc.text(`Exposure Category: ${String(f.Risk_Level || "UNKNOWN").toUpperCase()}`, M + 270, y);
+      doc.text(`Exposure Category: ${tier}`, M + 270, y);
       y += 16;
 
       doc.setFont("helvetica", "normal"); doc.setFontSize(10);
@@ -3183,12 +3198,9 @@ const BusinessGeneratePage = ({ onNavigate }) => {
     }
   };
 
-  const riskColor = (lvl) => {
-    const u = String(lvl || "").toUpperCase();
-    if (u === "HIGH")     return "#ef4444";
-    if (u === "MODERATE") return "#f97316";
-    return "#3b82f6";
-  };
+  // Delegates to the shared exposure color map so the legacy LOW-MODERATE
+  // value renders MODERATE orange rather than blue.
+  const riskColor = (lvl) => exposureColor(lvl);
 
   return (
     <div style={{minHeight:"100vh",background:"linear-gradient(150deg,#020c1b 0%,#0f172a 50%,#1e0535 100%)",color:"#fff",paddingBottom:results ? 110 : 40}}>
@@ -3259,7 +3271,7 @@ const BusinessGeneratePage = ({ onNavigate }) => {
                         {f.Company && <div style={{fontSize:13,color:"rgba(255,255,255,.6)"}}>{f.Company}</div>}
                       </div>
                       <span style={{padding:"4px 12px",borderRadius:20,background:`${riskColor(f.Risk_Level)}22`,border:`1px solid ${riskColor(f.Risk_Level)}66`,color:riskColor(f.Risk_Level),fontSize:11,fontWeight:900,letterSpacing:".10em"}}>
-                        {`${String(f.Risk_Level || "UNKNOWN").toUpperCase()} EXPOSURE`}
+                        {exposureLabel(f.Risk_Level)}
                       </span>
                     </div>
                     <div style={{fontSize:13,color:"#f97316",fontWeight:700,marginBottom:10}}>{Number(f._km).toFixed(1)} km away</div>
@@ -4829,7 +4841,7 @@ export default function App() {
   },[showCD, showRD, showCityD]);
 
   const dc       = sel ? facs.find(f=>f.id===sel) : null;
-  const rc       = dc ? (RISK_C[dc.Risk_Level]||"#64748b") : "#64748b";
+  const rc       = dc ? exposureColor(dc.Risk_Level) : "#64748b";
   const symptoms = dc ? (SYMPTOMS[dc.Risk_Level]||SYMPTOMS["LOW-MODERATE"]) : [];
   const mapsUrl  = dc ? getGoogleMapsUrl(dc.Latitude, dc.Longitude, dc.Address, dc.Name) : "#";
   const locStr   = dc ? buildLocationString(dc) : "";
@@ -5365,7 +5377,7 @@ export default function App() {
                   </div>
                   {fl.map(f=>{
                     const s2=STATUS[f.Facility_Status]||STATUS.OPERATING;
-                    const r2=RISK_C[f.Risk_Level]||"#64748b";
+                    const r2=exposureColor(f.Risk_Level);
                     return (
                       <div key={f.id} className="drop-item" style={{padding:"14px 20px 14px 28px",borderBottom:"1px solid #f1f5f9"}} onClick={()=>{setCityTxt(city);setShowCityD(false);pickFac(f.id);}}>
                         <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",gap:10}}>
@@ -5375,7 +5387,7 @@ export default function App() {
                           </div>
                           <div style={{display:"flex",flexDirection:"column",gap:4,alignItems:"flex-end",flexShrink:0}}>
                             <Chip label={s2.label} color={s2.color} small/>
-                            <Chip label={`${f.Risk_Level} EXPOSURE`} color={r2} small/>
+                            <Chip label={exposureLabel(f.Risk_Level)} color={r2} small/>
                           </div>
                         </div>
                       </div>
@@ -5538,7 +5550,7 @@ export default function App() {
           {nearLoc && !dc && !loading && (nearResults.length > 0 ? (() => {
             const renderNearCard = (f, locked=false) => {
               const st = STATUS[f.Facility_Status] || STATUS.OPERATING;
-              const rclr = RISK_C[f.Risk_Level] || "#64748b";
+              const rclr = exposureColor(f.Risk_Level);
               const dclr = distColor(f._km);
               return (
                 <div key={f.id} className="sym-card near-card" onClick={locked?undefined:()=>pickFac(f.id)} style={{background:"#fff",borderRadius:18,boxShadow:"0 4px 18px rgba(0,0,0,.06)",padding:"18px 22px",cursor:locked?"default":"pointer",display:"flex",alignItems:"center",gap:16,flexWrap:"wrap",width:"100%",maxWidth:"100%",boxSizing:"border-box"}}>
@@ -5553,7 +5565,7 @@ export default function App() {
                     </div>
                     <div style={{display:"flex",gap:6}}>
                       <Chip label={st.label} color={st.color} small/>
-                      <Chip label={`${f.Risk_Level} EXPOSURE`} color={rclr} small/>
+                      <Chip label={exposureLabel(f.Risk_Level)} color={rclr} small/>
                     </div>
                   </div>
                 </div>
