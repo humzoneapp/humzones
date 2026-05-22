@@ -557,6 +557,9 @@ const CSS = `
   .hz-footer-grid{display:grid;grid-template-columns:1.5fr 1fr 1fr 1fr;gap:36px}
   .hz-foot-link{transition:color .15s}
   .hz-foot-link:hover{color:#f97316!important}
+  /* Hero top-right Login link: subtle white text, orange on hover. */
+  .hz-hero-login{transition:color .15s}
+  .hz-hero-login:hover{color:#f97316!important}
   /* Research source pills: subtle grey resting state, orange on hover. */
   .hz-research-pill{transition:border-color .15s, color .15s, background .15s}
   .hz-research-pill:hover{border-color:#f97316!important;color:#f97316!important;background:#fff7ed!important}
@@ -3586,7 +3589,7 @@ const BusinessPlansPage = ({ onNavigate, facilityCount, facs = [] }) => {
   return (
     <div style={{minHeight:"100vh",background:"linear-gradient(150deg,#020c1b 0%,#0f172a 50%,#1e0535 100%)",color:"#fff",width:"100%",maxWidth:"100vw",overflowX:"hidden"}}>
       <BackNav onNavigate={onNavigate} extra={
-        <a href="/business-login" onClick={e=>{e.preventDefault();onNavigate("/business-login");}} style={{fontSize:13,color:"rgba(255,255,255,.7)",fontWeight:700,textDecoration:"none"}}>Sign in</a>
+        <a href="/business-login" onClick={e=>{e.preventDefault();onNavigate("/business-login");}} style={{display:"inline-block",fontSize:13,fontWeight:800,letterSpacing:".04em",color:"#f97316",textDecoration:"none",padding:"9px 18px",borderRadius:30,border:"1.5px solid #f97316",background:"rgba(249,115,22,.08)"}}>Sign In to Your Account</a>
       }/>
 
       <section style={{maxWidth:880,margin:"0 auto",padding:"48px 24px 28px",textAlign:"center"}}>
@@ -7438,6 +7441,7 @@ export default function App() {
             {[["About","/about"],["FAQ","/faq"],["Contact","/contact"]].map(([label,to])=>(
               <a key={to} href={to} onClick={e=>{e.preventDefault();navigate(to);}} style={{fontSize:13,fontWeight:700,letterSpacing:".04em",color:"rgba(255,255,255,.8)",textDecoration:"none"}}>{label}</a>
             ))}
+            <a href="/business-login" onClick={e=>{e.preventDefault();navigate("/business-login");}} className="hz-hero-login" style={{fontSize:13,fontWeight:600,letterSpacing:".04em",color:"rgba(255,255,255,.85)",textDecoration:"none"}}>Login</a>
             <a href="/business" onClick={e=>{e.preventDefault();navigate("/business");}} style={{fontSize:13,fontWeight:800,letterSpacing:".08em",color:"rgba(255,255,255,.85)",textDecoration:"none",padding:"8px 14px",borderRadius:30,border:"1px solid rgba(249,115,22,.45)",background:"rgba(249,115,22,.1)"}}>For Business</a>
           </div>
           <div className="rings" style={{position:"absolute",left:"50%",top:"50%",pointerEvents:"none",zIndex:0,overflow:"hidden"}}>
