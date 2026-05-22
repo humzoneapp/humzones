@@ -3325,6 +3325,14 @@ const Footer = ({ onNavigate }) => {
 
   return (
     <footer style={{background:"#0a0f1e",color:"#fff"}}>
+      {/* DATA DISCLAIMER: a thin top border sets it off from the page content
+          above. Lives in the Footer so it shows on every page that uses it. */}
+      <div style={{borderTop:"1px solid rgba(255,255,255,.08)",padding:"22px 24px"}}>
+        <p style={{maxWidth:900,margin:"0 auto",fontSize:12,color:"#64748b",lineHeight:1.7,textAlign:"center"}}>
+          Data Disclaimer: All figures shown including noise levels, EMF readings, power consumption, CO2 estimates and water usage are research-based estimates compiled from public sources, permit filings and industry standards. They are not certified measurements. Actual readings may vary by facility design, operating conditions and season. HumZones is an informational resource only and does not constitute medical, legal or environmental advice.
+        </p>
+      </div>
+
       {/* TOP: 4 columns */}
       <div style={{maxWidth:1180,margin:"0 auto",padding:"48px 24px 38px"}}>
         <div className="hz-footer-grid">
@@ -6811,10 +6819,10 @@ export default function App() {
   };
 
   const STATS=[
-    {val:`~${(statVals[0]/1e9).toFixed(2).replace(/\.?0+$/,"")} Billion`,    label:"Estimated gallons of water drawn by data centers daily"},
-    {val:`~${(statVals[1]/1e6).toFixed(1)} Million`,                         label:"Americans estimated to live within 1 mile of a major data center"},
-    {val:`~${(statVals[2]/1e12).toFixed(2).replace(/\.?0+$/,"")} Trillion`,  label:"Estimated watts of power drawn by data centers globally"},
-    {val:loading?"---":statVals[3],                                          label:"Facilities tracked in our database"},
+    {val:`~${(statVals[0]/1e9).toFixed(2).replace(/\.?0+$/,"")} Billion`,    label:"Gallons of water consumed by data centers daily"},
+    {val:`~${(statVals[1]/1e6).toFixed(1)} Million`,                         label:"Americans living within 1 mile of a major data center"},
+    {val:`~${(statVals[2]/1e12).toFixed(2).replace(/\.?0+$/,"")} Trillion`,  label:"Watts of power consumed by data centers globally"},
+    {val:loading?"---":statVals[3],                                          label:"Facilities in our database"},
   ];
 
   return (
