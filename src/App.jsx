@@ -1674,7 +1674,11 @@ const GetReportPage = ({ onNavigate }) => {
   return (
     <div style={{minHeight:"100vh",background:"#f1f5f9",width:"100%",maxWidth:"100vw",overflowX:"hidden"}}>
 
-      <BackNav onNavigate={onNavigate}/>
+      {/* Full-width dark navy band behind the nav so no light page
+          background shows through beside the 1040px-wide BackNav. */}
+      <div style={{background:"#1e293b"}}>
+        <BackNav onNavigate={onNavigate}/>
+      </div>
 
       {/* HERO */}
       <section style={{background:"linear-gradient(150deg,#020c1b 0%,#0f172a 45%,#1e0535 100%)",padding:"0 0 56px",position:"relative",overflow:"hidden",borderBottom:"1px solid rgba(249,115,22,.18)"}}>
