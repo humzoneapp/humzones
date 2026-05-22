@@ -897,6 +897,11 @@ const ReportLandingPage = ({ onBack, onNavigate }) => {
   const facilitiesFound  = parseInt(get("facilitiesFound"), 10)  || 0;
   const facilities100km  = parseInt(get("facilities100km"), 10)  || 0;
   const highRiskCount    = parseInt(get("highRiskCount"), 10)    || 0;
+  // Set by the /get-report flow once the visitor passes its email gate. When
+  // present we already hold their email, so the hero greets them by address
+  // and confirms it rather than asking again.
+  const userEmail        = get("userEmail");
+  const arrivedFromGetReport = !!userEmail;
 
   // Free sample report download. Uses fixed placeholder data so it is
   // identical for every visitor and never reveals real facility figures.
@@ -1083,6 +1088,20 @@ const ReportLandingPage = ({ onBack, onNavigate }) => {
           <p style={{fontSize:17,color:"rgba(255,255,255,.78)",lineHeight:1.6,marginBottom:24,maxWidth:640,marginLeft:"auto",marginRight:"auto"}}>
             You only searched {selectedRadius || "a smaller radius"}{selectedRadius?"km":""} and found {facilitiesFound} {facilitiesFound===1?"facility":"facilities"}. Here is what else is near you that you do not know about yet.
           </p>
+          {arrivedFromGetReport && (
+            <div style={{margin:"0 auto 24px",maxWidth:600,background:"rgba(15,23,42,.55)",border:"1px solid rgba(249,115,22,.4)",borderRadius:14,padding:"16px 20px"}}>
+              <div style={{fontSize:12,color:"rgba(255,255,255,.55)",letterSpacing:".10em",textTransform:"uppercase",fontWeight:800,marginBottom:6}}>
+                Full Report for
+              </div>
+              <div style={{fontSize:16,fontWeight:800,color:"#fff",wordBreak:"break-word",lineHeight:1.5}}>
+                {searchAddress}
+              </div>
+              <div style={{fontSize:13,color:"#f97316",fontWeight:700,marginTop:10,display:"flex",alignItems:"center",justifyContent:"center",gap:7,flexWrap:"wrap"}}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#f97316" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>
+                Your report will be sent to {userEmail}
+              </div>
+            </div>
+          )}
           <button onClick={handleBuyReport} className="cta-pulse" style={primaryBtn()}>
             {isBusinessActive ? businessCtaLabel : "Get My Full Report"}
           </button>
@@ -1280,6 +1299,401 @@ const ReportLandingPage = ({ onBack, onNavigate }) => {
           HumZones reports are informational resources only. Data is compiled from public sources including utility filings, operator announcements and industry databases. Figures are modeled estimates and actual values may vary significantly by facility, season and operating conditions. Purchase of this report does not constitute medical, legal or scientific advice. All sales are final. Report delivery is instant via PDF download.
         </p>
       </footer>
+    </div>
+  );
+};
+
+// ─── GET REPORT (standalone report flow) ─────────────────────────────────────
+// Full standalone version of the home page "Find Data Centers Near Me"
+// experience. The visitor searches an address, an email gate sits over the
+// results, and once it is passed the paid Full Report upsell hands off to
+// /report-landing. Reachable at /get-report and linked from the site footer.
+const GetReportPage = ({ onNavigate }) => {
+  const [facs,setFacs]       = useState([]);
+  const [loading,setLoading] = useState(true);
+
+  // Address search state.
+  const [addr,setAddr]     = useState("");
+  const [radius,setRadius] = useState(50);          // km, default 50
+  const [loc,setLoc]       = useState(null);        // {lat,lng,label}
+  const [status,setStatus] = useState("idle");      // idle | geocoding
+  const [error,setError]   = useState("");
+
+  // Email gate. Unlock state persists in localStorage under the shared
+  // humzones_email_unlocked key, so a visitor who already unlocked anywhere
+  // on the site skips the gate here too.
+  const [emailUnlocked,setEmailUnlocked] = useState(()=>{
+    if(typeof window==="undefined") return false;
+    try{ return localStorage.getItem("humzones_email_unlocked")==="1"; }catch{ return false; }
+  });
+  const [emailInput,setEmailInput]     = useState("");
+  const [emailSending,setEmailSending] = useState(false);
+  const [emailError,setEmailError]     = useState("");
+  const [humanConfirmed,setHumanConfirmed] = useState(false);
+  const [justUnlocked,setJustUnlocked] = useState(false);
+  const [hp,setHp]         = useState("");          // honeypot ("website" field)
+  // Email captured at the gate, carried into localStorage for /report-landing.
+  const [gateEmail,setGateEmail] = useState(()=>{
+    if(typeof window==="undefined") return "";
+    try{ return localStorage.getItem("userEmail")||""; }catch{ return ""; }
+  });
+
+  // Page-load timestamp for the 15-second minimum bot gate.
+  const formLoadTimeRef = useRef(Date.now());
+  const resultsRef      = useRef(null);
+
+  useEffect(()=>{
+    cachedFetch("Facilities",{"fields[]":FACILITY_LIST_FIELDS})
+      .then(d=>setFacs(d))
+      .catch(e=>console.error("[HumZones] Facilities fetch failed:",e))
+      .finally(()=>setLoading(false));
+  },[]);
+
+  // Geocode the typed address via OpenStreetMap Nominatim.
+  const handleSearch = async () => {
+    const q = addr.trim();
+    if(!q || status==="geocoding") return;
+    setStatus("geocoding"); setError("");
+    try{
+      const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(q)}&format=json&limit=1`;
+      const r = await fetch(url,{ headers:{ "Accept":"application/json", "User-Agent":"HumZones/1.0 (humzones.com)" } });
+      if(!r.ok){
+        setError(r.status===429
+          ? "Address service is busy right now. Please try again in a moment."
+          : "Address lookup failed. Please try again.");
+        setStatus("idle"); return;
+      }
+      const j = await r.json();
+      if(!Array.isArray(j) || j.length===0){
+        setError("Address not found. Try a more specific search.");
+        setStatus("idle"); return;
+      }
+      const lat = parseFloat(j[0].lat), lng = parseFloat(j[0].lon);
+      if(!Number.isFinite(lat) || !Number.isFinite(lng)){
+        setError("Address found but coordinates were invalid. Try a more specific search.");
+        setStatus("idle"); return;
+      }
+      setLoc({ lat, lng, label: j[0].display_name || q });
+      setStatus("idle");
+      setTimeout(()=>{ try{ resultsRef.current?.scrollIntoView({behavior:"smooth",block:"start"}); }catch{} },120);
+    }catch(err){
+      console.error("Address geocoding failed:",err);
+      setError("Address lookup failed. Check your connection and try again.");
+      setStatus("idle");
+    }
+  };
+
+  // Facilities within the chosen radius, nearest first.
+  const results = loc ? facs
+    .map(f=>{
+      const lat=parseFloat(f.Latitude), lng=parseFloat(f.Longitude);
+      if(!Number.isFinite(lat)||!Number.isFinite(lng)) return null;
+      return { ...f, _km: distanceKm(loc.lat,loc.lng,lat,lng) };
+    })
+    .filter(f=>f && f._km<=radius)
+    .sort((a,b)=>a._km-b._km)
+    : [];
+
+  // Wider 100km roll-ups for the upsell banner and the Airtable capture.
+  let _f100=0, _fHigh100=0;
+  if(loc){
+    for(const f of facs){
+      const lat=parseFloat(f.Latitude), lng=parseFloat(f.Longitude);
+      if(!Number.isFinite(lat)||!Number.isFinite(lng)) continue;
+      if(distanceKm(loc.lat,loc.lng,lat,lng)<=100){ _f100++; if(f.Risk_Level==="HIGH") _fHigh100++; }
+    }
+  }
+  const facilities100kmCount = _f100;
+  const high100kmCount       = _fHigh100;
+
+  const handleEmailUnlock = () => {
+    const email = emailInput.trim();
+    if(!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){
+      setEmailError("Please enter a valid email address.");
+      return;
+    }
+    setEmailError(""); setEmailSending(true);
+    // Honeypot and 15-second minimum: bots trip one or the other. When they
+    // do we still unlock the UI so the bot gets no signal, but skip the
+    // Airtable write so no junk row is created.
+    const isBot = !!hp || (Date.now()-(formLoadTimeRef.current||0) < 15000);
+    try{ localStorage.setItem("humzones_email_unlocked","1"); }catch{}
+    setEmailUnlocked(true);
+    setJustUnlocked(true);
+    setGateEmail(email);
+    if(isBot){ setEmailSending(false); return; }
+    postEmail({
+      Email: email,
+      Date: new Date().toISOString().slice(0,10),
+      Source: "GetReport",
+      Address: loc ? loc.label : "",
+      Latitude: loc ? loc.lat : null,
+      Longitude: loc ? loc.lng : null,
+      Radius_KM: radius,
+      Facilities_Count: results.length,
+      Facilities_100km: facilities100kmCount,
+      High_Risk_Count: high100kmCount,
+    }).finally(()=>setEmailSending(false));
+  };
+
+  // Persist the search context plus the captured email, then hand off to the
+  // paid Full Report sales page.
+  const handleShowEverything = () => {
+    try{
+      localStorage.setItem("searchAddress",   loc ? loc.label : "");
+      localStorage.setItem("searchLat",       loc ? String(loc.lat) : "");
+      localStorage.setItem("searchLng",       loc ? String(loc.lng) : "");
+      localStorage.setItem("selectedRadius",  String(radius));
+      localStorage.setItem("facilitiesFound", String(results.length));
+      localStorage.setItem("facilities100km", String(facilities100kmCount));
+      localStorage.setItem("highRiskCount",   String(high100kmCount));
+      localStorage.setItem("userEmail",       gateEmail||"");
+    }catch{}
+    onNavigate("/report-landing");
+  };
+
+  const renderCard = (f) => {
+    const st   = STATUS[f.Facility_Status] || STATUS.OPERATING;
+    const rclr = exposureColor(f.Risk_Level);
+    const dclr = distColor(f._km);
+    return (
+      <div key={f.id} className="sym-card near-card" style={{background:"#fff",borderRadius:18,boxShadow:"0 4px 18px rgba(0,0,0,.06)",padding:"18px 22px",display:"flex",alignItems:"center",gap:16,flexWrap:"wrap",width:"100%",maxWidth:"100%",boxSizing:"border-box"}}>
+        <div style={{flex:1,minWidth:0}}>
+          <div style={{fontSize:17,fontWeight:800,color:"#0f172a",marginBottom:4,lineHeight:1.3}}>{f.Name}</div>
+          <div style={{fontSize:13,color:"#64748b",fontWeight:600}}>{f.Company} &middot; {[f.City,f.State_Region,f.Country].filter(Boolean).join(", ")}</div>
+          <div style={{fontSize:13,color:"#64748b",fontWeight:600,marginTop:2}}>{f.Power_MW>=1000?`${(f.Power_MW/1000).toFixed(1)} GW`:`${f.Power_MW||"?"}MW`}</div>
+        </div>
+        <div className="near-right" style={{display:"flex",flexDirection:"column",gap:8,alignItems:"flex-end",flexShrink:0,marginLeft:"auto"}}>
+          <div style={{padding:"6px 12px",borderRadius:999,background:dclr,color:"#fff",fontWeight:800,fontSize:13,letterSpacing:".02em",boxShadow:`0 4px 14px ${dclr}55`}}>
+            {f._km.toFixed(1)} km away
+          </div>
+          <div style={{display:"flex",gap:6}}>
+            <Chip label={st.label} color={st.color} small/>
+            <Chip label={exposureLabel(f.Risk_Level)} color={rclr} small/>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  // One facility shows free; everything past the first is blurred behind the
+  // email gate. A list of one needs no gate at all.
+  const showAll        = emailUnlocked || results.length<=1;
+  const previewCards   = showAll ? results : results.slice(0,1);
+  const lockedCards    = showAll ? [] : results.slice(1);
+  const blurredPreview = lockedCards.slice(0, Math.min(5,lockedCards.length));
+
+  return (
+    <div style={{minHeight:"100vh",background:"#f1f5f9",width:"100%",maxWidth:"100vw",overflowX:"hidden"}}>
+
+      {/* HERO */}
+      <section style={{background:"linear-gradient(150deg,#020c1b 0%,#0f172a 45%,#1e0535 100%)",padding:"0 0 56px",position:"relative",overflow:"hidden",borderBottom:"1px solid rgba(249,115,22,.18)"}}>
+        {/* Top-left: small logo (links home) + back button */}
+        <div style={{maxWidth:900,margin:"0 auto",padding:"18px 20px 0",display:"flex",alignItems:"center",gap:14,flexWrap:"wrap"}}>
+          <a href="/" onClick={e=>{e.preventDefault();onNavigate("/");}} aria-label="HumZones home" style={{textDecoration:"none",display:"inline-flex",alignItems:"baseline"}}>
+            <span style={{fontSize:19,fontWeight:900,letterSpacing:".06em",background:"linear-gradient(90deg,#ef4444,#f97316)",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent"}}>HumZones</span>
+            <sup style={{fontSize:9,color:"#f97316",fontWeight:700,marginLeft:2}}>TM</sup>
+          </a>
+          <button onClick={()=>window.history.back()} className="back-btn" aria-label="Go back" style={{background:"rgba(255,255,255,.08)",border:"1px solid rgba(255,255,255,.20)",color:"#fff",padding:"8px 14px",borderRadius:10,fontSize:12,fontWeight:800,letterSpacing:".06em",cursor:"pointer",fontFamily:"inherit",display:"inline-flex",alignItems:"center",gap:7}}>
+            <span style={{fontSize:15,lineHeight:1}}>&larr;</span> Back
+          </button>
+        </div>
+
+        {/* Hero content */}
+        <div style={{maxWidth:680,margin:"0 auto",padding:"38px 20px 0",textAlign:"center",position:"relative",zIndex:1}}>
+          <h1 className="report-h1" style={{fontWeight:900,color:"#fff",marginBottom:14}}>
+            Get Your Personalized <span style={{background:"linear-gradient(135deg,#ef4444,#f97316)",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent"}}>HumZones</span> Report
+          </h1>
+          <p style={{fontSize:17,color:"rgba(255,255,255,.72)",lineHeight:1.6,marginBottom:30,maxWidth:560,marginLeft:"auto",marginRight:"auto"}}>
+            Enter your address below to discover what data centers are near you and get a full personalized infrastructure report.
+          </p>
+
+          {/* Address input */}
+          <input
+            className="email-gate-input"
+            value={addr}
+            onChange={e=>setAddr(e.target.value)}
+            onKeyDown={e=>{ if(e.key==="Enter") handleSearch(); }}
+            placeholder="Enter your full address"
+            style={{width:"100%",padding:"17px 18px",fontSize:16,fontWeight:500,fontFamily:"inherit",borderRadius:14,border:"1.5px solid rgba(255,255,255,.18)",background:"rgba(255,255,255,.10)",color:"#fff",boxSizing:"border-box",outline:"none",marginBottom:16}}
+          />
+
+          {/* Radius selector */}
+          <div style={{display:"flex",justifyContent:"center",alignItems:"center",gap:8,flexWrap:"wrap",marginBottom:22}}>
+            <span style={{fontSize:12,fontWeight:800,color:"rgba(255,255,255,.55)",letterSpacing:".08em",textTransform:"uppercase"}}>Radius:</span>
+            {[5,10,25,50,100].map(r=>(
+              <button key={r} onClick={()=>setRadius(r)} style={{padding:"7px 14px",borderRadius:999,border:"1px solid "+(radius===r?"#f97316":"rgba(255,255,255,.22)"),background:radius===r?"#f97316":"rgba(255,255,255,.06)",color:radius===r?"#fff":"rgba(255,255,255,.78)",fontWeight:800,fontSize:13,cursor:"pointer",fontFamily:"inherit"}}>{r}km</button>
+            ))}
+          </div>
+
+          {/* Search button */}
+          <button
+            onClick={handleSearch}
+            disabled={!addr.trim()||status==="geocoding"}
+            style={{width:"100%",maxWidth:340,padding:"17px 30px",borderRadius:14,border:"none",background:"linear-gradient(135deg,#ef4444,#f97316)",color:"#fff",fontSize:17,fontWeight:900,letterSpacing:".02em",cursor:(!addr.trim()||status==="geocoding")?"default":"pointer",fontFamily:"inherit",boxShadow:"0 10px 32px rgba(239,68,68,.45)",opacity:(!addr.trim()||status==="geocoding")?.6:1}}
+          >
+            {status==="geocoding" ? "Searching..." : "Search"}
+          </button>
+
+          {error && <div style={{fontSize:14,color:"#fca5a5",fontWeight:600,marginTop:14}}>{error}</div>}
+
+          <p style={{fontSize:12,color:"rgba(255,255,255,.45)",marginTop:16,lineHeight:1.6,maxWidth:480,marginLeft:"auto",marginRight:"auto"}}>
+            We use OpenStreetMap to geocode your address. Your location is never stored without your consent.
+          </p>
+        </div>
+      </section>
+
+      {/* RESULTS */}
+      <div ref={resultsRef} className="near-me-results" style={{maxWidth:760,margin:"0 auto",padding:"38px 20px 64px",width:"100%",boxSizing:"border-box",scrollMarginTop:16}}>
+
+        {loc && loading && (
+          <div style={{background:"#fff",borderRadius:18,padding:"44px 24px",textAlign:"center",boxShadow:"0 4px 18px rgba(0,0,0,.06)",color:"#64748b",fontWeight:600,fontSize:15}}>
+            <div className="spinning" style={{width:32,height:32,border:"3px solid #e2e8f0",borderTop:"3px solid #ef4444",borderRadius:"50%",margin:"0 auto 14px"}}/>
+            Loading facility data...
+          </div>
+        )}
+
+        {loc && !loading && (
+          <>
+            {/* Facilities-found count */}
+            <div className="fade-in" style={{textAlign:"center",fontSize:28,fontWeight:900,letterSpacing:"-.02em",lineHeight:1.25,margin:"0 0 22px",overflowWrap:"break-word",padding:"0 4px"}}>
+              {results.length>0 ? (
+                <span style={{background:"linear-gradient(135deg,#ef4444,#f97316)",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent",backgroundClip:"text"}}>
+                  {results.length} {results.length===1?"facility":"facilities"} found within {radius}km of your address
+                </span>
+              ) : (
+                <span style={{color:"#94a3b8"}}>0 facilities found within {radius}km of your address</span>
+              )}
+            </div>
+
+            {/* Upsell banner: shown only once the email gate has been passed. */}
+            {emailUnlocked && results.length>0 && (
+              <div className="fade-in" style={{background:"linear-gradient(150deg,#0a1628 0%,#0f172a 50%,#1e0535 100%)",borderRadius:18,padding:"36px 28px 30px",textAlign:"center",border:"1px solid rgba(249,115,22,.32)",boxShadow:"0 18px 50px rgba(0,0,0,.35),inset 0 1px 0 rgba(255,255,255,.05)",marginBottom:24}}>
+                <h3 className="upsell-heading">There&apos;s More You Should Know</h3>
+                <div style={{fontSize:16,color:"#f97316",fontWeight:700,marginBottom:14,letterSpacing:".01em"}}>
+                  Unlock Your Full HumZones Area Report
+                </div>
+                <p style={{fontSize:15,color:"rgba(255,255,255,.78)",marginBottom:20,lineHeight:1.7,maxWidth:560,marginLeft:"auto",marginRight:"auto"}}>
+                  {radius===100 ? (
+                    <>You found {results.length} {results.length===1?"facility":"facilities"} within 100km. Your Full Report includes detailed infrastructure analysis, modeled EMF ranges, noise levels and exposure assessments for every facility near you.</>
+                  ) : (
+                    <>You found {results.length} {results.length===1?"facility":"facilities"} within {radius}km. Your Full Report reveals all {facilities100kmCount} facilities within 100km including {high100kmCount} HIGH exposure {high100kmCount===1?"site":"sites"} you may not know about.</>
+                  )}
+                </p>
+                <div style={{display:"inline-flex",alignItems:"center",gap:6,background:"#f97316",color:"#fff",fontSize:12,fontWeight:800,padding:"6px 14px",borderRadius:999,boxShadow:"0 4px 14px rgba(249,115,22,.45)",letterSpacing:".02em",marginBottom:18}}>
+                  <span role="img" aria-label="Lightning">⚡</span> Instant Download
+                </div>
+                <div>
+                  <button onClick={handleShowEverything} style={{padding:"16px 32px",borderRadius:14,border:"none",background:"linear-gradient(135deg,#ef4444,#f97316)",color:"#fff",fontSize:17,fontWeight:900,letterSpacing:".02em",cursor:"pointer",fontFamily:"inherit",boxShadow:"0 10px 32px rgba(239,68,68,.45)"}}>
+                    Show Me Everything
+                  </button>
+                </div>
+                <p style={{fontSize:13,color:"rgba(255,255,255,.6)",marginTop:14,lineHeight:1.6,fontWeight:600}}>
+                  Instant PDF download. Personalized to your address.
+                </p>
+              </div>
+            )}
+
+            {results.length>0 ? (
+              <div className={justUnlocked?"fade-in":undefined} style={{display:"flex",flexDirection:"column",gap:14,width:"100%",maxWidth:"100%",boxSizing:"border-box"}}>
+                {previewCards.map(f=>renderCard(f))}
+
+                {lockedCards.length>0 && (
+                  <div style={{position:"relative",width:"100%",maxWidth:"100%",boxSizing:"border-box",overflow:"hidden",borderRadius:18}}>
+                    {/* Blurred decoy cards behind the gate */}
+                    <div aria-hidden="true" style={{filter:"blur(6px)",pointerEvents:"none",userSelect:"none",display:"flex",flexDirection:"column",gap:14,width:"100%",maxWidth:"100%",boxSizing:"border-box"}}>
+                      {blurredPreview.map(f=>renderCard(f))}
+                    </div>
+                    {/* Email gate overlay */}
+                    <div style={{position:"absolute",inset:0,display:"flex",alignItems:"flex-start",justifyContent:"center",padding:"22px 14px",borderRadius:18,background:"linear-gradient(180deg,rgba(15,23,42,.25) 0%,rgba(15,23,42,.78) 30%,rgba(2,12,27,.92) 100%)",boxSizing:"border-box",maxWidth:"100%"}}>
+                      <div className="fade-in" style={{maxWidth:520,width:"100%",background:"linear-gradient(150deg,#0a1628 0%,#0f172a 50%,#1e0535 100%)",borderRadius:18,padding:"34px 28px 28px",textAlign:"center",border:"1px solid rgba(249,115,22,.32)",boxShadow:"0 24px 60px rgba(0,0,0,.55),inset 0 1px 0 rgba(255,255,255,.05)"}}>
+                        {/* Lock icon */}
+                        <div style={{width:60,height:60,borderRadius:"50%",background:"linear-gradient(135deg,#ef4444,#f97316)",margin:"0 auto 18px",display:"flex",alignItems:"center",justifyContent:"center",boxShadow:"0 8px 26px rgba(239,68,68,.45)"}}>
+                          <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                            <rect x="4" y="11" width="16" height="10" rx="2"/>
+                            <path d="M8 11V7a4 4 0 0 1 8 0v4"/>
+                          </svg>
+                        </div>
+                        <h3 style={{fontSize:22,fontWeight:900,color:"#fff",marginBottom:10,letterSpacing:"-.01em",lineHeight:1.25}}>
+                          See All {results.length} Facilities Near You
+                        </h3>
+                        <p style={{fontSize:15,color:"rgba(255,255,255,.72)",marginBottom:22,lineHeight:1.6}}>
+                          Enter your email for free access to the complete list.
+                        </p>
+                        <div style={{display:"flex",flexDirection:"column",gap:10,maxWidth:380,margin:"0 auto"}}>
+                          {/* Honeypot: hidden from humans, tempting to bots. */}
+                          <input
+                            type="text"
+                            name="website"
+                            className="hz-trap"
+                            value={hp}
+                            onChange={e=>setHp(e.target.value)}
+                            tabIndex={-1}
+                            autoComplete="off"
+                            aria-hidden="true"
+                          />
+                          <input
+                            type="email"
+                            className="email-gate-input"
+                            value={emailInput}
+                            onChange={e=>setEmailInput(e.target.value)}
+                            onKeyDown={e=>{ if(e.key==="Enter" && humanConfirmed) handleEmailUnlock(); }}
+                            placeholder="Your email address"
+                            disabled={emailSending}
+                            style={{padding:"13px 16px",fontSize:15,borderRadius:12,border:"1.5px solid rgba(255,255,255,.18)",background:"rgba(255,255,255,.08)",color:"#fff",fontFamily:"inherit",boxSizing:"border-box",width:"100%"}}
+                          />
+                          <label style={{display:"flex",alignItems:"center",gap:9,fontSize:13,color:"rgba(255,255,255,.78)",cursor:"pointer",textAlign:"left",lineHeight:1.4}}>
+                            <input
+                              type="checkbox"
+                              checked={humanConfirmed}
+                              onChange={e=>setHumanConfirmed(e.target.checked)}
+                              disabled={emailSending}
+                              style={{width:16,height:16,accentColor:"#f97316",cursor:"pointer",flexShrink:0}}
+                            />
+                            <span>I confirm I am a human and not a bot</span>
+                          </label>
+                          <button
+                            onClick={handleEmailUnlock}
+                            disabled={emailSending || !humanConfirmed}
+                            style={{padding:"13px 22px",borderRadius:12,border:"none",background:humanConfirmed?"linear-gradient(135deg,#ef4444,#f97316)":"rgba(255,255,255,.12)",color:humanConfirmed?"#fff":"rgba(255,255,255,.45)",fontSize:15,fontWeight:800,letterSpacing:".02em",cursor:emailSending?"wait":(humanConfirmed?"pointer":"not-allowed"),fontFamily:"inherit",boxShadow:humanConfirmed?"0 8px 26px rgba(239,68,68,.4)":"none",opacity:emailSending?.8:1}}
+                          >
+                            {emailSending ? "Unlocking..." : "Unlock Free Results"}
+                          </button>
+                        </div>
+                        {emailError && (
+                          <div style={{fontSize:13,color:"#fca5a5",fontWeight:600,marginTop:12}}>{emailError}</div>
+                        )}
+                        <p style={{fontSize:12,color:"rgba(255,255,255,.5)",marginTop:16,lineHeight:1.6}}>
+                          Free access. No spam. Unsubscribe anytime.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div style={{background:"#fff",borderRadius:18,padding:"44px 24px",textAlign:"center",boxShadow:"0 4px 18px rgba(0,0,0,.06)"}}>
+                <div style={{fontSize:42,marginBottom:12}} role="img" aria-label="Pin">📍</div>
+                <div style={{fontSize:17,color:"#475569",fontWeight:600,lineHeight:1.6,maxWidth:480,margin:"0 auto"}}>
+                  No data centers found within {radius}km of your address. Try a larger search radius.
+                </div>
+              </div>
+            )}
+          </>
+        )}
+
+        {!loc && (
+          <div style={{textAlign:"center",padding:"40px 24px 8px"}}>
+            <div style={{fontSize:64,marginBottom:18}} role="img" aria-label="Globe">🌍</div>
+            <h2 style={{fontSize:24,fontWeight:800,color:"#0f172a",marginBottom:10}}>Search your address to begin</h2>
+            <p style={{fontSize:16,color:"#64748b",maxWidth:460,margin:"0 auto",lineHeight:1.7}}>
+              Enter your full address above and we will map every data center near you, then build your personalized infrastructure report.
+            </p>
+          </div>
+        )}
+      </div>
+
+      <Footer onNavigate={onNavigate}/>
     </div>
   );
 };
@@ -2753,7 +3167,7 @@ const Footer = ({ onNavigate }) => {
           <div>
             <div style={colHead}>Reports & Plans</div>
             <div style={colWrap}>
-              {navLink("Get My Report","/report-landing")}
+              {navLink("Get My Report","/get-report")}
               {navLink("Retrieve My Report","/my-report")}
               {navLink("For Business","/business")}
               {navLink("Business Login","/business-login")}
@@ -6052,6 +6466,8 @@ export default function App() {
       <style>{CSS}</style>
       {path === "/methodology" ? (
         <MethodologyPage onBack={()=>navigate("/")} onNavigate={navigate}/>
+      ) : path === "/get-report" ? (
+        <GetReportPage onNavigate={navigate}/>
       ) : path === "/report-landing" ? (
         <ReportLandingPage onBack={()=>navigate("/")} onNavigate={navigate}/>
       ) : path === "/report-success" ? (
