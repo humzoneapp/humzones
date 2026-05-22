@@ -271,6 +271,11 @@ const Icon = ({ name, size = 24, color = "currentColor" }) => {
     navigate:  <svg style={s} viewBox="0 0 24 24"><polygon points="3 11 22 2 13 21 11 13 3 11" {...p}/></svg>,
     map:       <svg style={s} viewBox="0 0 24 24"><polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6" {...p}/><line x1="8" y1="2" x2="8" y2="18" {...p}/><line x1="16" y1="6" x2="16" y2="22" {...p}/></svg>,
     satellite: <svg style={s} viewBox="0 0 24 24"><circle cx="12" cy="12" r="3" {...p}/><path d="M12 1v4M12 19v4M1 12h4M19 12h4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83" {...p}/></svg>,
+    home:      <svg style={s} viewBox="0 0 24 24"><path d="M3 10.5L12 3l9 7.5" {...p}/><path d="M5 9.5V21h14V9.5" {...p}/><path d="M9.5 21v-6h5v6" {...p}/></svg>,
+    building:  <svg style={s} viewBox="0 0 24 24"><rect x="4" y="3" width="16" height="18" rx="1.5" {...p}/><rect x="8" y="7" width="2.6" height="2.6" {...p}/><rect x="13.4" y="7" width="2.6" height="2.6" {...p}/><rect x="8" y="12" width="2.6" height="2.6" {...p}/><rect x="13.4" y="12" width="2.6" height="2.6" {...p}/><path d="M10 21v-4h4v4" {...p}/></svg>,
+    scales:    <svg style={s} viewBox="0 0 24 24"><path d="M12 3v18M7 21h10M5 7h14" {...p}/><circle cx="12" cy="4.5" r="1.5" {...p}/><path d="M5 7l-3 6.5c1.9 1.5 4.1 1.5 6 0L5 7z" {...p}/><path d="M19 7l-3 6.5c1.9 1.5 4.1 1.5 6 0L19 7z" {...p}/></svg>,
+    search:    <svg style={s} viewBox="0 0 24 24"><circle cx="11" cy="11" r="7" {...p}/><path d="M21 21l-5.4-5.4" {...p}/></svg>,
+    database:  <svg style={s} viewBox="0 0 24 24"><ellipse cx="12" cy="5" rx="8" ry="3" {...p}/><path d="M4 5v7c0 1.66 3.58 3 8 3s8-1.34 8-3V5" {...p}/><path d="M4 12v7c0 1.66 3.58 3 8 3s8-1.34 8-3v-7" {...p}/></svg>,
   };
   return icons[name] || icons.alert;
 };
@@ -895,6 +900,9 @@ const MapSection = ({ facilities, loading, onSelectFacility }) => {
 
   const all   = facilities || [];
   const ready = !loading && !!RL;
+  // When no select handler is supplied (for example on /get-report) the popup
+  // simply omits its "View Details" link rather than linking nowhere.
+  const hasSelect = !!onSelectFacility;
 
   // Build one CircleMarker per facility that has real coordinates. Memoized on
   // the facility list and the loaded library so typing elsewhere on the page
@@ -927,23 +935,25 @@ const MapSection = ({ facilities, loading, onSelectFacility }) => {
                 <div style={{fontSize:14,fontWeight:800,color:"#0f172a",lineHeight:1.3,marginBottom:4}}>{f.Name || "Unnamed facility"}</div>
                 {f.Company && <div style={{fontSize:12,color:"#64748b",marginBottom:2}}>{f.Company}</div>}
                 <div style={{fontSize:12,color:"#94a3b8",marginBottom:9}}>{[f.City,f.State_Region].filter(Boolean).join(", ") || "Location not on file"}</div>
-                <span style={{display:"inline-block",fontSize:10,fontWeight:800,letterSpacing:".06em",padding:"3px 9px",borderRadius:999,color:"#fff",background:color,marginBottom:10}}>
+                <span style={{display:"inline-block",fontSize:10,fontWeight:800,letterSpacing:".06em",padding:"3px 9px",borderRadius:999,color:"#fff",background:color,marginBottom:hasSelect?10:0}}>
                   {exposureLabel(f.Risk_Level)}
                 </span>
-                <div>
-                  <button
-                    onClick={()=>{ if(onSelectRef.current) onSelectRef.current(f.id); }}
-                    style={{background:"none",border:"none",padding:0,color:"#f97316",fontWeight:800,fontSize:13,cursor:"pointer",fontFamily:"inherit",textDecoration:"underline"}}
-                  >
-                    View Details
-                  </button>
-                </div>
+                {hasSelect && (
+                  <div>
+                    <button
+                      onClick={()=>{ if(onSelectRef.current) onSelectRef.current(f.id); }}
+                      style={{background:"none",border:"none",padding:0,color:"#f97316",fontWeight:800,fontSize:13,cursor:"pointer",fontFamily:"inherit",textDecoration:"underline"}}
+                    >
+                      View Details
+                    </button>
+                  </div>
+                )}
               </div>
             </Popup>
           </CircleMarker>
         );
       });
-  }, [RL, all]);
+  }, [RL, all, hasSelect]);
 
   const legendRows = [
     ["#ef4444", "HIGH EXPOSURE"],
@@ -1878,14 +1888,13 @@ const GetReportPage = ({ onNavigate }) => {
           </>
         )}
 
+        {/* Before a search runs, show the same social share and interactive
+            map cards as the main page. They are hidden once results appear. */}
         {!loc && (
-          <div style={{textAlign:"center",padding:"40px 24px 8px"}}>
-            <div style={{fontSize:64,marginBottom:18}} role="img" aria-label="Globe">🌍</div>
-            <h2 style={{fontSize:24,fontWeight:800,color:"#0f172a",marginBottom:10}}>Search your address to begin</h2>
-            <p style={{fontSize:16,color:"#64748b",maxWidth:460,margin:"0 auto",lineHeight:1.7}}>
-              Enter your full address above and we will map every data center near you, then build your personalized infrastructure report.
-            </p>
-          </div>
+          <>
+            <ShareSection/>
+            <MapSection facilities={facs} loading={loading}/>
+          </>
         )}
       </div>
 
@@ -3291,6 +3300,7 @@ const REPORT_INCLUDES = [
   "Infrastructure and community impact considerations",
   "Legal disclaimer and methodology reference",
   "Instant PDF download professionally formatted",
+  "Dedicated dashboard where all your reports are stored, saved and available for re-download at any time",
 ];
 
 // ─── SITE FOOTER ──────────────────────────────────────────────────────────────
@@ -3626,13 +3636,13 @@ const BusinessPlansPage = ({ onNavigate, facilityCount }) => {
           </h2>
           <div className="biz-use-grid" style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:20}}>
             {[
-              {icon:"🏠",title:"Real Estate",                    desc:"Neighborhood infrastructure awareness for buyers and relocation clients."},
-              {icon:"🚧",title:"Property & Development",          desc:"Monitor nearby infrastructure expansion and utility-intensive development."},
-              {icon:"⚖️",title:"Environmental & Legal Research",  desc:"Access location-based infrastructure intelligence for zoning, review, and consultation workflows."},
-              {icon:"🔍",title:"Research & Media",               desc:"Track AI infrastructure growth and regional development patterns."},
+              {icon:"home",    title:"Real Estate",                   desc:"Neighborhood infrastructure awareness for buyers and relocation clients."},
+              {icon:"building",title:"Property & Development",         desc:"Monitor nearby infrastructure expansion and utility-intensive development."},
+              {icon:"scales",  title:"Environmental & Legal Research", desc:"Access location-based infrastructure intelligence for zoning, review, and consultation workflows."},
+              {icon:"search",  title:"Research & Media",               desc:"Track AI infrastructure growth and regional development patterns."},
             ].map(c=>(
               <div key={c.title} style={{background:"rgba(255,255,255,.04)",border:"1px solid rgba(249,115,22,.25)",borderRadius:16,padding:"28px 26px"}}>
-                <div style={{fontSize:38,marginBottom:14,lineHeight:1}}>{c.icon}</div>
+                <div style={{marginBottom:14,lineHeight:1}}><Icon name={c.icon} size={34} color="#f97316"/></div>
                 <div style={{fontSize:19,fontWeight:800,color:"#fff",marginBottom:10}}>{c.title}</div>
                 <p style={{fontSize:15,color:"rgba(255,255,255,.7)",lineHeight:1.6,margin:0}}>{c.desc}</p>
               </div>
@@ -4406,7 +4416,10 @@ const BusinessLoginPage = ({ onNavigate }) => {
 
   return (
     <div style={{minHeight:"100vh",background:"linear-gradient(150deg,#020c1b 0%,#0f172a 50%,#1e0535 100%)",color:"#fff"}}>
-      <div style={{padding:"22px 24px",textAlign:"center"}}>
+      <div style={{padding:"22px 24px",display:"flex",alignItems:"center",justifyContent:"space-between",gap:14}}>
+        <button onClick={()=>window.history.back()} className="back-btn" aria-label="Go back" style={{display:"inline-flex",alignItems:"center",gap:8,background:"rgba(255,255,255,.08)",border:"1px solid rgba(255,255,255,.20)",color:"#fff",padding:"12px 20px",borderRadius:10,fontSize:14,fontWeight:800,letterSpacing:".05em",cursor:"pointer",fontFamily:"inherit"}}>
+          <span style={{fontSize:17,lineHeight:1}}>&larr;</span> Back
+        </button>
         <a href="/" onClick={e=>{e.preventDefault();onNavigate("/");}} style={{textDecoration:"none"}}>
           <span style={{fontSize:22,fontWeight:900,letterSpacing:".08em",background:"linear-gradient(90deg,#ef4444,#f97316)",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent"}}>HumZones</span>
           <sup style={{fontSize:12,color:"#f97316",fontWeight:700,verticalAlign:"super",marginLeft:2}}>TM</sup>
@@ -4458,6 +4471,8 @@ const BusinessLoginPage = ({ onNavigate }) => {
           </div>
         )}
       </main>
+
+      <Footer onNavigate={onNavigate}/>
     </div>
   );
 };
@@ -5371,7 +5386,10 @@ const MyReportPage = ({ onNavigate }) => {
 
   return (
     <div style={{minHeight:"100vh",background:"linear-gradient(150deg,#020c1b 0%,#0f172a 50%,#1e0535 100%)",color:"#fff"}}>
-      <div style={{padding:"22px 24px"}}>
+      <div style={{padding:"22px 24px",display:"flex",alignItems:"center",justifyContent:"space-between",gap:14}}>
+        <button onClick={()=>window.history.back()} className="back-btn" aria-label="Go back" style={{display:"inline-flex",alignItems:"center",gap:8,background:"rgba(255,255,255,.08)",border:"1px solid rgba(255,255,255,.20)",color:"#fff",padding:"12px 20px",borderRadius:10,fontSize:14,fontWeight:800,letterSpacing:".05em",cursor:"pointer",fontFamily:"inherit"}}>
+          <span style={{fontSize:17,lineHeight:1}}>&larr;</span> Back
+        </button>
         <a href="/" onClick={e=>{e.preventDefault();onNavigate("/");}} style={{textDecoration:"none"}}>
           <span style={{fontSize:22,fontWeight:900,letterSpacing:".08em",background:"linear-gradient(90deg,#ef4444,#f97316)",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent"}}>HumZones</span>
           <sup style={{fontSize:12,color:"#f97316",fontWeight:700,verticalAlign:"super",marginLeft:2}}>TM</sup>
@@ -5467,6 +5485,8 @@ const MyReportPage = ({ onNavigate }) => {
           {toast}
         </div>
       )}
+
+      <Footer onNavigate={onNavigate}/>
     </div>
   );
 };
@@ -6111,9 +6131,9 @@ const AboutPage = ({ onNavigate, facilityCount }) => {
   const para = (color) => ({ fontSize:16, lineHeight:1.8, color, whiteSpace:"pre-line", margin:0 });
   const btn = { padding:"14px 28px", borderRadius:12, border:"none", cursor:"pointer", fontFamily:"inherit", fontSize:15, fontWeight:900, background:"linear-gradient(135deg,#ef4444,#f97316)", color:"#fff", boxShadow:"0 10px 28px rgba(249,115,22,.4)" };
   const cards = [
-    { icon:"🗄️", title:"We Track",   desc:"We maintain a growing database of data center facilities worldwide, compiled from public planning filings, utility records, operator disclosures and environmental assessments." },
-    { icon:"🔍",       title:"We Analyze", desc:"We apply documented modeling formulas to estimate the environmental footprint of each facility including power draw, water consumption, noise levels and EMF exposure ranges." },
-    { icon:"👥",       title:"We Publish", desc:"We make this information freely available to anyone who wants to understand the infrastructure near their home, workplace or investment property." },
+    { icon:"database",  title:"We Track",   desc:"We maintain a growing database of data center facilities worldwide, compiled from public planning filings, utility records, operator disclosures and environmental assessments." },
+    { icon:"search",    title:"We Analyze", desc:"We apply documented modeling formulas to estimate the environmental footprint of each facility including power draw, water consumption, noise levels and EMF exposure ranges." },
+    { icon:"community", title:"We Publish", desc:"We make this information freely available to anyone who wants to understand the infrastructure near their home, workplace or investment property." },
   ];
 
   return (
@@ -6136,7 +6156,7 @@ const AboutPage = ({ onNavigate, facilityCount }) => {
           <div className="nums-grid" style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:20}}>
             {cards.map(c=>(
               <div key={c.title} style={{background:"#fff",border:"1px solid #e2e8f0",borderRadius:16,padding:"28px 26px",boxShadow:"0 2px 12px rgba(0,0,0,.05)"}}>
-                <div style={{fontSize:40,marginBottom:14,lineHeight:1}}>{c.icon}</div>
+                <div style={{marginBottom:14,lineHeight:1}}><Icon name={c.icon} size={36} color="#f97316"/></div>
                 <div style={{fontSize:19,fontWeight:800,color:"#0f172a",marginBottom:10}}>{c.title}</div>
                 <p style={{fontSize:15,color:"#475569",lineHeight:1.7,margin:0}}>{c.desc}</p>
               </div>
@@ -6247,7 +6267,7 @@ const FaqPage = ({ onNavigate, facilityCount }) => {
                         <span aria-hidden="true" style={{fontSize:24,fontWeight:900,color:"#f97316",lineHeight:1,flexShrink:0,width:22,textAlign:"center"}}>{isOpen?"−":"+"}</span>
                       </button>
                       <div style={{maxHeight:isOpen?600:0,overflow:"hidden",transition:"max-height .3s ease"}}>
-                        <p style={{fontSize:15,color:"#64748b",lineHeight:1.8,margin:0,padding:"0 20px 20px"}}>{it.a}</p>
+                        <p style={{fontSize:15,color:"#64748b",lineHeight:1.8,margin:0,padding:"0 20px 20px"}}>{renderFaqAnswer(it.a, onNavigate)}</p>
                       </div>
                     </div>
                   );
@@ -6306,6 +6326,44 @@ const TermsPage = ({ onNavigate }) => (
     <Footer onNavigate={onNavigate}/>
   </div>
 );
+
+// ─── SCROLL TO TOP ───────────────────────────────────────────────────────────
+// Scrolls the window to the top whenever the active route changes, so footer
+// links and other cross-page navigation always land at the top of the
+// destination page rather than keeping the previous scroll position.
+const ScrollToTop = ({ path }) => {
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: "instant" });
+  }, [path]);
+  return null;
+};
+
+// ─── FAQ ANSWER LINKS ────────────────────────────────────────────────────────
+// FAQ answers mention other site pages and the support email as plain text.
+// renderFaqAnswer splits an answer on those known references and turns each
+// one into a clickable orange link.
+const FAQ_LINK_TOKENS = [
+  { token: "humzones.com/methodology",   to: "/methodology" },
+  { token: "humzones.com/submit-report", to: "/submit-report" },
+  { token: "humzones.com/my-report",     to: "/my-report" },
+  { token: "humzones.com/business",      to: "/business" },
+  { token: "humzones.com/unsubscribe",   to: "/unsubscribe" },
+  { token: "methodology page",           to: "/methodology" },
+  { token: "hello@humzones.com",         mailto: true },
+];
+const renderFaqAnswer = (text, onNavigate) => {
+  const escaped = FAQ_LINK_TOKENS.map(l => l.token.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"));
+  const re = new RegExp("(" + escaped.join("|") + ")", "g");
+  const linkStyle = { color:"#f97316", fontWeight:700, textDecoration:"none" };
+  return text.split(re).map((part, i) => {
+    const hit = FAQ_LINK_TOKENS.find(l => l.token === part);
+    if (!hit) return part;
+    if (hit.mailto) return <a key={i} href={`mailto:${part}`} style={linkStyle}>{part}</a>;
+    return (
+      <a key={i} href={hit.to} onClick={e=>{e.preventDefault();onNavigate(hit.to);}} style={linkStyle}>{part}</a>
+    );
+  });
+};
 
 // ─── MAIN APP ─────────────────────────────────────────────────────────────────
 export default function App() {
@@ -6828,6 +6886,7 @@ export default function App() {
   return (
     <>
       <style>{CSS}</style>
+      <ScrollToTop path={path}/>
       {path === "/methodology" ? (
         <MethodologyPage onBack={()=>navigate("/")} onNavigate={navigate}/>
       ) : path === "/get-report" ? (
