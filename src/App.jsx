@@ -442,6 +442,8 @@ const CSS = `
   .near-me-results *{max-width:100%;box-sizing:border-box}
   .near-me-results .near-card{width:100%!important}
   .back-btn{transition:border-color .15s,color .15s,box-shadow .15s}
+  .backnav-btn{transition:opacity .15s}
+  .backnav-btn:hover{opacity:.7}
   .back-btn:hover{border-color:#f97316!important;color:#f97316!important;box-shadow:0 4px 14px rgba(249,115,22,.25)!important}
   .report-h1{font-size:48px;line-height:1.1;letter-spacing:-.025em}
   .report-h2{font-size:32px;line-height:1.2;letter-spacing:-.02em}
@@ -700,16 +702,7 @@ const MethodologyPage = ({ onBack, onNavigate }) => {
 
   return (
     <div style={{minHeight:"100vh",background:"#f1f5f9",width:"100%",maxWidth:"100vw",overflowX:"hidden"}}>
-      {/* TOP BAR */}
-      <div style={{background:"linear-gradient(135deg,#020c1b 0%,#0f172a 50%,#1e0535 100%)",padding:"22px 24px",display:"flex",alignItems:"center",justifyContent:"space-between",gap:14,flexWrap:"wrap"}}>
-        <a href="/" onClick={e=>{e.preventDefault();onBack();}} className="ext-link" style={{display:"inline-flex",alignItems:"center",gap:8,color:"rgba(255,255,255,.85)",textDecoration:"none",fontSize:13,fontWeight:800,letterSpacing:".10em"}}>
-          <span style={{fontSize:18,lineHeight:1}}>&larr;</span> BACK TO HUMZONES
-        </a>
-        <div>
-          <span style={{fontSize:22,fontWeight:900,letterSpacing:".08em",background:"linear-gradient(90deg,#ef4444,#f97316)",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent"}}>HumZones</span>
-          <sup style={{fontSize:12,color:"#f97316",fontWeight:700,verticalAlign:"super",marginLeft:2}}>TM</sup>
-        </div>
-      </div>
+      <BackNav onNavigate={onNavigate}/>
 
       {/* CONTENT */}
       <main style={{maxWidth:880,margin:"0 auto",padding:"48px 24px 72px"}}>
@@ -1269,18 +1262,7 @@ const ReportLandingPage = ({ onBack, onNavigate }) => {
   return (
     <div style={{minHeight:"100vh",background:"#f8fafc",width:"100%",maxWidth:"100vw",overflowX:"hidden",color:"#0f172a"}}>
 
-      {/* TOP BAR (back button at top left + brand at right) */}
-      <div style={{position:"sticky",top:0,zIndex:50,background:"rgba(15,23,42,.92)",backdropFilter:"blur(12px)",borderBottom:"1px solid rgba(255,255,255,.06)"}}>
-        <div style={{maxWidth:1100,margin:"0 auto",padding:"14px 20px",display:"flex",alignItems:"center",justifyContent:"space-between",gap:14,flexWrap:"wrap"}}>
-          <button onClick={onBack} className="back-btn" aria-label="Back to results" style={{background:"rgba(255,255,255,.08)",border:"1px solid rgba(255,255,255,.20)",color:"#fff",padding:"9px 16px",borderRadius:10,fontSize:13,fontWeight:800,letterSpacing:".06em",cursor:"pointer",fontFamily:"inherit",display:"inline-flex",alignItems:"center",gap:8}}>
-            <span style={{fontSize:16,lineHeight:1}}>&larr;</span> Back to Results
-          </button>
-          <div>
-            <span style={{fontSize:20,fontWeight:900,letterSpacing:".08em",background:"linear-gradient(90deg,#ef4444,#f97316)",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent"}}>HumZones</span>
-            <sup style={{fontSize:11,color:"#f97316",fontWeight:700,verticalAlign:"super",marginLeft:2}}>TM</sup>
-          </div>
-        </div>
-      </div>
+      <BackNav onNavigate={onNavigate}/>
 
       {/* 1. HERO */}
       <section style={{background:"linear-gradient(150deg,#020c1b 0%,#0f172a 45%,#1e0535 100%)",padding:"48px 20px 52px",textAlign:"center",position:"relative",overflow:"hidden",borderBottom:"1px solid rgba(249,115,22,.18)"}}>
@@ -1692,18 +1674,10 @@ const GetReportPage = ({ onNavigate }) => {
   return (
     <div style={{minHeight:"100vh",background:"#f1f5f9",width:"100%",maxWidth:"100vw",overflowX:"hidden"}}>
 
+      <BackNav onNavigate={onNavigate}/>
+
       {/* HERO */}
       <section style={{background:"linear-gradient(150deg,#020c1b 0%,#0f172a 45%,#1e0535 100%)",padding:"0 0 56px",position:"relative",overflow:"hidden",borderBottom:"1px solid rgba(249,115,22,.18)"}}>
-        {/* Top-left: small logo (links home) + back button */}
-        <div style={{maxWidth:900,margin:"0 auto",padding:"18px 20px 0",display:"flex",alignItems:"center",gap:14,flexWrap:"wrap"}}>
-          <a href="/" onClick={e=>{e.preventDefault();onNavigate("/");}} aria-label="HumZones home" style={{textDecoration:"none",display:"inline-flex",alignItems:"baseline"}}>
-            <span style={{fontSize:19,fontWeight:900,letterSpacing:".06em",background:"linear-gradient(90deg,#ef4444,#f97316)",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent"}}>HumZones</span>
-            <sup style={{fontSize:9,color:"#f97316",fontWeight:700,marginLeft:2}}>TM</sup>
-          </a>
-          <button onClick={()=>window.history.back()} className="back-btn" aria-label="Go back" style={{background:"rgba(255,255,255,.08)",border:"1px solid rgba(255,255,255,.20)",color:"#fff",padding:"8px 14px",borderRadius:10,fontSize:12,fontWeight:800,letterSpacing:".06em",cursor:"pointer",fontFamily:"inherit",display:"inline-flex",alignItems:"center",gap:7}}>
-            <span style={{fontSize:15,lineHeight:1}}>&larr;</span> Back
-          </button>
-        </div>
 
         {/* Hero content */}
         <div style={{maxWidth:680,margin:"0 auto",padding:"38px 20px 0",textAlign:"center",position:"relative",zIndex:1}}>
@@ -3502,21 +3476,9 @@ const BusinessPlansPage = ({ onNavigate, facilityCount }) => {
 
   return (
     <div style={{minHeight:"100vh",background:"linear-gradient(150deg,#020c1b 0%,#0f172a 50%,#1e0535 100%)",color:"#fff",width:"100%",maxWidth:"100vw",overflowX:"hidden"}}>
-      {/* Back button at the very top left, above the hero. */}
-      <div style={{maxWidth:1200,margin:"0 auto",padding:"18px 24px 0"}}>
-        <button onClick={()=>window.history.back()} className="back-btn" aria-label="Go back" style={{display:"inline-flex",alignItems:"center",gap:8,background:"rgba(255,255,255,.08)",border:"1px solid rgba(255,255,255,.20)",color:"#fff",padding:"12px 20px",borderRadius:10,fontSize:14,fontWeight:800,letterSpacing:".05em",cursor:"pointer",fontFamily:"inherit"}}>
-          <span style={{fontSize:17,lineHeight:1}}>&larr;</span> Back
-        </button>
-      </div>
-      <div style={{padding:"22px 24px",display:"flex",alignItems:"center",justifyContent:"space-between",maxWidth:1200,margin:"0 auto"}}>
-        <a href="/" onClick={e=>{e.preventDefault();onNavigate("/");}} style={{textDecoration:"none"}}>
-          <span style={{fontSize:22,fontWeight:900,letterSpacing:".08em",background:"linear-gradient(90deg,#ef4444,#f97316)",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent"}}>HumZones</span>
-          <sup style={{fontSize:12,color:"#f97316",fontWeight:700,verticalAlign:"super",marginLeft:2}}>TM</sup>
-        </a>
-        <a href="/business-login" onClick={e=>{e.preventDefault();onNavigate("/business-login");}} style={{fontSize:14,color:"rgba(255,255,255,.7)",fontWeight:700,textDecoration:"none"}}>
-          Sign in
-        </a>
-      </div>
+      <BackNav onNavigate={onNavigate} extra={
+        <a href="/business-login" onClick={e=>{e.preventDefault();onNavigate("/business-login");}} style={{fontSize:13,color:"rgba(255,255,255,.7)",fontWeight:700,textDecoration:"none"}}>Sign in</a>
+      }/>
 
       <section style={{maxWidth:880,margin:"0 auto",padding:"48px 24px 28px",textAlign:"center"}}>
         <div style={{display:"inline-block",fontSize:12,color:"#f97316",letterSpacing:".18em",textTransform:"uppercase",fontWeight:800,marginBottom:14,padding:"6px 14px",borderRadius:30,background:"rgba(249,115,22,.12)",border:"1px solid rgba(249,115,22,.3)"}}>For Business</div>
@@ -4070,15 +4032,9 @@ const BusinessGeneratePage = ({ onNavigate }) => {
 
   return (
     <div style={{minHeight:"100vh",background:"linear-gradient(150deg,#020c1b 0%,#0f172a 50%,#1e0535 100%)",color:"#fff",paddingBottom:results ? 110 : 40}}>
-      <div style={{padding:"22px 24px",display:"flex",alignItems:"center",justifyContent:"space-between",maxWidth:1100,margin:"0 auto"}}>
-        <a href="/" onClick={e=>{e.preventDefault();onNavigate("/");}} style={{textDecoration:"none"}}>
-          <span style={{fontSize:22,fontWeight:900,letterSpacing:".08em",background:"linear-gradient(90deg,#ef4444,#f97316)",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent"}}>HumZones</span>
-          <sup style={{fontSize:12,color:"#f97316",fontWeight:700,verticalAlign:"super",marginLeft:2}}>TM</sup>
-        </a>
-        <div style={{display:"flex",alignItems:"center",gap:12}}>
-          <a href="/business-dashboard" onClick={e=>{e.preventDefault();onNavigate("/business-dashboard");}} style={{fontSize:13,color:"rgba(255,255,255,.7)",fontWeight:700,textDecoration:"none"}}>Dashboard</a>
-        </div>
-      </div>
+      <BackNav onNavigate={onNavigate} extra={
+        <a href="/business-dashboard" onClick={e=>{e.preventDefault();onNavigate("/business-dashboard");}} style={{fontSize:13,color:"rgba(255,255,255,.7)",fontWeight:700,textDecoration:"none"}}>Dashboard</a>
+      }/>
 
       <main style={{maxWidth:880,margin:"0 auto",padding:"16px 24px 48px"}}>
         <div style={{background:"rgba(15,23,42,.6)",border:"1px solid rgba(255,255,255,.1)",borderRadius:18,padding:"28px",marginBottom:24}}>
@@ -4269,12 +4225,7 @@ const BusinessRecoverPage = ({ onNavigate }) => {
 
   return (
     <div style={{minHeight:"100vh",background:"linear-gradient(150deg,#020c1b 0%,#0f172a 50%,#1e0535 100%)",color:"#fff"}}>
-      <div style={{padding:"22px 24px"}}>
-        <a href="/" onClick={e=>{e.preventDefault();onNavigate("/");}} style={{textDecoration:"none"}}>
-          <span style={{fontSize:22,fontWeight:900,letterSpacing:".08em",background:"linear-gradient(90deg,#ef4444,#f97316)",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent"}}>HumZones</span>
-          <sup style={{fontSize:12,color:"#f97316",fontWeight:700,verticalAlign:"super",marginLeft:2}}>TM</sup>
-        </a>
-      </div>
+      <BackNav onNavigate={onNavigate}/>
 
       <main style={{maxWidth:480,margin:"0 auto",padding:"24px 24px 80px"}}>
 
@@ -4425,15 +4376,7 @@ const BusinessLoginPage = ({ onNavigate }) => {
 
   return (
     <div style={{minHeight:"100vh",background:"linear-gradient(150deg,#020c1b 0%,#0f172a 50%,#1e0535 100%)",color:"#fff"}}>
-      <div style={{padding:"22px 24px",display:"flex",alignItems:"center",justifyContent:"space-between",gap:14}}>
-        <button onClick={()=>window.history.back()} className="back-btn" aria-label="Go back" style={{display:"inline-flex",alignItems:"center",gap:8,background:"rgba(255,255,255,.08)",border:"1px solid rgba(255,255,255,.20)",color:"#fff",padding:"12px 20px",borderRadius:10,fontSize:14,fontWeight:800,letterSpacing:".05em",cursor:"pointer",fontFamily:"inherit"}}>
-          <span style={{fontSize:17,lineHeight:1}}>&larr;</span> Back
-        </button>
-        <a href="/" onClick={e=>{e.preventDefault();onNavigate("/");}} style={{textDecoration:"none"}}>
-          <span style={{fontSize:22,fontWeight:900,letterSpacing:".08em",background:"linear-gradient(90deg,#ef4444,#f97316)",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent"}}>HumZones</span>
-          <sup style={{fontSize:12,color:"#f97316",fontWeight:700,verticalAlign:"super",marginLeft:2}}>TM</sup>
-        </a>
-      </div>
+      <BackNav onNavigate={onNavigate}/>
 
       <main style={{maxWidth:480,margin:"0 auto",padding:"24px 24px 80px"}}>
         <div style={{textAlign:"center",marginBottom:24}}>
@@ -4644,17 +4587,10 @@ const BusinessDashboardPage = ({ onNavigate }) => {
 
   return (
     <div style={{minHeight:"100vh",background:"linear-gradient(150deg,#020c1b 0%,#0f172a 50%,#1e0535 100%)",color:"#fff"}}>
-      <div style={{padding:"22px 24px",display:"flex",alignItems:"center",justifyContent:"space-between",maxWidth:1100,margin:"0 auto"}}>
-        <a href="/" onClick={e=>{e.preventDefault();onNavigate("/");}} style={{textDecoration:"none"}}>
-          <span style={{fontSize:22,fontWeight:900,letterSpacing:".08em",background:"linear-gradient(90deg,#ef4444,#f97316)",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent"}}>HumZones</span>
-          <sup style={{fontSize:12,color:"#f97316",fontWeight:700,verticalAlign:"super",marginLeft:2}}>TM</sup>
-        </a>
-        <div style={{display:"flex",alignItems:"center",gap:12,flexWrap:"wrap"}}>
-          <a href="/business-profile" onClick={e=>{e.preventDefault();onNavigate("/business-profile");}} style={{fontSize:13,color:"rgba(255,255,255,.7)",fontWeight:700,textDecoration:"none",padding:"8px 12px",borderRadius:10,border:"1px solid rgba(255,255,255,.14)"}}>My Profile</a>
-          <a href="/" onClick={e=>{e.preventDefault();onNavigate("/");}} style={{fontSize:13,color:"rgba(255,255,255,.7)",fontWeight:700,textDecoration:"none",padding:"8px 12px",borderRadius:10,border:"1px solid rgba(255,255,255,.14)"}}>Back to HumZones</a>
-          <button onClick={signOut} style={{padding:"8px 16px",borderRadius:10,border:"1px solid rgba(255,255,255,.18)",background:"rgba(255,255,255,.06)",color:"rgba(255,255,255,.85)",cursor:"pointer",fontFamily:"inherit",fontSize:13,fontWeight:700}}>Sign Out</button>
-        </div>
-      </div>
+      <BackNav onNavigate={onNavigate} extra={<>
+        <a href="/business-profile" onClick={e=>{e.preventDefault();onNavigate("/business-profile");}} style={{fontSize:13,color:"rgba(255,255,255,.7)",fontWeight:700,textDecoration:"none",padding:"8px 12px",borderRadius:10,border:"1px solid rgba(255,255,255,.14)"}}>My Profile</a>
+        <button onClick={signOut} style={{padding:"8px 16px",borderRadius:10,border:"1px solid rgba(255,255,255,.18)",background:"rgba(255,255,255,.06)",color:"rgba(255,255,255,.85)",cursor:"pointer",fontFamily:"inherit",fontSize:13,fontWeight:700}}>Sign Out</button>
+      </>}/>
 
       <main style={{maxWidth:880,margin:"0 auto",padding:"24px 24px 60px"}}>
         <h1 style={{fontSize:30,fontWeight:900,letterSpacing:"-.01em",marginBottom:6}}>Welcome back {account.firstName || ""}</h1>
@@ -4881,13 +4817,9 @@ const BusinessProfilePage = ({ onNavigate }) => {
 
   return (
     <div style={{minHeight:"100vh",background:"linear-gradient(150deg,#020c1b 0%,#0f172a 50%,#1e0535 100%)",color:"#fff"}}>
-      <div style={{padding:"22px 24px",display:"flex",alignItems:"center",justifyContent:"space-between",maxWidth:1100,margin:"0 auto"}}>
-        <a href="/" onClick={e=>{e.preventDefault();onNavigate("/");}} style={{textDecoration:"none"}}>
-          <span style={{fontSize:22,fontWeight:900,letterSpacing:".08em",background:"linear-gradient(90deg,#ef4444,#f97316)",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent"}}>HumZones</span>
-          <sup style={{fontSize:12,color:"#f97316",fontWeight:700,verticalAlign:"super",marginLeft:2}}>TM</sup>
-        </a>
+      <BackNav onNavigate={onNavigate} extra={
         <a href="/business-dashboard" onClick={e=>{e.preventDefault();onNavigate("/business-dashboard");}} style={{fontSize:13,color:"rgba(255,255,255,.7)",fontWeight:700,textDecoration:"none",padding:"8px 12px",borderRadius:10,border:"1px solid rgba(255,255,255,.14)"}}>Back to Dashboard</a>
-      </div>
+      }/>
 
       <main style={{maxWidth:680,margin:"0 auto",padding:"24px 24px 60px"}}>
         <h1 style={{fontSize:30,fontWeight:900,letterSpacing:"-.01em",marginBottom:24}}>My Profile</h1>
@@ -5095,12 +5027,7 @@ const PrivacyPolicyPage = ({ onNavigate }) => {
 
   return (
     <div style={{minHeight:"100vh",background:"linear-gradient(150deg,#020c1b 0%,#0f172a 50%,#1e0535 100%)",color:"#fff"}}>
-      <div style={{padding:"22px 24px",maxWidth:820,margin:"0 auto"}}>
-        <a href="/" onClick={e=>{e.preventDefault();onNavigate("/");}} style={{textDecoration:"none"}}>
-          <span style={{fontSize:22,fontWeight:900,letterSpacing:".08em",background:"linear-gradient(90deg,#ef4444,#f97316)",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent"}}>HumZones</span>
-          <sup style={{fontSize:12,color:"#f97316",fontWeight:700,verticalAlign:"super",marginLeft:2}}>TM</sup>
-        </a>
-      </div>
+      <BackNav onNavigate={onNavigate}/>
 
       <main style={{maxWidth:820,margin:"0 auto",padding:"16px 24px 80px"}}>
         <h1 style={{fontSize:"clamp(32px,5vw,44px)",fontWeight:900,letterSpacing:"-.02em",marginBottom:8}}>Privacy Policy</h1>
@@ -5395,15 +5322,7 @@ const MyReportPage = ({ onNavigate }) => {
 
   return (
     <div style={{minHeight:"100vh",background:"linear-gradient(150deg,#020c1b 0%,#0f172a 50%,#1e0535 100%)",color:"#fff"}}>
-      <div style={{padding:"22px 24px",display:"flex",alignItems:"center",justifyContent:"space-between",gap:14}}>
-        <button onClick={()=>window.history.back()} className="back-btn" aria-label="Go back" style={{display:"inline-flex",alignItems:"center",gap:8,background:"rgba(255,255,255,.08)",border:"1px solid rgba(255,255,255,.20)",color:"#fff",padding:"12px 20px",borderRadius:10,fontSize:14,fontWeight:800,letterSpacing:".05em",cursor:"pointer",fontFamily:"inherit"}}>
-          <span style={{fontSize:17,lineHeight:1}}>&larr;</span> Back
-        </button>
-        <a href="/" onClick={e=>{e.preventDefault();onNavigate("/");}} style={{textDecoration:"none"}}>
-          <span style={{fontSize:22,fontWeight:900,letterSpacing:".08em",background:"linear-gradient(90deg,#ef4444,#f97316)",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent"}}>HumZones</span>
-          <sup style={{fontSize:12,color:"#f97316",fontWeight:700,verticalAlign:"super",marginLeft:2}}>TM</sup>
-        </a>
-      </div>
+      <BackNav onNavigate={onNavigate}/>
 
       <main style={{maxWidth:560,margin:"0 auto",padding:"24px 24px 80px"}}>
 
@@ -5719,18 +5638,10 @@ const SubmitReportPage = ({ onNavigate }) => {
 
   return (
     <div style={{minHeight:"100vh",background:"#f1f5f9",width:"100%",maxWidth:"100vw",overflowX:"hidden"}}>
+      <BackNav onNavigate={onNavigate}/>
       {/* HERO */}
       <section style={{background:"linear-gradient(150deg,#020c1b 0%,#0f172a 45%,#1e0535 100%)",padding:"22px 24px 56px"}}>
         <div style={{maxWidth:1080,margin:"0 auto"}}>
-          <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:14,marginBottom:34}}>
-            <button onClick={()=>window.history.back()} className="back-btn" aria-label="Go back" style={{display:"inline-flex",alignItems:"center",gap:8,background:"rgba(255,255,255,.08)",border:"1px solid rgba(255,255,255,.20)",color:"#fff",padding:"12px 20px",borderRadius:10,fontSize:14,fontWeight:800,letterSpacing:".05em",cursor:"pointer",fontFamily:"inherit"}}>
-              <span style={{fontSize:17,lineHeight:1}}>&larr;</span> Back
-            </button>
-            <a href="/" onClick={e=>{e.preventDefault();onNavigate("/");}} style={{textDecoration:"none"}}>
-              <span style={{fontSize:22,fontWeight:900,letterSpacing:".08em",background:"linear-gradient(90deg,#ef4444,#f97316)",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent"}}>HumZones</span>
-              <sup style={{fontSize:12,color:"#f97316",fontWeight:700,verticalAlign:"super",marginLeft:2}}>TM</sup>
-            </a>
-          </div>
           <div style={{textAlign:"center",maxWidth:760,margin:"0 auto 30px"}}>
             <h1 style={{fontSize:"clamp(30px,5vw,46px)",fontWeight:900,letterSpacing:"-.02em",color:"#fff",lineHeight:1.15,marginBottom:16}}>Submit Your Resident Report</h1>
             <p style={{fontSize:17,color:"rgba(255,255,255,.72)",lineHeight:1.65}}>Have you experienced the effects of living or working near a data center? Your report helps others in your community understand what life is really like near these facilities.</p>
@@ -5986,13 +5897,27 @@ const SubmitReportPage = ({ onNavigate }) => {
 };
 
 // ─── SHARED: dark page hero used by the static content pages ─────────────────
+// Standardized top nav: a #1e293b bar, constrained to 1040px and centered,
+// with a plain-text back button on the far left and the 20px HumZones logo
+// on the right. Optional `extra` content renders just left of the logo.
+const BackNav = ({ onNavigate, extra }) => (
+  <div style={{background:"#1e293b",maxWidth:1040,margin:"0 auto",width:"100%",padding:"16px 24px",display:"flex",alignItems:"center",justifyContent:"space-between",gap:14,boxSizing:"border-box"}}>
+    <button onClick={()=>window.history.back()} className="backnav-btn" aria-label="Go back" style={{display:"inline-flex",alignItems:"center",gap:6,background:"none",border:"none",color:"rgba(255,255,255,.85)",fontSize:14,fontWeight:500,padding:"8px 12px",cursor:"pointer",fontFamily:"inherit"}}>
+      <span style={{fontSize:16,lineHeight:1}}>&larr;</span> Back
+    </button>
+    <div style={{display:"flex",alignItems:"center",gap:16,flexWrap:"wrap",justifyContent:"flex-end"}}>
+      {extra}
+      <a href="/" onClick={e=>{e.preventDefault();onNavigate("/");}} aria-label="HumZones home" style={{textDecoration:"none",display:"inline-flex",alignItems:"baseline"}}>
+        <span style={{fontSize:20,fontWeight:700,color:"#fff"}}>HumZones</span>
+        <sup style={{fontSize:10,color:"#f97316",fontWeight:700,verticalAlign:"super",marginLeft:1}}>TM</sup>
+      </a>
+    </div>
+  </div>
+);
+
 const PageHero = ({ onNavigate, title, subtitle }) => (
   <section style={{background:"linear-gradient(150deg,#020c1b 0%,#0f172a 45%,#1e0535 100%)",padding:"22px 24px 60px"}}>
     <div style={{maxWidth:1100,margin:"0 auto"}}>
-      <a href="/" onClick={e=>{e.preventDefault();onNavigate("/");}} style={{textDecoration:"none",display:"inline-block",marginBottom:40}}>
-        <span style={{fontSize:22,fontWeight:900,letterSpacing:".08em",background:"linear-gradient(90deg,#ef4444,#f97316)",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent"}}>HumZones</span>
-        <sup style={{fontSize:12,color:"#f97316",fontWeight:700,verticalAlign:"super",marginLeft:2}}>TM</sup>
-      </a>
       <div style={{textAlign:"center",maxWidth:760,margin:"0 auto"}}>
         <h1 style={{fontSize:"clamp(32px,5.5vw,50px)",fontWeight:900,letterSpacing:"-.02em",color:"#fff",lineHeight:1.12,marginBottom:16}}>{title}</h1>
         {subtitle && <p style={{fontSize:18,color:"rgba(255,255,255,.72)",lineHeight:1.65}}>{subtitle}</p>}
@@ -6051,15 +5976,7 @@ const ContactPage = ({ onNavigate }) => {
 
   return (
     <div style={{minHeight:"100vh",background:"#f1f5f9",width:"100%",maxWidth:"100vw",overflowX:"hidden"}}>
-      {/* Back button: sits in a dark strip above the hero so the standard
-          back-button styling stays visible and blends into the hero. */}
-      <div style={{background:"#020c1b",padding:"18px 24px 0"}}>
-        <div style={{maxWidth:1100,margin:"0 auto"}}>
-          <button onClick={()=>window.history.back()} className="back-btn" aria-label="Go back" style={{display:"inline-flex",alignItems:"center",gap:8,background:"rgba(255,255,255,.08)",border:"1px solid rgba(255,255,255,.20)",color:"#fff",padding:"12px 20px",borderRadius:10,fontSize:14,fontWeight:800,letterSpacing:".05em",cursor:"pointer",fontFamily:"inherit"}}>
-            <span style={{fontSize:17,lineHeight:1}}>&larr;</span> Back
-          </button>
-        </div>
-      </div>
+      <BackNav onNavigate={onNavigate}/>
       <PageHero onNavigate={onNavigate} title="Contact Us"
         subtitle="We would love to hear from you. Whether you have a question about our data, a report to discuss, or a media inquiry, we are here to help."/>
 
@@ -6156,15 +6073,7 @@ const AboutPage = ({ onNavigate, facilityCount }) => {
 
   return (
     <div style={{minHeight:"100vh",background:"#f1f5f9",width:"100%",maxWidth:"100vw",overflowX:"hidden"}}>
-      {/* Back button: sits in a dark strip above the hero so the standard
-          back-button styling stays visible and blends into the hero. */}
-      <div style={{background:"#020c1b",padding:"18px 24px 0"}}>
-        <div style={{maxWidth:1100,margin:"0 auto"}}>
-          <button onClick={()=>window.history.back()} className="back-btn" aria-label="Go back" style={{display:"inline-flex",alignItems:"center",gap:8,background:"rgba(255,255,255,.08)",border:"1px solid rgba(255,255,255,.20)",color:"#fff",padding:"12px 20px",borderRadius:10,fontSize:14,fontWeight:800,letterSpacing:".05em",cursor:"pointer",fontFamily:"inherit"}}>
-            <span style={{fontSize:17,lineHeight:1}}>&larr;</span> Back
-          </button>
-        </div>
-      </div>
+      <BackNav onNavigate={onNavigate}/>
       <PageHero onNavigate={onNavigate} title="About HumZones"
         subtitle="We believe every person has the right to know what infrastructure exists near their home and what it means for their community."/>
 
@@ -6274,6 +6183,7 @@ const FaqPage = ({ onNavigate, facilityCount }) => {
 
   return (
     <div style={{minHeight:"100vh",background:"#f1f5f9",width:"100%",maxWidth:"100vw",overflowX:"hidden"}}>
+      <BackNav onNavigate={onNavigate}/>
       <PageHero onNavigate={onNavigate} title="Frequently Asked Questions"
         subtitle="Everything you need to know about HumZones, our data and our reports."/>
 
@@ -6331,6 +6241,7 @@ const TERMS_SECTIONS = [
 
 const TermsPage = ({ onNavigate }) => (
   <div style={{minHeight:"100vh",background:"#f1f5f9",width:"100%",maxWidth:"100vw",overflowX:"hidden"}}>
+    <BackNav onNavigate={onNavigate}/>
     <PageHero onNavigate={onNavigate} title="Terms of Service" subtitle="Last updated: May 2026"/>
 
     <section style={{background:"#fff",padding:"54px 24px"}}>
