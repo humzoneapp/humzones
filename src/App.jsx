@@ -588,7 +588,15 @@ const CSS = `
     .hz-map-wrap{height:350px}
   }
   .leaflet-container{font-family:inherit}
-  .leaflet-popup-content{margin:14px 16px}
+  /* Facility marker popup: force a solid white card so the content is never
+     shown over a transparent Leaflet wrapper. */
+  .leaflet-popup-content-wrapper{
+    background:#ffffff;
+    border-radius:8px;
+    box-shadow:0 4px 20px rgba(0,0,0,0.15);
+  }
+  .leaflet-popup-content{margin:0;padding:12px}
+  .leaflet-popup-tip{background:#ffffff}
 
   /* AI chat widget: floating button hover and the typing indicator. The
      bottom transition animates the lift above the cookie banner. */
