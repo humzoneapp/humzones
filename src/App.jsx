@@ -557,6 +557,9 @@ const CSS = `
   .hz-footer-grid{display:grid;grid-template-columns:1.5fr 1fr 1fr 1fr;gap:36px}
   .hz-foot-link{transition:color .15s}
   .hz-foot-link:hover{color:#f97316!important}
+  /* Research source pills: subtle grey resting state, orange on hover. */
+  .hz-research-pill{transition:border-color .15s, color .15s, background .15s}
+  .hz-research-pill:hover{border-color:#f97316!important;color:#f97316!important;background:#fff7ed!important}
   .hz-faq-q{transition:background .15s}
   .hz-faq-q:hover{background:#f8fafc}
   @media(max-width:900px){
@@ -3324,8 +3327,40 @@ const Footer = ({ onNavigate }) => {
   );
   const colWrap = { display:"flex", flexDirection:"column", gap:11, alignItems:"flex-start" };
 
+  // Peer-reviewed and open research the registry draws on. Each badge opens
+  // its source in a new tab.
+  const researchSources = [
+    { label:"Epoch AI (CC-BY)", url:"https://epoch.ai/data/data-centers" },
+    { label:"EH Sciences", url:"https://ehsciences.org/" },
+    { label:"IARC / WHO", url:"https://www.iarc.who.int/" },
+    { label:"arXiv 2025", url:"https://arxiv.org/abs/2412.06288" },
+    { label:"BioInitiative", url:"https://www.bioinitiative.org/" },
+    { label:"PubMed", url:"https://pubmed.ncbi.nlm.nih.gov/" },
+  ];
+
   return (
     <footer style={{background:"#0a0f1e",color:"#fff"}}>
+      {/* RESEARCH SOURCES */}
+      <div style={{background:"#f8fafc",borderBottom:"1px solid #e2e8f0",padding:"34px 24px"}}>
+        <div style={{maxWidth:900,margin:"0 auto",textAlign:"center"}}>
+          <div style={{fontSize:12,color:"#94a3b8",letterSpacing:".18em",textTransform:"uppercase",fontWeight:800,marginBottom:16}}>Research Sources</div>
+          <div style={{display:"flex",flexWrap:"wrap",justifyContent:"center",gap:10}}>
+            {researchSources.map(s=>(
+              <a
+                key={s.label}
+                href={s.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="hz-research-pill"
+                style={{display:"inline-flex",alignItems:"center",padding:"8px 16px",borderRadius:30,background:"#f1f5f9",border:"1px solid #e2e8f0",fontSize:13,fontWeight:700,color:"#334155",textDecoration:"none"}}
+              >
+                {s.label}
+              </a>
+            ))}
+          </div>
+        </div>
+      </div>
+
       {/* TOP: 4 columns */}
       <div style={{maxWidth:1180,margin:"0 auto",padding:"48px 24px 38px"}}>
         <div className="hz-footer-grid">
