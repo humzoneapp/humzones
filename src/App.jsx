@@ -3502,6 +3502,12 @@ const BusinessPlansPage = ({ onNavigate, facilityCount }) => {
 
   return (
     <div style={{minHeight:"100vh",background:"linear-gradient(150deg,#020c1b 0%,#0f172a 50%,#1e0535 100%)",color:"#fff",width:"100%",maxWidth:"100vw",overflowX:"hidden"}}>
+      {/* Back button at the very top left, above the hero. */}
+      <div style={{maxWidth:1200,margin:"0 auto",padding:"18px 24px 0"}}>
+        <button onClick={()=>window.history.back()} className="back-btn" aria-label="Go back" style={{display:"inline-flex",alignItems:"center",gap:8,background:"rgba(255,255,255,.08)",border:"1px solid rgba(255,255,255,.20)",color:"#fff",padding:"12px 20px",borderRadius:10,fontSize:14,fontWeight:800,letterSpacing:".05em",cursor:"pointer",fontFamily:"inherit"}}>
+          <span style={{fontSize:17,lineHeight:1}}>&larr;</span> Back
+        </button>
+      </div>
       <div style={{padding:"22px 24px",display:"flex",alignItems:"center",justifyContent:"space-between",maxWidth:1200,margin:"0 auto"}}>
         <a href="/" onClick={e=>{e.preventDefault();onNavigate("/");}} style={{textDecoration:"none"}}>
           <span style={{fontSize:22,fontWeight:900,letterSpacing:".08em",background:"linear-gradient(90deg,#ef4444,#f97316)",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent"}}>HumZones</span>
@@ -6150,6 +6156,15 @@ const AboutPage = ({ onNavigate, facilityCount }) => {
 
   return (
     <div style={{minHeight:"100vh",background:"#f1f5f9",width:"100%",maxWidth:"100vw",overflowX:"hidden"}}>
+      {/* Back button: sits in a dark strip above the hero so the standard
+          back-button styling stays visible and blends into the hero. */}
+      <div style={{background:"#020c1b",padding:"18px 24px 0"}}>
+        <div style={{maxWidth:1100,margin:"0 auto"}}>
+          <button onClick={()=>window.history.back()} className="back-btn" aria-label="Go back" style={{display:"inline-flex",alignItems:"center",gap:8,background:"rgba(255,255,255,.08)",border:"1px solid rgba(255,255,255,.20)",color:"#fff",padding:"12px 20px",borderRadius:10,fontSize:14,fontWeight:800,letterSpacing:".05em",cursor:"pointer",fontFamily:"inherit"}}>
+            <span style={{fontSize:17,lineHeight:1}}>&larr;</span> Back
+          </button>
+        </div>
+      </div>
       <PageHero onNavigate={onNavigate} title="About HumZones"
         subtitle="We believe every person has the right to know what infrastructure exists near their home and what it means for their community."/>
 
