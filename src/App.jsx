@@ -5562,6 +5562,7 @@ const SubmitReportPage = ({ onNavigate }) => {
                 <div key={f.id} style={{background:"#fff",border:"1px solid #e2e8f0",borderRadius:16,padding:"20px",boxShadow:"0 2px 12px rgba(0,0,0,.05)",display:"flex",flexDirection:"column",gap:9}}>
                   <div style={{fontSize:16,fontWeight:800,color:"#0f172a",lineHeight:1.3}}>{f.Name||"Unnamed facility"}</div>
                   {f.Company && <div style={{fontSize:13,color:"#64748b"}}>{f.Company}</div>}
+                  {f.Address && <div style={{fontSize:12,color:"#94a3b8",lineHeight:1.45}}>{f.Address}</div>}
                   <div style={{fontSize:13,color:"#94a3b8"}}>{[f.City,f.State_Region].filter(Boolean).join(", ")||"Location not on file"}</div>
                   <div><Chip label={exposureLabel(f.Risk_Level)} color={exposureColor(f.Risk_Level)} small/></div>
                   <button onClick={()=>pickFacility(f)} style={{marginTop:"auto",padding:"11px 16px",borderRadius:10,border:"none",background:"#f97316",color:"#fff",fontSize:14,fontWeight:800,cursor:"pointer",fontFamily:"inherit"}}>
