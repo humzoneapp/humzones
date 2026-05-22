@@ -6350,6 +6350,8 @@ const FAQ_LINK_TOKENS = [
   { token: "humzones.com/unsubscribe",   to: "/unsubscribe" },
   { token: "methodology page",           to: "/methodology" },
   { token: "hello@humzones.com",         mailto: true },
+  { token: "personalized area reports for $14.99", to: "/get-report" },
+  { token: "business subscription plans",          to: "/business" },
 ];
 const renderFaqAnswer = (text, onNavigate) => {
   const escaped = FAQ_LINK_TOKENS.map(l => l.token.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"));
