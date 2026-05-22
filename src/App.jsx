@@ -1378,7 +1378,7 @@ async function buildAreaReportPdf({ searchAddress, facsNear, radiusKm = 100, fac
   setText(255, 255, 255); doc.text(String(safeTotal), M + 20, y + 70);
 
   doc.setFont("helvetica", "bold"); doc.setFontSize(10);
-  setText(249, 115, 22); doc.text("HIGH RISK FACILITIES", M + 260, y + 28);
+  setText(249, 115, 22); doc.text("HIGH EXPOSURE FACILITIES", M + 260, y + 28);
   doc.setFont("helvetica", "bold"); doc.setFontSize(32);
   setText(255, 255, 255); doc.text(String(safeHigh), M + 260, y + 70);
 
@@ -1402,9 +1402,9 @@ async function buildAreaReportPdf({ searchAddress, facsNear, radiusKm = 100, fac
   y += 36;
   const rows = [
     [`Total facilities within ${radiusLbl}`, String(totalFound)],
-    ["HIGH risk facilities",                  String(counts.HIGH)],
-    ["MODERATE risk facilities",              String(counts.MODERATE)],
-    ["LOW risk facilities",                   String(counts.LOW)],
+    ["HIGH exposure facilities",              String(counts.HIGH)],
+    ["MODERATE exposure facilities",          String(counts.MODERATE)],
+    ["LOW exposure facilities",               String(counts.LOW)],
     ["Combined estimated power draw",         fmtMW(totalPower)],
     ["Combined daily water consumption",      `${fmtNum(totalWater)} gallons`],
     ["Combined CO2 per year",                 `${fmtNum(totalCO2)} tons`],
@@ -3844,7 +3844,7 @@ const BusinessDashboardPage = ({ onNavigate }) => {
                         <div style={{fontSize:12,color:"rgba(255,255,255,.55)",display:"flex",gap:14,flexWrap:"wrap"}}>
                           <span>{r.date}</span>
                           <span>{r.facilities} facilities</span>
-                          <span>{r.highRisk} high risk</span>
+                          <span>{r.highRisk} high exposure</span>
                           <span>{r.radius}km radius</span>
                           {r.plan && <span>{r.plan}</span>}
                         </div>
@@ -4590,7 +4590,7 @@ const MyReportPage = ({ onNavigate }) => {
                   <div style={{fontSize:13,color:"rgba(255,255,255,.6)",display:"flex",gap:14,flexWrap:"wrap",marginBottom:14}}>
                     {r.date && <span>Purchased {r.date}</span>}
                     {r.facilities != null && <span>{r.facilities} facilities</span>}
-                    {r.highRisk != null && <span>{r.highRisk} high risk</span>}
+                    {r.highRisk != null && <span>{r.highRisk} high exposure</span>}
                   </div>
                   <button onClick={()=>redownload(r)} disabled={downloadingId === r.id} style={{padding:"11px 20px",borderRadius:10,border:"none",cursor:downloadingId === r.id ? "not-allowed" : "pointer",fontFamily:"inherit",fontSize:14,fontWeight:800,background:"linear-gradient(135deg,#ef4444,#f97316)",color:"#fff",boxShadow:"0 6px 18px rgba(249,115,22,.34)"}}>
                     {downloadingId === r.id ? "Generating..." : "Re-download Report"}
@@ -5112,9 +5112,9 @@ export default function App() {
     const level = score>=6?"HIGH":score>=3?"MODERATE":"LOWER";
 
     const summary = score>=6
-      ? `Based on your answers, you are in a HIGH risk situation. Your combination of ${a.dist==="Less than 0.25 miles"?"very close proximity (under a quarter mile)":a.dist==="0.25 to 0.5 miles"?"close proximity (under half a mile)":"moderate proximity"}${a.kids==="Yes"?", children in your household":""}${a.preg==="Yes"?", and pregnancy":""} creates a compounding risk profile that warrants immediate and serious attention. The research is unambiguous: people in your situation face measurably elevated exposure to three separate categories of documented health hazards. First, power-frequency EMF from substations and high-voltage lines at this distance regularly exceeds the 3 to 4 milligauss threshold where epidemiological studies found elevated childhood leukemia rates. Second, diesel PM2.5 from monthly generator tests is a WHO Group 1 carcinogen with no established safe exposure level. Third, chronic low-frequency noise operates below the threshold of normal hearing measurement but penetrates walls and disrupts sleep architecture over time. Each of these independently carries documented health risks. Together, as a combined chronic exposure, they represent a situation that deserves professional environmental assessment, formal regulatory complaints, and a conversation with your doctor.`
+      ? `Based on your answers, you are in a HIGH exposure situation. Your combination of ${a.dist==="Less than 0.25 miles"?"very close proximity (under a quarter mile)":a.dist==="0.25 to 0.5 miles"?"close proximity (under half a mile)":"moderate proximity"}${a.kids==="Yes"?", children in your household":""}${a.preg==="Yes"?", and pregnancy":""} creates a compounding risk profile that warrants immediate and serious attention. The research is unambiguous: people in your situation face measurably elevated exposure to three separate categories of documented health hazards. First, power-frequency EMF from substations and high-voltage lines at this distance regularly exceeds the 3 to 4 milligauss threshold where epidemiological studies found elevated childhood leukemia rates. Second, diesel PM2.5 from monthly generator tests is a WHO Group 1 carcinogen with no established safe exposure level. Third, chronic low-frequency noise operates below the threshold of normal hearing measurement but penetrates walls and disrupts sleep architecture over time. Each of these independently carries documented health risks. Together, as a combined chronic exposure, they represent a situation that deserves professional environmental assessment, formal regulatory complaints, and a conversation with your doctor.`
       : score>=3
-      ? `Based on your answers, you are in a MODERATE risk situation. Your proximity and household circumstances place you within the documented impact range of this facility. ${a.dist==="0.25 to 0.5 miles"?"At under half a mile, you are well within the zone where low-frequency noise, diesel exhaust during generator tests, and elevated EMF have been measured and documented.":a.dist==="0.5 to 1 mile"?"At under one mile, low-frequency sound from cooling systems and generator operations reaches your home, particularly at night when ambient noise drops.":"At your distance, the primary concerns are low-frequency noise at night, diesel exhaust during monthly generator tests, and substation EMF if you are near the electrical infrastructure."} While your risk is lower than those closest to the fence line, the cumulative effects of long-term exposure to industrial noise, diesel exhaust during monthly generator tests, and elevated EMF are real and worth taking seriously. Residents at this distance have documented sleep disruption, intermittent headaches, and heightened anxiety linked to generator test events. Monitoring, documentation, and precautionary steps are appropriate right now, and you have standing to file formal noise and air quality concerns with your local authority.`
+      ? `Based on your answers, you are in a MODERATE exposure situation. Your proximity and household circumstances place you within the documented impact range of this facility. ${a.dist==="0.25 to 0.5 miles"?"At under half a mile, you are well within the zone where low-frequency noise, diesel exhaust during generator tests, and elevated EMF have been measured and documented.":a.dist==="0.5 to 1 mile"?"At under one mile, low-frequency sound from cooling systems and generator operations reaches your home, particularly at night when ambient noise drops.":"At your distance, the primary concerns are low-frequency noise at night, diesel exhaust during monthly generator tests, and substation EMF if you are near the electrical infrastructure."} While your risk is lower than those closest to the fence line, the cumulative effects of long-term exposure to industrial noise, diesel exhaust during monthly generator tests, and elevated EMF are real and worth taking seriously. Residents at this distance have documented sleep disruption, intermittent headaches, and heightened anxiety linked to generator test events. Monitoring, documentation, and precautionary steps are appropriate right now, and you have standing to file formal noise and air quality concerns with your local authority.`
       : `Based on your answers, your immediate risk is LOWER than residents closer to the facility. ${a.dist==="More than 1 mile"?"At over one mile, you are beyond the zone where the most acute effects have been documented, though low-frequency sound and substation EMF have been measured at meaningful levels further than most people expect.":"At your distance, direct health impacts are less well-documented, though they are not zero."} The most important thing to understand is that data centers are not static. They expand. New substations get added. Generator capacity increases. Residents who tracked a facility from its early stages were far better positioned to challenge expansions than those who noticed problems only after years of exposure. Your lower risk today is a reason to stay informed and document a baseline, not a reason to be unconcerned. Check back if the facility announces expansion, if new substations are installed nearby, or if you or family members begin experiencing unexplained sleep disruption or headaches.`;
 
     return{level,score,flags,actions,summary};
@@ -5519,7 +5519,7 @@ export default function App() {
                 {nearRadius === 100 ? (
                   <>You found {nearResults.length} {nearResults.length === 1 ? "facility" : "facilities"} within 100km. Your Full Report includes detailed health analysis, EMF readings, noise levels and risk assessments for every facility near you.</>
                 ) : (
-                  <>You found {nearResults.length} {nearResults.length === 1 ? "facility" : "facilities"} within {nearRadius}km. Your Full Report reveals all {facilities100kmCount} facilities within 100km, including {high100kmCount} HIGH risk {high100kmCount === 1 ? "site" : "sites"} you may not know about.</>
+                  <>You found {nearResults.length} {nearResults.length === 1 ? "facility" : "facilities"} within {nearRadius}km. Your Full Report reveals all {facilities100kmCount} facilities within 100km, including {high100kmCount} HIGH exposure {high100kmCount === 1 ? "site" : "sites"} you may not know about.</>
                 )}
               </p>
               <button
