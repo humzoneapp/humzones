@@ -5031,11 +5031,8 @@ const BusinessProfilePage = ({ onNavigate }) => {
         <div style={sectionStyle}>
           <div style={sectionTitle}>Payment Receipts</div>
           <p style={{fontSize:14,color:"rgba(255,255,255,.7)",lineHeight:1.65,marginBottom:16}}>
-            Stripe automatically sends payment receipts to your email address after each charge. Check your inbox at <strong style={{color:"#fff"}}>{account.email}</strong> for all past receipts. If you need a copy resent contact hello@humzones.com and include your subscription start date.
+            Stripe automatically sends payment receipts to your email address after each charge. Check your inbox at <strong style={{color:"#fff"}}>{account.email}</strong> for all past receipts.
           </p>
-          <a href="mailto:hello@humzones.com?subject=Receipt%20Request" style={{display:"inline-block",padding:"13px 24px",borderRadius:12,fontFamily:"inherit",fontSize:14,fontWeight:900,letterSpacing:".04em",background:"rgba(255,255,255,.1)",border:"1px solid rgba(255,255,255,.2)",color:"#fff",textDecoration:"none"}}>
-            Contact Support
-          </a>
         </div>
 
         {/* SECTION D - Account Security */}
