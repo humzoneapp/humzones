@@ -442,8 +442,6 @@ const CSS = `
   .near-me-results *{max-width:100%;box-sizing:border-box}
   .near-me-results .near-card{width:100%!important}
   .back-btn{transition:border-color .15s,color .15s,box-shadow .15s}
-  .backnav-btn{transition:opacity .15s}
-  .backnav-btn:hover{opacity:.7}
   .back-btn:hover{border-color:#f97316!important;color:#f97316!important;box-shadow:0 4px 14px rgba(249,115,22,.25)!important}
   .report-h1{font-size:48px;line-height:1.1;letter-spacing:-.025em}
   .report-h2{font-size:32px;line-height:1.2;letter-spacing:-.02em}
@@ -640,6 +638,65 @@ const CSS = `
   /* Follow-up suggestion chips shown under each assistant reply. */
   .hz-chat-chip{transition:border-color .15s,color .15s,background .15s}
   .hz-chat-chip:hover{border-color:#f97316!important;color:#f97316!important;background:#fff7ed!important}
+
+  /* GlobalHeader: sticky site-wide nav with mega menu dropdowns. Mounted in
+     App so it lives above every route. */
+  .hz-gh-shell{position:sticky;top:0;z-index:10000;background:#1e293b;border-bottom:1px solid rgba(249,115,22,.2);box-shadow:0 4px 20px rgba(0,0,0,.3);width:100%;height:64px;display:flex;align-items:center;font-family:inherit}
+  .hz-gh-inner{max-width:1200px;margin:0 auto;padding:0 24px;display:flex;align-items:center;justify-content:space-between;width:100%;height:100%;box-sizing:border-box;gap:18px}
+  .hz-gh-left{display:flex;align-items:center;gap:4px;min-width:0}
+  .hz-gh-back{background:none;border:none;color:rgba(255,255,255,.7);font-size:18px;line-height:1;padding:6px 10px;cursor:pointer;font-family:inherit;border-radius:8px;transition:color .15s, background .15s}
+  .hz-gh-back:hover{color:#f97316;background:rgba(249,115,22,.08)}
+  .hz-gh-logo{display:flex;flex-direction:column;text-decoration:none;cursor:pointer;line-height:1;gap:3px;background:none;border:none;padding:0;font-family:inherit;text-align:left}
+  .hz-gh-logo-title{color:#fff;font-weight:800;font-size:20px;letter-spacing:.01em;display:inline-flex;align-items:baseline}
+  .hz-gh-logo-sup{color:#f97316;font-size:10px;font-weight:700;vertical-align:super;margin-left:1px}
+  .hz-gh-logo-tag{color:#f97316;font-size:10px;font-weight:700;letter-spacing:.06em}
+  .hz-gh-nav{display:flex;align-items:center;gap:4px}
+  .hz-gh-nav-btn{display:inline-flex;align-items:center;gap:5px;background:none;border:none;color:#fff;font-family:inherit;font-size:14px;font-weight:500;padding:8px 16px;cursor:pointer;border-radius:8px;transition:color .15s, background .15s}
+  .hz-gh-nav-btn:hover, .hz-gh-nav-btn.is-open{color:#f97316;background:rgba(249,115,22,.06)}
+  .hz-gh-nav-chev{transition:transform .2s;display:inline-block}
+  .hz-gh-nav-btn.is-open .hz-gh-nav-chev{transform:rotate(180deg)}
+  .hz-gh-right{display:flex;align-items:center;gap:14px}
+  .hz-gh-login{color:#94a3b8;font-size:13px;font-weight:600;text-decoration:none;transition:color .15s;background:none;border:none;font-family:inherit;cursor:pointer;padding:6px 8px}
+  .hz-gh-login:hover{color:#fff}
+  .hz-gh-cta{background:#f97316;color:#fff;border:none;border-radius:6px;padding:8px 18px;font-size:13px;font-weight:600;font-family:inherit;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;transition:background .15s}
+  .hz-gh-cta:hover{background:#ea580c}
+  .hz-gh-burger{display:none;background:none;border:none;color:#fff;cursor:pointer;padding:8px;font-family:inherit;border-radius:8px}
+  .hz-gh-burger:hover{color:#f97316;background:rgba(249,115,22,.08)}
+  @media(max-width:767px){
+    .hz-gh-shell{height:56px}
+    .hz-gh-nav{display:none}
+    .hz-gh-login,.hz-gh-cta{display:none}
+    .hz-gh-burger{display:inline-flex}
+    .hz-gh-logo-tag{display:none}
+  }
+  .hz-gh-mega{position:absolute;left:0;right:0;top:100%;width:100%;background:#0f172a;border-bottom:2px solid #f97316;box-shadow:0 20px 40px rgba(0,0,0,.4);padding:32px 0;backdrop-filter:blur(10px);background-image:radial-gradient(ellipse at 50% 0%, rgba(249,115,22,.08) 0%, transparent 70%);background-repeat:no-repeat;animation:hzGhDrop .2s ease both;z-index:9999;box-sizing:border-box}
+  @keyframes hzGhDrop{from{transform:translateY(-8px);opacity:0}to{transform:translateY(0);opacity:1}}
+  .hz-gh-mega-inner{max-width:1200px;margin:0 auto;padding:0 24px;display:grid;gap:36px;width:100%;box-sizing:border-box}
+  .hz-gh-mega-3{grid-template-columns:repeat(3,1fr)}
+  .hz-gh-mega-2{grid-template-columns:repeat(2,1fr)}
+  .hz-gh-mega-col-head{font-size:11px;font-weight:800;letter-spacing:.14em;color:#f97316;text-transform:uppercase;margin-bottom:14px}
+  .hz-gh-mega-link{display:block;padding:8px 12px;border-radius:6px;text-decoration:none;cursor:pointer;font-family:inherit;background:transparent;border:none;border-left:3px solid transparent;text-align:left;width:100%;box-sizing:border-box;transition:background .15s, border-color .15s;margin-bottom:4px}
+  .hz-gh-mega-link:hover{background:rgba(249,115,22,.05);border-left-color:#f97316}
+  .hz-gh-mega-link:hover .hz-gh-mega-link-title{color:#f97316}
+  .hz-gh-mega-link[disabled]{cursor:wait;opacity:.7}
+  .hz-gh-mega-link-title{display:block;color:#fff;font-size:14px;font-weight:500;line-height:1.4;transition:color .15s}
+  .hz-gh-mega-link-desc{display:block;color:#64748b;font-size:12px;line-height:1.5;margin-top:2px}
+  .hz-gh-mobile{position:fixed;top:0;right:0;bottom:0;width:100%;max-width:380px;background:#0f172a;color:#fff;z-index:10002;animation:hzGhSlide .25s ease both;display:flex;flex-direction:column;overflow-y:auto;box-shadow:-20px 0 40px rgba(0,0,0,.4)}
+  @keyframes hzGhSlide{from{transform:translateX(100%)}to{transform:translateX(0)}}
+  .hz-gh-mobile-head{display:flex;align-items:center;justify-content:space-between;padding:18px 22px;border-bottom:1px solid rgba(255,255,255,.08);position:sticky;top:0;background:#0f172a;z-index:1}
+  .hz-gh-mobile-close{background:none;border:none;color:#fff;font-size:24px;cursor:pointer;font-family:inherit;line-height:1;padding:6px 10px;border-radius:8px}
+  .hz-gh-mobile-close:hover{color:#f97316;background:rgba(249,115,22,.08)}
+  .hz-gh-mobile-section{padding:18px 22px 6px;border-bottom:1px solid rgba(255,255,255,.06)}
+  .hz-gh-mobile-section-head{font-size:11px;font-weight:800;letter-spacing:.14em;color:#f97316;text-transform:uppercase;margin-bottom:12px}
+  .hz-gh-mobile-link{display:block;padding:10px 0;color:#fff;font-size:16px;font-weight:500;text-decoration:none;background:none;border:none;font-family:inherit;text-align:left;cursor:pointer;width:100%}
+  .hz-gh-mobile-link:hover{color:#f97316}
+  .hz-gh-mobile-link[disabled]{cursor:wait;opacity:.7}
+  .hz-gh-mobile-foot{padding:22px;display:flex;flex-direction:column;gap:12px;margin-top:auto}
+  .hz-gh-mobile-login{padding:14px;text-align:center;background:transparent;border:1.5px solid rgba(255,255,255,.18);border-radius:10px;color:#fff;font-weight:700;font-size:15px;text-decoration:none;font-family:inherit;cursor:pointer}
+  .hz-gh-mobile-cta{padding:14px;text-align:center;background:#f97316;border:none;border-radius:10px;color:#fff;font-weight:800;font-size:15px;text-decoration:none;font-family:inherit;cursor:pointer}
+  .hz-gh-mobile-cta:hover{background:#ea580c}
+  .hz-gh-backdrop{position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:10001;animation:hzGhFade .2s ease both}
+  @keyframes hzGhFade{from{opacity:0}to{opacity:1}}
 `;
 
 // ─── COMPONENTS ───────────────────────────────────────────────────────────────
@@ -768,7 +825,6 @@ const MethodologyPage = ({ onBack, onNavigate }) => {
 
   return (
     <div style={{minHeight:"100vh",background:"#f1f5f9",width:"100%",maxWidth:"100vw",overflowX:"hidden"}}>
-      <BackNav onNavigate={onNavigate}/>
 
       {/* CONTENT */}
       <main style={{maxWidth:880,margin:"0 auto",padding:"48px 24px 72px"}}>
@@ -1328,7 +1384,6 @@ const ReportLandingPage = ({ onBack, onNavigate }) => {
   return (
     <div style={{minHeight:"100vh",background:"#f8fafc",width:"100%",maxWidth:"100vw",overflowX:"hidden",color:"#0f172a"}}>
 
-      <BackNav onNavigate={onNavigate}/>
 
       {/* 1. HERO */}
       <section style={{background:"linear-gradient(150deg,#020c1b 0%,#0f172a 45%,#1e0535 100%)",padding:"48px 20px 52px",textAlign:"center",position:"relative",overflow:"hidden",borderBottom:"1px solid rgba(249,115,22,.18)"}}>
@@ -1740,7 +1795,6 @@ const GetReportPage = ({ onNavigate }) => {
   return (
     <div style={{minHeight:"100vh",background:"#f1f5f9",width:"100%",maxWidth:"100vw",overflowX:"hidden"}}>
 
-      <BackNav onNavigate={onNavigate}/>
 
       {/* HERO */}
       <section style={{background:"linear-gradient(150deg,#020c1b 0%,#0f172a 45%,#1e0535 100%)",padding:"0 0 56px",position:"relative",overflow:"hidden",borderBottom:"1px solid rgba(249,115,22,.18)"}}>
@@ -3614,10 +3668,6 @@ const BusinessPlansPage = ({ onNavigate, facilityCount, facs = [] }) => {
 
   return (
     <div style={{minHeight:"100vh",background:"linear-gradient(150deg,#020c1b 0%,#0f172a 50%,#1e0535 100%)",color:"#fff",width:"100%",maxWidth:"100vw",overflowX:"hidden"}}>
-      <BackNav onNavigate={onNavigate} extra={
-        <a href="/business-login" onClick={e=>{e.preventDefault();onNavigate("/business-login");}} style={{display:"inline-block",fontSize:13,fontWeight:800,letterSpacing:".04em",color:"#f97316",textDecoration:"none",padding:"9px 18px",borderRadius:30,border:"1.5px solid #f97316",background:"rgba(249,115,22,.08)"}}>Sign In to Your Account</a>
-      }/>
-
       <section style={{maxWidth:880,margin:"0 auto",padding:"48px 24px 28px",textAlign:"center"}}>
         <div style={{display:"inline-block",fontSize:12,color:"#f97316",letterSpacing:".18em",textTransform:"uppercase",fontWeight:800,marginBottom:14,padding:"6px 14px",borderRadius:30,background:"rgba(249,115,22,.12)",border:"1px solid rgba(249,115,22,.3)"}}>For Business</div>
         <h1 style={{fontSize:"clamp(36px,6vw,56px)",fontWeight:900,letterSpacing:"-.02em",marginBottom:18,lineHeight:1.1}}>HumZones for Business</h1>
@@ -4219,10 +4269,6 @@ const BusinessGeneratePage = ({ onNavigate }) => {
 
   return (
     <div style={{minHeight:"100vh",background:"linear-gradient(150deg,#020c1b 0%,#0f172a 50%,#1e0535 100%)",color:"#fff",paddingBottom:results ? 110 : 40}}>
-      <BackNav onNavigate={onNavigate} extra={
-        <a href="/business-dashboard" onClick={e=>{e.preventDefault();onNavigate("/business-dashboard");}} style={{fontSize:13,color:"rgba(255,255,255,.7)",fontWeight:700,textDecoration:"none"}}>Dashboard</a>
-      }/>
-
       <main style={{maxWidth:880,margin:"0 auto",padding:"16px 24px 48px"}}>
         <div style={{background:"rgba(15,23,42,.6)",border:"1px solid rgba(255,255,255,.1)",borderRadius:18,padding:"28px",marginBottom:24}}>
           <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",gap:14,marginBottom:16,flexWrap:"wrap"}}>
@@ -4412,7 +4458,6 @@ const BusinessRecoverPage = ({ onNavigate }) => {
 
   return (
     <div style={{minHeight:"100vh",background:"linear-gradient(150deg,#020c1b 0%,#0f172a 50%,#1e0535 100%)",color:"#fff"}}>
-      <BackNav onNavigate={onNavigate}/>
 
       <main style={{maxWidth:480,margin:"0 auto",padding:"24px 24px 80px"}}>
 
@@ -4563,7 +4608,6 @@ const BusinessLoginPage = ({ onNavigate }) => {
 
   return (
     <div style={{minHeight:"100vh",background:"linear-gradient(150deg,#020c1b 0%,#0f172a 50%,#1e0535 100%)",color:"#fff"}}>
-      <BackNav onNavigate={onNavigate}/>
 
       <main style={{maxWidth:480,margin:"0 auto",padding:"24px 24px 80px"}}>
         <div style={{textAlign:"center",marginBottom:24}}>
@@ -4774,16 +4818,16 @@ const BusinessDashboardPage = ({ onNavigate }) => {
 
   return (
     <div style={{minHeight:"100vh",background:"linear-gradient(150deg,#020c1b 0%,#0f172a 50%,#1e0535 100%)",color:"#fff"}}>
-      <BackNav onNavigate={onNavigate} extra={<>
-        <a href="/business-profile" onClick={e=>{e.preventDefault();onNavigate("/business-profile");}} style={{fontSize:13,color:"rgba(255,255,255,.7)",fontWeight:700,textDecoration:"none",padding:"8px 12px",borderRadius:10,border:"1px solid rgba(255,255,255,.14)"}}>My Profile</a>
-        <button onClick={signOut} style={{padding:"8px 16px",borderRadius:10,border:"1px solid rgba(255,255,255,.18)",background:"rgba(255,255,255,.06)",color:"rgba(255,255,255,.85)",cursor:"pointer",fontFamily:"inherit",fontSize:13,fontWeight:700}}>Sign Out</button>
-      </>}/>
-
       <main style={{maxWidth:880,margin:"0 auto",padding:"24px 24px 60px"}}>
-        <h1 style={{fontSize:30,fontWeight:900,letterSpacing:"-.01em",marginBottom:6}}>Welcome back {account.firstName || ""}</h1>
-        <p style={{fontSize:14,color:"rgba(255,255,255,.6)",marginBottom:28}}>
-          {account.company ? `${account.company} - ` : ""}{account.email}
-        </p>
+        <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",gap:14,marginBottom:28,flexWrap:"wrap"}}>
+          <div>
+            <h1 style={{fontSize:30,fontWeight:900,letterSpacing:"-.01em",marginBottom:6}}>Welcome back {account.firstName || ""}</h1>
+            <p style={{fontSize:14,color:"rgba(255,255,255,.6)",margin:0}}>
+              {account.company ? `${account.company} - ` : ""}{account.email}
+            </p>
+          </div>
+          <button onClick={signOut} style={{padding:"8px 16px",borderRadius:10,border:"1px solid rgba(255,255,255,.18)",background:"rgba(255,255,255,.06)",color:"rgba(255,255,255,.85)",cursor:"pointer",fontFamily:"inherit",fontSize:13,fontWeight:700}}>Sign Out</button>
+        </div>
 
         <div style={{background:"linear-gradient(160deg,rgba(249,115,22,.16),rgba(15,23,42,.6))",border:"1.5px solid rgba(249,115,22,.4)",borderRadius:18,padding:"30px",marginBottom:24,boxShadow:"0 20px 50px rgba(249,115,22,.18)"}}>
           <div style={{fontSize:13,color:"#f97316",letterSpacing:".18em",textTransform:"uppercase",fontWeight:800,marginBottom:10}}>Credits</div>
@@ -5004,10 +5048,6 @@ const BusinessProfilePage = ({ onNavigate }) => {
 
   return (
     <div style={{minHeight:"100vh",background:"linear-gradient(150deg,#020c1b 0%,#0f172a 50%,#1e0535 100%)",color:"#fff"}}>
-      <BackNav onNavigate={onNavigate} extra={
-        <a href="/business-dashboard" onClick={e=>{e.preventDefault();onNavigate("/business-dashboard");}} style={{fontSize:13,color:"rgba(255,255,255,.7)",fontWeight:700,textDecoration:"none",padding:"8px 12px",borderRadius:10,border:"1px solid rgba(255,255,255,.14)"}}>Back to Dashboard</a>
-      }/>
-
       <main style={{maxWidth:680,margin:"0 auto",padding:"24px 24px 60px"}}>
         <h1 style={{fontSize:30,fontWeight:900,letterSpacing:"-.01em",marginBottom:24}}>My Profile</h1>
 
@@ -5561,7 +5601,6 @@ const PrivacyPolicyPage = ({ onNavigate }) => {
 
   return (
     <div style={{minHeight:"100vh",background:"linear-gradient(150deg,#020c1b 0%,#0f172a 50%,#1e0535 100%)",color:"#fff"}}>
-      <BackNav onNavigate={onNavigate}/>
 
       <main style={{maxWidth:820,margin:"0 auto",padding:"16px 24px 80px"}}>
         <h1 style={{fontSize:"clamp(32px,5vw,44px)",fontWeight:900,letterSpacing:"-.02em",marginBottom:8}}>Privacy Policy</h1>
@@ -5859,7 +5898,6 @@ const MyReportPage = ({ onNavigate }) => {
 
   return (
     <div style={{minHeight:"100vh",background:"linear-gradient(150deg,#020c1b 0%,#0f172a 50%,#1e0535 100%)",color:"#fff"}}>
-      <BackNav onNavigate={onNavigate}/>
 
       <main style={{maxWidth:560,margin:"0 auto",padding:"24px 24px 80px"}}>
 
@@ -6248,7 +6286,6 @@ const SubmitReportPage = ({ onNavigate }) => {
 
   return (
     <div style={{minHeight:"100vh",background:"#f1f5f9",width:"100%",maxWidth:"100vw",overflowX:"hidden"}}>
-      <BackNav onNavigate={onNavigate}/>
       {/* HERO */}
       <section style={{background:"linear-gradient(150deg,#020c1b 0%,#0f172a 45%,#1e0535 100%)",padding:"22px 24px 56px"}}>
         <div style={{maxWidth:1080,margin:"0 auto"}}>
@@ -6533,29 +6570,6 @@ const SubmitReportPage = ({ onNavigate }) => {
   );
 };
 
-// ─── SHARED: dark page hero used by the static content pages ─────────────────
-// Standardized top nav: a full-width #1e293b band with a plain-text back
-// button on the far left and the 20px HumZones logo on the right. The band
-// spans edge to edge so no light page background shows through; the back
-// button and logo stay constrained to 1040px and centered. Optional `extra`
-// content renders just left of the logo.
-const BackNav = ({ onNavigate, extra }) => (
-  <div style={{background:"#1e293b",width:"100%"}}>
-    <div style={{maxWidth:1040,margin:"0 auto",width:"100%",padding:"16px 24px",display:"flex",alignItems:"center",justifyContent:"space-between",gap:14,boxSizing:"border-box"}}>
-      <button onClick={()=>window.history.back()} className="backnav-btn" aria-label="Go back" style={{display:"inline-flex",alignItems:"center",gap:6,background:"none",border:"none",color:"rgba(255,255,255,.85)",fontSize:14,fontWeight:500,padding:"8px 12px",cursor:"pointer",fontFamily:"inherit"}}>
-        <span style={{fontSize:16,lineHeight:1}}>&larr;</span> Back
-      </button>
-      <div style={{display:"flex",alignItems:"center",gap:16,flexWrap:"wrap",justifyContent:"flex-end"}}>
-        {extra}
-        <a href="/" onClick={e=>{e.preventDefault();onNavigate("/");}} aria-label="HumZones home" style={{textDecoration:"none",display:"inline-flex",alignItems:"baseline"}}>
-          <span style={{fontSize:20,fontWeight:700,color:"#fff"}}>HumZones</span>
-          <sup style={{fontSize:10,color:"#f97316",fontWeight:700,verticalAlign:"super",marginLeft:1}}>TM</sup>
-        </a>
-      </div>
-    </div>
-  </div>
-);
-
 const PageHero = ({ onNavigate, title, subtitle }) => (
   <section style={{background:"linear-gradient(150deg,#020c1b 0%,#0f172a 45%,#1e0535 100%)",padding:"22px 24px 60px"}}>
     <div style={{maxWidth:1100,margin:"0 auto"}}>
@@ -6617,7 +6631,6 @@ const ContactPage = ({ onNavigate }) => {
 
   return (
     <div style={{minHeight:"100vh",background:"#f1f5f9",width:"100%",maxWidth:"100vw",overflowX:"hidden"}}>
-      <BackNav onNavigate={onNavigate}/>
       <PageHero onNavigate={onNavigate} title="Contact Us"
         subtitle="We would love to hear from you. Whether you have a question about our data, a report to discuss, or a media inquiry, we are here to help."/>
 
@@ -6714,7 +6727,6 @@ const AboutPage = ({ onNavigate, facilityCount }) => {
 
   return (
     <div style={{minHeight:"100vh",background:"#f1f5f9",width:"100%",maxWidth:"100vw",overflowX:"hidden"}}>
-      <BackNav onNavigate={onNavigate}/>
       <PageHero onNavigate={onNavigate} title="About HumZones"
         subtitle="We believe every person has the right to know what infrastructure exists near their home and what it means for their community."/>
 
@@ -6824,7 +6836,6 @@ const FaqPage = ({ onNavigate, facilityCount }) => {
 
   return (
     <div style={{minHeight:"100vh",background:"#f1f5f9",width:"100%",maxWidth:"100vw",overflowX:"hidden"}}>
-      <BackNav onNavigate={onNavigate}/>
       <PageHero onNavigate={onNavigate} title="Frequently Asked Questions"
         subtitle="Everything you need to know about HumZones, our data and our reports."/>
 
@@ -6882,7 +6893,6 @@ const TERMS_SECTIONS = [
 
 const TermsPage = ({ onNavigate }) => (
   <div style={{minHeight:"100vh",background:"#f1f5f9",width:"100%",maxWidth:"100vw",overflowX:"hidden"}}>
-    <BackNav onNavigate={onNavigate}/>
     <PageHero onNavigate={onNavigate} title="Terms of Service" subtitle="Last updated: May 2026"/>
 
     <section style={{background:"#fff",padding:"54px 24px"}}>
@@ -6926,7 +6936,6 @@ const DISCLAIMER_SECTIONS = [
 
 const DisclaimerPage = ({ onNavigate }) => (
   <div style={{minHeight:"100vh",background:"#f1f5f9",width:"100%",maxWidth:"100vw",overflowX:"hidden"}}>
-    <BackNav onNavigate={onNavigate}/>
     <PageHero onNavigate={onNavigate} title="Legal Disclaimer" subtitle="Last updated: May 2026"/>
 
     <section style={{background:"#fff",padding:"54px 24px"}}>
@@ -6994,6 +7003,259 @@ const renderFaqAnswer = (text, onNavigate) => {
 };
 
 // ─── MAIN APP ─────────────────────────────────────────────────────────────────
+// ─── GLOBAL HEADER ───────────────────────────────────────────────────────────
+// Site-wide sticky nav with mega menu dropdowns. Mounted once at the top of
+// App so it sits above every route. The Back arrow only renders when the
+// user is not on the home route and delegates to window.history.back so the
+// router's existing popstate listener stays in charge of the path state.
+// Mega menu open state is hover-driven and reset on every route change.
+const GH_MENU = {
+  explore: {
+    label: "Explore",
+    layout: 3,
+    columns: [
+      { head: "FIND DATA CENTERS", items: [
+        { title: "Find Near Me",         desc: "Search facilities near your address",      action: "nearme" },
+        { title: "Get My Report",        desc: "Full personalized area report",            to: "/get-report" },
+        { title: "Search by Location",   desc: "Browse by country, state and city",        to: "/" },
+      ]},
+      { head: "OUR DATABASE", items: [
+        { title: "Interactive Map",      desc: "Visual map of all tracked facilities",     to: "/get-report" },
+        { title: "1,143+ Facilities",    desc: "Growing global registry",                  to: "/" },
+        { title: "Live Registry Status", desc: "Operating, building and proposed",         to: "/" },
+      ]},
+      { head: "LEARN", items: [
+        { title: "Methodology",          desc: "How we research and model data",           to: "/methodology" },
+        { title: "FAQ",                  desc: "Common questions answered",                to: "/faq" },
+        { title: "About HumZones",       desc: "Our mission and story",                    to: "/about" },
+      ]},
+    ],
+  },
+  reports: {
+    label: "Reports",
+    layout: 3,
+    columns: [
+      { head: "PERSONAL REPORTS", items: [
+        { title: "Get My Report $14.99", desc: "Instant PDF for any address",              to: "/get-report" },
+        { title: "Download Sample",      desc: "Preview before you buy",                   action: "sample" },
+        { title: "What Is Included",     desc: "See full report contents",                 to: "/get-report" },
+      ]},
+      { head: "BUSINESS PLANS", items: [
+        { title: "Starter $99/month",       desc: "10 reports per month",                  to: "/business" },
+        { title: "Professional $249/month", desc: "30 reports per month",                  to: "/business" },
+        { title: "Unlimited $599/month",    desc: "Unlimited reports",                     to: "/business" },
+      ]},
+      { head: "YOUR REPORTS", items: [
+        { title: "Retrieve My Report",   desc: "Access past purchases",                    to: "/my-report" },
+        { title: "Business Dashboard",   desc: "Manage your subscription",                 to: "/business-dashboard" },
+        { title: "Business Login",       desc: "Sign in to your account",                  to: "/business-login" },
+      ]},
+    ],
+  },
+  business: {
+    label: "Business",
+    layout: 2,
+    columns: [
+      { head: "PLANS & PRICING", items: [
+        { title: "View All Plans",       desc: "Compare Starter, Professional, Unlimited", to: "/business" },
+        { title: "Annual Plans",         desc: "Save 2 months with annual billing",        to: "/business" },
+        { title: "Sample Report",        desc: "See what professionals receive",           action: "sample" },
+      ]},
+      { head: "YOUR ACCOUNT", items: [
+        { title: "Business Login",       desc: "Sign in with magic link",                  to: "/business-login" },
+        { title: "My Dashboard",         desc: "Credits and report history",               to: "/business-dashboard" },
+        { title: "My Profile",           desc: "Manage your account",                      to: "/business-profile" },
+        { title: "Account Recovery",     desc: "Forgot your login email?",                 to: "/business-recover" },
+      ]},
+    ],
+  },
+  community: {
+    label: "Community",
+    layout: 2,
+    columns: [
+      { head: "PARTICIPATE", items: [
+        { title: "Submit Your Report",   desc: "Share your experience",                    to: "/submit-report" },
+        { title: "Community Reports",    desc: "Read verified resident reports",           to: "/" },
+        { title: "Contact Us",           desc: "Get in touch with our team",               to: "/contact" },
+      ]},
+      { head: "RESEARCH", items: [
+        { title: "Methodology",          desc: "Our research approach",                    to: "/methodology" },
+        { title: "Research Sources",     desc: "WHO, IARC, arXiv and more",                to: "/methodology" },
+        { title: "About HumZones",       desc: "Our mission and story",                    to: "/about" },
+      ]},
+    ],
+  },
+  company: {
+    label: "Company",
+    layout: 2,
+    columns: [
+      { head: "COMPANY", items: [
+        { title: "About Us",             desc: "Who we are and why we built this",         to: "/about" },
+        { title: "Contact Us",           desc: "We would love to hear from you",           to: "/contact" },
+        { title: "Methodology",          desc: "How our data works",                       to: "/methodology" },
+      ]},
+      { head: "LEGAL", items: [
+        { title: "Privacy Policy",       desc: "How we handle your data",                  to: "/privacy" },
+        { title: "Terms of Service",     desc: "Our terms and conditions",                 to: "/terms" },
+        { title: "Legal Disclaimer",     desc: "Important legal information",              to: "/disclaimer" },
+      ]},
+    ],
+  },
+};
+const GH_KEYS = ["explore","reports","business","community","company"];
+
+const GhChev = () => (
+  <svg className="hz-gh-nav-chev" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <polyline points="6 9 12 15 18 9"/>
+  </svg>
+);
+
+const GlobalHeader = ({ onNavigate, path }) => {
+  const [open, setOpen]             = useState(null);
+  const [mobileOpen, setMobileOpen] = useState(false);
+  const [sampleBusy, setSampleBusy] = useState(false);
+
+  // Close every menu when the route changes.
+  useEffect(() => { setOpen(null); setMobileOpen(false); }, [path]);
+
+  // Lock body scroll while the mobile drawer is open.
+  useEffect(() => {
+    if (!mobileOpen) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => { document.body.style.overflow = prev; };
+  }, [mobileOpen]);
+
+  const goNearMe = () => {
+    setOpen(null); setMobileOpen(false);
+    const scroll = () => {
+      const el = document.getElementById("near-me");
+      if (el) el.scrollIntoView({ behavior:"smooth", block:"start" });
+    };
+    if (path !== "/") { onNavigate("/"); setTimeout(scroll, 350); }
+    else scroll();
+  };
+
+  const runSample = async () => {
+    if (sampleBusy) return;
+    setSampleBusy(true);
+    try {
+      const { doc } = await buildSampleReportPdf();
+      doc.save("HumZones-Sample-Report.pdf");
+      setOpen(null); setMobileOpen(false);
+    } catch (e) {
+      console.error("Sample report generation failed:", e);
+      window.alert("We could not generate the sample report. Please try again.");
+    } finally { setSampleBusy(false); }
+  };
+
+  const handleItem = (item) => {
+    if (item.action === "nearme") return goNearMe();
+    if (item.action === "sample") return runSample();
+    if (item.to) { setOpen(null); setMobileOpen(false); onNavigate(item.to); }
+  };
+
+  const cur = open ? GH_MENU[open] : null;
+
+  return (
+    <header className="hz-gh-shell" role="banner">
+      <div className="hz-gh-inner">
+        <div className="hz-gh-left">
+          {path !== "/" && (
+            <button type="button" className="hz-gh-back" aria-label="Go back" onClick={()=>{ if (typeof window !== "undefined") window.history.back(); }}>
+              &larr;
+            </button>
+          )}
+          <button type="button" className="hz-gh-logo" onClick={()=>onNavigate("/")} aria-label="HumZones home">
+            <span className="hz-gh-logo-title">HumZones<sup className="hz-gh-logo-sup">TM</sup></span>
+            <span className="hz-gh-logo-tag">Global Data Center Health &amp; Infrastructure Registry</span>
+          </button>
+        </div>
+
+        <nav className="hz-gh-nav" aria-label="Primary">
+          {GH_KEYS.map(key => (
+            <div key={key} style={{position:"relative"}} onMouseEnter={()=>setOpen(key)} onMouseLeave={()=>setOpen(null)}>
+              <button type="button" className={`hz-gh-nav-btn${open===key?" is-open":""}`} aria-expanded={open===key} onFocus={()=>setOpen(key)}>
+                {GH_MENU[key].label}<GhChev/>
+              </button>
+            </div>
+          ))}
+        </nav>
+
+        <div className="hz-gh-right">
+          <a href="/business-login" onClick={e=>{e.preventDefault();onNavigate("/business-login");}} className="hz-gh-login">Login</a>
+          <a href="/get-report" onClick={e=>{e.preventDefault();onNavigate("/get-report");}} className="hz-gh-cta">Get My Report</a>
+          <button type="button" className="hz-gh-burger" aria-label="Open menu" onClick={()=>setMobileOpen(true)}>
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" aria-hidden="true">
+              <line x1="3" y1="6" x2="21" y2="6"/>
+              <line x1="3" y1="12" x2="21" y2="12"/>
+              <line x1="3" y1="18" x2="21" y2="18"/>
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      {cur && (
+        <div className="hz-gh-mega" onMouseEnter={()=>setOpen(open)} onMouseLeave={()=>setOpen(null)}>
+          <div className={`hz-gh-mega-inner ${cur.layout===3?"hz-gh-mega-3":"hz-gh-mega-2"}`}>
+            {cur.columns.map(col => (
+              <div key={col.head}>
+                <div className="hz-gh-mega-col-head">{col.head}</div>
+                {col.items.map(item => (
+                  <button
+                    key={item.title}
+                    type="button"
+                    className="hz-gh-mega-link"
+                    onClick={()=>handleItem(item)}
+                    disabled={item.action==="sample" && sampleBusy}
+                  >
+                    <span className="hz-gh-mega-link-title">
+                      {item.action==="sample" && sampleBusy ? "Generating Sample..." : item.title}
+                    </span>
+                    <span className="hz-gh-mega-link-desc">{item.desc}</span>
+                  </button>
+                ))}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {mobileOpen && (
+        <>
+          <div className="hz-gh-backdrop" onClick={()=>setMobileOpen(false)}/>
+          <aside className="hz-gh-mobile" role="dialog" aria-label="Site menu">
+            <div className="hz-gh-mobile-head">
+              <span style={{color:"#fff",fontWeight:800,fontSize:18}}>HumZones</span>
+              <button type="button" className="hz-gh-mobile-close" aria-label="Close menu" onClick={()=>setMobileOpen(false)}>&times;</button>
+            </div>
+            {GH_KEYS.map(key => (
+              <div key={key} className="hz-gh-mobile-section">
+                <div className="hz-gh-mobile-section-head">{GH_MENU[key].label}</div>
+                {GH_MENU[key].columns.flatMap(col => col.items).map(item => (
+                  <button
+                    key={item.title}
+                    type="button"
+                    className="hz-gh-mobile-link"
+                    onClick={()=>handleItem(item)}
+                    disabled={item.action==="sample" && sampleBusy}
+                  >
+                    {item.action==="sample" && sampleBusy ? "Generating Sample..." : item.title}
+                  </button>
+                ))}
+              </div>
+            ))}
+            <div className="hz-gh-mobile-foot">
+              <a href="/business-login" className="hz-gh-mobile-login" onClick={e=>{e.preventDefault();onNavigate("/business-login");}}>Login</a>
+              <a href="/get-report" className="hz-gh-mobile-cta" onClick={e=>{e.preventDefault();onNavigate("/get-report");}}>Get My Report</a>
+            </div>
+          </aside>
+        </>
+      )}
+    </header>
+  );
+};
+
 export default function App() {
   // Lightweight client-side routing: track pathname, listen for back/forward,
   // and update via history.pushState. Vercel rewrites all paths to index.html
@@ -7515,6 +7777,7 @@ export default function App() {
     <>
       <style>{CSS}</style>
       <ScrollToTop path={path}/>
+      <GlobalHeader onNavigate={navigate} path={path}/>
       {path === "/methodology" ? (
         <MethodologyPage onBack={()=>navigate("/")} onNavigate={navigate}/>
       ) : path === "/get-report" ? (
@@ -7562,14 +7825,6 @@ export default function App() {
 
         {/* HERO */}
         <section className="hero" style={{position:"relative",overflow:"visible",minHeight:"100vh",background:"linear-gradient(150deg,#020c1b 0%,#0f172a 35%,#1e0535 65%,#0a1628 100%)",backgroundSize:"400% 400%",animation:"gradShift 14s ease infinite",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:"80px 24px",textAlign:"center"}}>
-          {/* Top-right nav: page links + For Business. */}
-          <div style={{position:"absolute",top:18,right:22,zIndex:5,display:"flex",alignItems:"center",gap:14,flexWrap:"wrap",justifyContent:"flex-end"}}>
-            {[["About","/about"],["FAQ","/faq"],["Contact","/contact"]].map(([label,to])=>(
-              <a key={to} href={to} onClick={e=>{e.preventDefault();navigate(to);}} style={{fontSize:13,fontWeight:700,letterSpacing:".04em",color:"rgba(255,255,255,.8)",textDecoration:"none"}}>{label}</a>
-            ))}
-            <a href="/business-login" onClick={e=>{e.preventDefault();navigate("/business-login");}} className="hz-hero-login" style={{fontSize:13,fontWeight:600,letterSpacing:".04em",color:"rgba(255,255,255,.85)",textDecoration:"none"}}>Login</a>
-            <a href="/business" onClick={e=>{e.preventDefault();navigate("/business");}} style={{fontSize:13,fontWeight:800,letterSpacing:".08em",color:"rgba(255,255,255,.85)",textDecoration:"none",padding:"8px 14px",borderRadius:30,border:"1px solid rgba(249,115,22,.45)",background:"rgba(249,115,22,.1)"}}>For Business</a>
-          </div>
           <div className="rings" style={{position:"absolute",left:"50%",top:"50%",pointerEvents:"none",zIndex:0,overflow:"hidden"}}>
             {[1,2,3,4,5].map(i=>(<div key={i} style={{position:"absolute",width:i*200,height:i*200,borderRadius:"50%",border:"1px solid rgba(239,68,68,0.09)",left:"50%",top:"50%",animation:`ring ${2+i*.7}s cubic-bezier(.4,0,.6,1) ${i*.5}s infinite`}}/>))}
           </div>
