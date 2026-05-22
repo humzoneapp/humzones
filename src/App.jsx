@@ -1,3 +1,4 @@
+// HumZones - Last updated: May 22 2026
 // Build marker: 2026-05-19, force fresh Vercel deployment.
 import { useState, useEffect, useRef, useCallback } from "react";
 
