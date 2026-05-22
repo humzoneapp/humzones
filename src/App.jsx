@@ -3814,6 +3814,8 @@ export default function App() {
   const [nearEmailInput,setNearEmailInput]   = useState("");
   const [nearEmailSending,setNearEmailSending] = useState(false);
   const [nearEmailError,setNearEmailError]   = useState("");
+  // Human-confirmation checkbox gating the email-gate unlock button.
+  const [nearHumanConfirmed,setNearHumanConfirmed] = useState(false);
   const [justUnlocked,setJustUnlocked]       = useState(false);
   const cRef    = useRef(null);
   const rRef    = useRef(null);
@@ -4708,15 +4710,25 @@ export default function App() {
                             className="email-gate-input"
                             value={nearEmailInput}
                             onChange={e=>setNearEmailInput(e.target.value)}
-                            onKeyDown={e=>{ if(e.key==="Enter") handleEmailUnlock(); }}
+                            onKeyDown={e=>{ if(e.key==="Enter" && nearHumanConfirmed) handleEmailUnlock(); }}
                             placeholder="Enter your email address"
                             disabled={nearEmailSending}
                             style={{padding:"13px 16px",fontSize:15,borderRadius:12,border:"1.5px solid rgba(255,255,255,.18)",background:"rgba(255,255,255,.08)",color:"#fff",fontFamily:"inherit",boxSizing:"border-box",width:"100%"}}
                           />
+                          <label style={{display:"flex",alignItems:"center",gap:9,fontSize:13,color:"rgba(255,255,255,.78)",cursor:"pointer",textAlign:"left",lineHeight:1.4}}>
+                            <input
+                              type="checkbox"
+                              checked={nearHumanConfirmed}
+                              onChange={e=>setNearHumanConfirmed(e.target.checked)}
+                              disabled={nearEmailSending}
+                              style={{width:16,height:16,accentColor:"#f97316",cursor:"pointer",flexShrink:0}}
+                            />
+                            <span>I confirm I am a human and not a bot</span>
+                          </label>
                           <button
                             onClick={handleEmailUnlock}
-                            disabled={nearEmailSending}
-                            style={{padding:"13px 22px",borderRadius:12,border:"none",background:"linear-gradient(135deg,#ef4444,#f97316)",color:"#fff",fontSize:15,fontWeight:800,letterSpacing:".02em",cursor:nearEmailSending?"wait":"pointer",fontFamily:"inherit",boxShadow:"0 8px 26px rgba(239,68,68,.4)",opacity:nearEmailSending?.8:1}}
+                            disabled={nearEmailSending || !nearHumanConfirmed}
+                            style={{padding:"13px 22px",borderRadius:12,border:"none",background:nearHumanConfirmed?"linear-gradient(135deg,#ef4444,#f97316)":"rgba(255,255,255,.12)",color:nearHumanConfirmed?"#fff":"rgba(255,255,255,.45)",fontSize:15,fontWeight:800,letterSpacing:".02em",cursor:nearEmailSending?"wait":(nearHumanConfirmed?"pointer":"not-allowed"),fontFamily:"inherit",boxShadow:nearHumanConfirmed?"0 8px 26px rgba(239,68,68,.4)":"none",opacity:nearEmailSending?.8:1}}
                           >
                             {nearEmailSending ? "Unlocking..." : "Unlock Free Results"}
                           </button>
