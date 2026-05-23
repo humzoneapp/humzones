@@ -3738,6 +3738,30 @@ const BusinessPlansPage = ({ onNavigate, facilityCount, facs = [] }) => {
         </div>
       </section>
 
+      {/* Canonical "Each Report Includes" callout, scrolled to by the
+          GlobalHeader Reports -> What Is Included entry. Sourced from the
+          same REPORT_INCLUDES array as the per-plan cards below so the
+          list cannot drift between the two places. */}
+      <section id="report-contents" style={{maxWidth:1180,margin:"0 auto",padding:"8px 24px 28px",scrollMarginTop:80}}>
+        <div style={{background:"rgba(15,23,42,.55)",border:"1px solid rgba(249,115,22,.25)",borderRadius:18,padding:"28px 28px 26px",boxShadow:"0 14px 40px rgba(0,0,0,.25)"}}>
+          <div style={{fontSize:12,fontWeight:800,letterSpacing:".14em",textTransform:"uppercase",color:"#f97316",marginBottom:8}}>What every report includes</div>
+          <h2 style={{fontSize:"clamp(22px,3vw,28px)",fontWeight:900,letterSpacing:"-.01em",margin:"0 0 6px"}}>Each Report Includes</h2>
+          <p style={{fontSize:14,color:"rgba(255,255,255,.65)",lineHeight:1.65,margin:"0 0 18px"}}>
+            Every personal and business report contains the same complete data set for every facility within a 100km radius of the searched address.
+          </p>
+          <ul style={{listStyle:"none",padding:0,margin:0,display:"grid",gridTemplateColumns:"repeat(auto-fill, minmax(260px, 1fr))",gap:10}}>
+            {REPORT_INCLUDES.map(item => (
+              <li key={item} style={{display:"flex",alignItems:"flex-start",gap:10,fontSize:14,color:"rgba(255,255,255,.85)",lineHeight:1.55}}>
+                <span style={{flexShrink:0,display:"inline-flex",width:18,height:18,borderRadius:"50%",background:"rgba(249,115,22,.18)",alignItems:"center",justifyContent:"center",marginTop:1,border:"1px solid rgba(249,115,22,.45)"}}>
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#f97316" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>
+                </span>
+                <span>{item}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      </section>
+
       <section style={{maxWidth:1180,margin:"0 auto",padding:"24px 24px 48px"}}>
         <div className="biz-grid" style={{display:"grid",gridTemplateColumns:"repeat(3, 1fr)",gap:22,alignItems:"stretch"}}>
           {plans.map(p => {
@@ -7130,7 +7154,7 @@ const GH_MENU = {
       { head: "PERSONAL REPORTS", items: [
         { title: "Get My Report $14.99", desc: "Instant PDF for any address",              to: "/get-report" },
         { title: "Download Sample",      desc: "Preview before you buy",                   action: "sample" },
-        { title: "What Is Included",     desc: "See full report contents",                 to: "/get-report" },
+        { title: "What Is Included",     desc: "See full report contents",                 action: "contents" },
       ]},
       { head: "BUSINESS PLANS", items: [
         { title: "Starter $99/month",       desc: "10 reports per month",                  to: "/business" },
@@ -7264,6 +7288,16 @@ const GlobalHeader = ({ onNavigate, path }) => {
     else scroll();
   };
 
+  const goContents = () => {
+    setOpen(null); setMobileOpen(false);
+    const scroll = () => {
+      const el = document.getElementById("report-contents");
+      if (el) el.scrollIntoView({ behavior:"smooth", block:"start" });
+    };
+    if (path !== "/business") { onNavigate("/business"); setTimeout(scroll, 350); }
+    else scroll();
+  };
+
   const runSample = async () => {
     if (sampleBusy) return;
     setSampleBusy(true);
@@ -7281,6 +7315,7 @@ const GlobalHeader = ({ onNavigate, path }) => {
     if (item.action === "nearme")   return goNearMe();
     if (item.action === "registry") return goRegistry();
     if (item.action === "map")      return goMap();
+    if (item.action === "contents") return goContents();
     if (item.action === "sample")   return runSample();
     if (item.to) { setOpen(null); setMobileOpen(false); onNavigate(item.to); }
   };
