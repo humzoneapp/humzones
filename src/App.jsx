@@ -4641,6 +4641,8 @@ const BusinessRecoverPage = ({ onNavigate }) => {
         )}
 
       </main>
+
+      <Footer onNavigate={onNavigate}/>
     </div>
   );
 };
