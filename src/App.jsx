@@ -3639,8 +3639,27 @@ const Footer = ({ onNavigate, facilities = [] }) => {
 
 // ─── /business: PRICING PAGE ─────────────────────────────────────────────────
 const BusinessPlansPage = ({ onNavigate, facilityCount, facs = [] }) => {
-  const [annual, setAnnual] = useState(false);
+  // Initial toggle position respects a one-shot flag set by the header's
+  // Business -> Annual Plans entry so that link lands on the annual prices.
+  const [annual, setAnnual] = useState(() => {
+    try {
+      if (sessionStorage.getItem("hz_business_annual") === "1") {
+        sessionStorage.removeItem("hz_business_annual");
+        return true;
+      }
+    } catch {}
+    return false;
+  });
   const [sampleBusy, setSampleBusy] = useState(false);
+
+  // If the user is already on /business and clicks Business -> Annual Plans
+  // in the header, the page is not remounted, so listen for an explicit
+  // event from the header and flip the toggle in place.
+  useEffect(() => {
+    const onAnnual = () => setAnnual(true);
+    window.addEventListener("hz:business-annual", onAnnual);
+    return () => window.removeEventListener("hz:business-annual", onAnnual);
+  }, []);
 
   const plans = [
     {
@@ -7175,7 +7194,7 @@ const GH_MENU = {
     columns: [
       { head: "PLANS & PRICING", items: [
         { title: "View All Plans",       desc: "Compare Starter, Professional, Enterprise", to: "/business" },
-        { title: "Annual Plans",         desc: "Save 2 months with annual billing",        to: "/business" },
+        { title: "Annual Plans",         desc: "Save 2 months with annual billing",        action: "annual" },
         { title: "Sample Report",        desc: "See what professionals receive",           action: "sample" },
       ]},
       { head: "YOUR ACCOUNT", items: [
@@ -7309,6 +7328,16 @@ const GlobalHeader = ({ onNavigate, path }) => {
     else scroll();
   };
 
+  const goAnnual = () => {
+    setOpen(null); setMobileOpen(false);
+    // Flag is read by BusinessPlansPage on first mount; the event covers the
+    // case where the page is already mounted and would otherwise ignore the
+    // flag entirely.
+    try { sessionStorage.setItem("hz_business_annual", "1"); } catch {}
+    if (path !== "/business") onNavigate("/business");
+    else window.dispatchEvent(new CustomEvent("hz:business-annual"));
+  };
+
   const runSample = async () => {
     if (sampleBusy) return;
     setSampleBusy(true);
@@ -7328,6 +7357,7 @@ const GlobalHeader = ({ onNavigate, path }) => {
     if (item.action === "map")      return goMap();
     if (item.action === "contents") return goContents();
     if (item.action === "plan")     return goPlan(item.planId);
+    if (item.action === "annual")   return goAnnual();
     if (item.action === "sample")   return runSample();
     if (item.to) { setOpen(null); setMobileOpen(false); onNavigate(item.to); }
   };
