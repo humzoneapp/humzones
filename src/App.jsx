@@ -303,7 +303,7 @@ const exposureTier = (lvl) => {
   return v || "UNKNOWN";
 };
 const exposureColor = (lvl) => RISK_C[exposureTier(lvl)] || "#64748b";
-const exposureLabel = (lvl) => `${exposureTier(lvl)} EXPOSURE`;
+const exposureLabel = (lvl) => `${exposureTier(lvl)} IMPACT`;
 
 const SYMPTOMS = {
   HIGH:[
@@ -1083,9 +1083,9 @@ const MapSection = ({ facilities, loading, onSelectFacility }) => {
   }, [RL, all, hasSelect]);
 
   const legendRows = [
-    ["#ef4444", "HIGH EXPOSURE"],
-    ["#f97316", "MODERATE EXPOSURE"],
-    ["#22c55e", "LOW EXPOSURE"],
+    ["#ef4444", "HIGH IMPACT"],
+    ["#f97316", "MODERATE IMPACT"],
+    ["#22c55e", "LOW IMPACT"],
   ];
 
   return (
@@ -1248,14 +1248,14 @@ const ReportLandingPage = ({ onBack, onNavigate }) => {
         address: "123 Main Street, Austin, Texas, United States",
         summaryRows: [
           ["Total facilities within 100km", "8"],
-          ["HIGH exposure category facilities", "2"],
-          ["MODERATE exposure category facilities", "4"],
-          ["LOW exposure category facilities", "2"],
+          ["HIGH impact category facilities", "2"],
+          ["MODERATE impact category facilities", "4"],
+          ["LOW impact category facilities", "2"],
           ["Combined estimated power draw", "318 MW"],
           ["Combined estimated daily water draw", "1,985,000 gallons"],
           ["Combined estimated annual CO2 impact", "1,074,600 tons"],
         ],
-        summaryParagraph: "This sample report identifies 8 placeholder data center facilities within 100km of a sample address. Of these, 2 are in the HIGH infrastructure exposure category, 4 are MODERATE and 2 are LOW, based on power scale, proximity to residential areas and cooling type. A full HumZones report lists every facility near a real searched address with the same depth of detail shown on the following pages.",
+        summaryParagraph: "This sample report identifies 8 placeholder data center facilities within 100km of a sample address. Of these, 2 are in the HIGH infrastructure impact category, 4 are MODERATE and 2 are LOW, based on power scale, proximity to residential areas and cooling type. A full HumZones report lists every facility near a real searched address with the same depth of detail shown on the following pages.",
         facilities: [
           { name:"Amazon Data Center",   city:"Austin, Texas, United States", dist:"15.2 km", cat:"HIGH",     power:"120 MW", noise:"68 dB", emfFence:"45 mG", emf100:"5 mG", co2:"405,720 tons per year", water:"900,000 gallons per day" },
           { name:"Google Cloud Campus",  city:"Austin, Texas, United States", dist:"28.7 km", cat:"MODERATE", power:"45 MW",  noise:"65 dB", emfFence:"40 mG", emf100:"4 mG", co2:"152,145 tons per year", water:"337,500 gallons per day" },
@@ -1334,7 +1334,7 @@ const ReportLandingPage = ({ onBack, onNavigate }) => {
     },
     {
       val: numbersUnknown ? "" : String(highRiskCount),
-      label: "HIGH exposure category facilities",
+      label: "HIGH impact category facilities",
       desc: "Sites at 50 MW or more, or within 500m of homes. These have the strongest documented infrastructure impact patterns.",
       color: "#f97316",
     },
@@ -1354,7 +1354,7 @@ const ReportLandingPage = ({ onBack, onNavigate }) => {
 
   const benefits = [
     "Complete list of all facilities within 100km of your address",
-    "Infrastructure exposure category and infrastructure and community impact context for each facility",
+    "Infrastructure impact category and infrastructure and community impact context for each facility",
     "EMF exposure estimates at your distance",
     "Noise impact analysis",
     "Water and CO2 impact in your region",
@@ -1897,7 +1897,7 @@ const GetReportPage = ({ onNavigate }) => {
                   {radius===100 ? (
                     <>You found {results.length} {results.length===1?"facility":"facilities"} within 100km. Your Full Report includes detailed infrastructure analysis, modeled EMF ranges, noise levels and exposure assessments for every facility near you.</>
                   ) : (
-                    <>You found {results.length} {results.length===1?"facility":"facilities"} within {radius}km. Your Full Report reveals all {facilities100kmCount} facilities within 100km including {high100kmCount} HIGH exposure {high100kmCount===1?"site":"sites"} you may not know about.</>
+                    <>You found {results.length} {results.length===1?"facility":"facilities"} within {radius}km. Your Full Report reveals all {facilities100kmCount} facilities within 100km including {high100kmCount} HIGH impact {high100kmCount===1?"site":"sites"} you may not know about.</>
                   )}
                 </p>
                 <div style={{display:"inline-flex",alignItems:"center",gap:6,background:"#f97316",color:"#fff",fontSize:14,fontWeight:800,padding:"7px 16px",borderRadius:999,boxShadow:"0 4px 14px rgba(249,115,22,.45)",letterSpacing:".02em",marginBottom:18}}>
@@ -2166,7 +2166,7 @@ async function buildAreaReportPdf({ searchAddress, facsNear, radiusKm = 100, fac
   setText(255, 255, 255); doc.text(String(safeTotal), M + 20, y + 70);
 
   doc.setFont("helvetica", "bold"); doc.setFontSize(10);
-  setText(249, 115, 22); doc.text("HIGH EXPOSURE FACILITIES", M + 260, y + 28);
+  setText(249, 115, 22); doc.text("HIGH IMPACT FACILITIES", M + 260, y + 28);
   doc.setFont("helvetica", "bold"); doc.setFontSize(32);
   setText(255, 255, 255); doc.text(String(safeHigh), M + 260, y + 70);
 
@@ -2190,9 +2190,9 @@ async function buildAreaReportPdf({ searchAddress, facsNear, radiusKm = 100, fac
   y += 36;
   const rows = [
     [`Total facilities within ${radiusLbl}`, String(totalFound)],
-    ["HIGH exposure facilities",              String(counts.HIGH)],
-    ["MODERATE exposure facilities",          String(counts.MODERATE)],
-    ["LOW exposure facilities",               String(counts.LOW)],
+    ["HIGH impact facilities",              String(counts.HIGH)],
+    ["MODERATE impact facilities",          String(counts.MODERATE)],
+    ["LOW impact facilities",               String(counts.LOW)],
     ["Combined estimated power draw",         fmtMW(totalPower)],
     ["Combined daily water consumption",      `${fmtNum(totalWater)} gallons`],
     ["Combined CO2 per year",                 `${fmtNum(totalCO2)} tons`],
@@ -2210,7 +2210,7 @@ async function buildAreaReportPdf({ searchAddress, facsNear, radiusKm = 100, fac
   });
 
   y += 18;
-  const paragraph = `This report identifies ${totalFound} data center ${totalFound === 1 ? "facility" : "facilities"} operating within ${radiusLbl} of your address. Of these, ${counts.HIGH} ${counts.HIGH === 1 ? "is" : "are"} in the HIGH infrastructure exposure category based on power scale, proximity to residential areas and cooling type.`;
+  const paragraph = `This report identifies ${totalFound} data center ${totalFound === 1 ? "facility" : "facilities"} operating within ${radiusLbl} of your address. Of these, ${counts.HIGH} ${counts.HIGH === 1 ? "is" : "are"} in the HIGH infrastructure impact category based on power scale, proximity to residential areas and cooling type.`;
   doc.setFont("helvetica", "normal"); doc.setFontSize(11);
   setText(71, 85, 105);
   const pWrap = doc.splitTextToSize(paragraph, PW - M*2);
@@ -2261,7 +2261,7 @@ async function buildAreaReportPdf({ searchAddress, facsNear, radiusKm = 100, fac
                : tier === "LOW"      ? [34, 197, 94]
                : [100, 116, 139];
       setText(rc[0], rc[1], rc[2]);
-      doc.text(`Exposure Category: ${tier}`, M + 270, y);
+      doc.text(`Impact Category: ${tier}`, M + 270, y);
       y += 16;
 
       doc.setFont("helvetica", "normal"); doc.setFontSize(10);
@@ -2356,21 +2356,21 @@ async function buildAreaReportPdf({ searchAddress, facsNear, radiusKm = 100, fac
     bullet(`The closest facility is ${nearestFac.Name || "an unnamed facility"} at ${nearestFac._km.toFixed(1)}km.`);
   }
   if (topFac) {
-    bullet(`The highest exposure category facility near you is ${topFac.Name || "an unnamed facility"} at ${topFac._km.toFixed(1)}km drawing ${fmtNum(resolvePower(topFac))}MW of power.`);
+    bullet(`The highest impact category facility near you is ${topFac.Name || "an unnamed facility"} at ${topFac._km.toFixed(1)}km drawing ${fmtNum(resolvePower(topFac))}MW of power.`);
   }
   bullet(`Combined estimated power draw of all facilities within ${radiusLbl}: ${fmtMW(totalPower)}.`);
   bullet(`Combined estimated daily water draw: ${fmtNum(totalWater)} gallons.`);
   bullet(`Combined estimated annual CO2 impact: ${fmtNum(totalCO2)} tons.`);
   y += 12;
 
-  // ── PART B: Exposure by Distance
-  sectionHeading("Exposure by Distance");
+  // ── PART B: Impact by Distance
+  sectionHeading("Impact by Distance");
   [10, 25, 50, 100].forEach((km) => {
     const within = facsNear.filter((f) => f._km <= km);
     const h = within.filter((f) => exposureTier(f.Risk_Level) === "HIGH").length;
     const m = within.filter((f) => exposureTier(f.Risk_Level) === "MODERATE").length;
     const l = within.filter((f) => exposureTier(f.Risk_Level) === "LOW").length;
-    bullet(`Within ${km}km: ${within.length} ${within.length === 1 ? "facility" : "facilities"} (${h} HIGH, ${m} MODERATE, ${l} LOW exposure).`);
+    bullet(`Within ${km}km: ${within.length} ${within.length === 1 ? "facility" : "facilities"} (${h} HIGH, ${m} MODERATE, ${l} LOW impact).`);
   });
   y += 12;
 
@@ -2529,6 +2529,779 @@ function pdfFilenameSafe(address) {
     .slice(0, 60) || "report";
 }
 
+// ─── BUSINESS REPORT PDF (NEW FORMAT) ────────────────────────────────────────
+// A4 portrait, 10+ page professional report used by all business-plan PDF
+// flows (BusinessGeneratePage primary generation, BusinessDashboardPage
+// re-download, and the /business sample CTA via the sample wrapper below).
+// Pass sample:true to overlay a diagonal SAMPLE watermark on every page so
+// the free sample can never be confused with a paid deliverable.
+async function generateBusinessReportPDF({
+  searchAddress,
+  facsInRadius,
+  searchRadius = 100,
+  facs = [],
+  businessAccount,
+  sample = false,
+}) {
+  const jsPDFModule = await import("jspdf");
+  const { jsPDF } = jsPDFModule;
+  const doc = new jsPDF({ unit: "mm", format: "a4" });
+
+  const CARD_H = 36;
+  const CARD_GAP = 4;
+  const BADGE_H = 7;
+  const BADGE_OFF = 5;
+  const PER_PAGE = 5;
+  const CARD_START = 52;
+  const BLOCK_H = 38;
+  const PAGE_W = 210;
+  const PAGE_H = 297;
+
+  const resolvePower = (f) => {
+    const v = Number(f.Power_MW);
+    if (Number.isFinite(v) && v > 0) return v;
+    const lvl = String(f.Risk_Level || "").toUpperCase();
+    if (lvl === "HIGH") return 50;
+    if (lvl === "MODERATE") return 25;
+    return 10;
+  };
+  const resolveWater = (f, mw) => {
+    const v = Number(f.Water_Gal_Day);
+    if (Number.isFinite(v) && v > 0) return v;
+    const cool = String(f.Cooling || "").toLowerCase();
+    let mult = 750;
+    if (cool.includes("evaporative")) mult = 10000;
+    else if (cool.includes("chilled water")) mult = 750;
+    else if (cool.includes("air")) mult = 250;
+    return mw * mult;
+  };
+  const resolveCO2 = (f, mw) => {
+    const v = Number(f.CO2_Tons_Year);
+    if (Number.isFinite(v) && v > 0) return v;
+    return Math.round((mw * 3381) / 1000) * 1000;
+  };
+  const resolveNoise = (f) => {
+    const v = Number(f.Noise_DB);
+    if (Number.isFinite(v) && v > 0) return v;
+    const lvl = String(f.Risk_Level || "").toUpperCase();
+    if (lvl === "HIGH") return 68;
+    if (lvl === "MODERATE") return 65;
+    return 60;
+  };
+
+  const counts = { HIGH: 0, MODERATE: 0, LOW: 0 };
+  let totalPower = 0, totalWater = 0, totalCO2 = 0;
+  facsInRadius.forEach(f => {
+    const t = exposureTier(f.Risk_Level);
+    if (t === "HIGH") counts.HIGH++;
+    else if (t === "LOW") counts.LOW++;
+    else counts.MODERATE++;
+    const mw = resolvePower(f);
+    totalPower += mw;
+    totalWater += resolveWater(f, mw);
+    totalCO2 += resolveCO2(f, mw);
+  });
+
+  const todayDate = new Date();
+  const dateStr = todayDate.toISOString().slice(0, 10);
+  const dateCompact = dateStr.replace(/-/g, "");
+  const dateLong = todayDate.toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" });
+  const rid = "HZ-PRO-" + dateCompact + "-" + Math.floor(Math.random() * 90000 + 10000);
+
+  const companyName = (businessAccount && businessAccount.company) ? businessAccount.company : "Your Organization";
+  const clientName = companyName + "  |  Confidential";
+
+  const numFacPages = Math.max(1, Math.ceil(facsInRadius.length / PER_PAGE));
+  const totalPages = 4 + numFacPages + 4;
+
+  const fmtNum = (n) => Math.round(Number(n) || 0).toLocaleString();
+
+  function logoCell(x, y, mainSize, colorHum, colorZones) {
+    const sf = doc.internal.scaleFactor;
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(mainSize);
+    const wHum = doc.getStringUnitWidth("Hum") * mainSize / sf;
+    const wZones = doc.getStringUnitWidth("Zones") * mainSize / sf;
+    const tmSize = Math.max(4, Math.floor(mainSize * 0.42));
+    doc.setFontSize(tmSize);
+    const wTM = doc.getStringUnitWidth("TM") * tmSize / sf;
+    const cellH = mainSize * 0.6;
+    const baseY = y + cellH * 0.82;
+    doc.setFontSize(mainSize);
+    doc.setTextColor(...colorHum);
+    doc.text("Hum", x, baseY);
+    doc.setTextColor(...colorZones);
+    doc.text("Zones", x + wHum, baseY);
+    doc.setFontSize(tmSize);
+    doc.setTextColor(...colorZones);
+    doc.text("TM", x + wHum + wZones, baseY - mainSize * 0.05);
+    return x + wHum + wZones + wTM + 0.5;
+  }
+
+  function impactColors(level) {
+    if (level === "HIGH") return { tc: [239, 68, 68], bc: [254, 242, 242] };
+    if (level === "MODERATE") return { tc: [249, 115, 22], bc: [255, 247, 237] };
+    return { tc: [34, 197, 94], bc: [240, 253, 244] };
+  }
+
+  function drawCard(y, name, company, city, distLabel, level, power, noise, emfF, emf100, cooling, opened) {
+    const { tc, bc } = impactColors(level);
+    doc.setFillColor(...bc); doc.rect(15, y, 180, CARD_H, "F");
+    doc.setFillColor(...tc); doc.rect(15, y, 3, CARD_H, "F");
+    doc.setFont("helvetica", "bold"); doc.setFontSize(10); doc.setTextColor(30, 41, 59);
+    doc.text(String(name || "Facility"), 22, y + 3 + 10 * 0.6 * 0.82);
+    const bw = level === "MODERATE" ? 28 : 21;
+    doc.setFillColor(...tc); doc.rect(195 - bw, y + BADGE_OFF, bw, BADGE_H, "F");
+    doc.setFont("helvetica", "bold"); doc.setFontSize(6); doc.setTextColor(255, 255, 255);
+    doc.text(level + " IMPACT", 195 - bw + bw / 2, y + BADGE_OFF + BADGE_H * 0.75, { align: "center" });
+    doc.setFont("helvetica", "normal"); doc.setFontSize(8); doc.setTextColor(100, 116, 139);
+    const ccText = String(company || "") + "  |  " + String(city || "");
+    doc.text(ccText, 22, y + 11 + 8 * 0.6 * 0.82);
+    doc.setFont("helvetica", "bold"); doc.setFontSize(8); doc.setTextColor(...tc);
+    const ccWidth = doc.getStringUnitWidth(ccText) * 8 / doc.internal.scaleFactor;
+    doc.text(distLabel, 22 + ccWidth + 3, y + 11 + 8 * 0.6 * 0.82);
+    const metrics = [
+      ["Power", power],
+      ["Noise", noise],
+      ["EMF Fence", emfF],
+      ["EMF 100m", emf100],
+      ["Cooling", cooling],
+      ["Opened", opened],
+    ];
+    metrics.forEach(([label, val], i) => {
+      const mx = 22 + i * 29;
+      doc.setFont("helvetica", "bold"); doc.setFontSize(6); doc.setTextColor(100, 116, 139);
+      doc.text(label, mx, y + 24 + 6 * 0.6 * 0.82);
+      doc.setFont("helvetica", "bold"); doc.setFontSize(7); doc.setTextColor(30, 41, 59);
+      doc.text(String(val), mx, y + 29 + 7 * 0.6 * 0.82);
+    });
+  }
+
+  function pageHeader(pageNum) {
+    doc.setFillColor(30, 41, 59); doc.rect(0, 0, PAGE_W, 18, "F");
+    const sf = doc.internal.scaleFactor;
+    doc.setFont("helvetica", "bold"); doc.setFontSize(11); doc.setTextColor(255, 255, 255);
+    const wHum = doc.getStringUnitWidth("Hum") * 11 / sf;
+    const baseY = 4 + 11 * 0.6 * 0.82;
+    doc.text("Hum", 15, baseY);
+    doc.setTextColor(249, 115, 22);
+    const wZones = doc.getStringUnitWidth("Zones") * 11 / sf;
+    doc.text("Zones", 15 + wHum, baseY);
+    const tmSize = Math.max(4, Math.floor(11 * 0.42));
+    doc.setFontSize(tmSize);
+    const wTM = doc.getStringUnitWidth("TM") * tmSize / sf;
+    doc.text("TM", 15 + wHum + wZones, baseY - 11 * 0.05);
+    const endX = 15 + wHum + wZones + wTM + 0.5;
+    doc.setFontSize(8); doc.setTextColor(148, 163, 184);
+    const wPipe = doc.getStringUnitWidth(" | ") * 8 / sf;
+    doc.text(" | ", endX, baseY);
+    doc.setTextColor(255, 255, 255);
+    doc.text("Professional Infrastructure Report", endX + wPipe, baseY);
+    doc.setFont("helvetica", "normal"); doc.setFontSize(7); doc.setTextColor(148, 163, 184);
+    doc.text(clientName + "  |  Page " + pageNum + " of " + totalPages, 195, 10, { align: "right" });
+  }
+
+  function pageFooter() {
+    doc.setFillColor(30, 41, 59); doc.rect(0, 265, PAGE_W, 32, "F");
+    const sf = doc.internal.scaleFactor;
+    const Y1 = 269;
+    const baseY = Y1 + 10 * 0.6 * 0.82;
+    doc.setFont("helvetica", "bold"); doc.setFontSize(10);
+    const wHum = doc.getStringUnitWidth("Hum") * 10 / sf;
+    const wZones = doc.getStringUnitWidth("Zones") * 10 / sf;
+    const tmSize = Math.max(4, Math.floor(10 * 0.42));
+    const wTM = doc.getStringUnitWidth("TM") * tmSize / sf;
+    doc.setFontSize(10); doc.setTextColor(255, 255, 255);
+    doc.text("Hum", 15, baseY);
+    doc.setTextColor(249, 115, 22);
+    doc.text("Zones", 15 + wHum, baseY);
+    doc.setFontSize(tmSize);
+    doc.text("TM", 15 + wHum + wZones, baseY - 10 * 0.05);
+    const endX = 15 + wHum + wZones + wTM + 0.5;
+    doc.setFontSize(10); doc.setFont("helvetica", "bold"); doc.setTextColor(255, 255, 255);
+    doc.text(" Technologies Inc.", endX, baseY);
+    doc.setFont("helvetica", "normal"); doc.setFontSize(8); doc.setTextColor(249, 115, 22);
+    doc.text("Global Data Center Health & Infrastructure Registry", 15, Y1 + 7 + 6 * 0.75);
+    doc.setFontSize(7); doc.setTextColor(100, 116, 139);
+    doc.text("humzones.com  |  hello@humzones.com  |  Report ID: " + rid, 15, Y1 + 13 + 6 * 0.75);
+  }
+
+  function applyWatermark() {
+    if (!sample) return;
+    try {
+      doc.saveGraphicsState();
+      const gs = new doc.GState({ opacity: 0.15 });
+      doc.setGState(gs);
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(60);
+      doc.setTextColor(150, 150, 150);
+      doc.text("SAMPLE", PAGE_W / 2, PAGE_H / 2, { align: "center", angle: -45 });
+      doc.restoreGraphicsState();
+    } catch (e) {
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(60);
+      doc.setTextColor(220, 220, 220);
+      doc.text("SAMPLE", PAGE_W / 2, PAGE_H / 2, { align: "center", angle: -45 });
+    }
+  }
+
+  // ── PAGE 1: COVER ─────────────────────────────────────────────────────────
+  doc.setFillColor(30, 41, 59); doc.rect(0, 0, PAGE_W, 110, "F");
+  doc.setFillColor(249, 115, 22); doc.rect(0, 108, PAGE_W, 3, "F");
+  doc.setFillColor(239, 68, 68); doc.rect(155, 8, 42, 12, "F");
+  doc.setFont("helvetica", "bold"); doc.setFontSize(8); doc.setTextColor(255, 255, 255);
+  doc.text("CONFIDENTIAL", 155 + 21, 15.5, { align: "center" });
+  logoCell(15, 12, 26, [255, 255, 255], [249, 115, 22]);
+  doc.setFont("helvetica", "normal"); doc.setFontSize(9); doc.setTextColor(249, 115, 22);
+  doc.text("Global Data Center Health & Infrastructure Registry", 15, 30);
+  doc.setFillColor(249, 115, 22); doc.rect(15, 38, 140, 0.5, "F");
+  doc.setFont("helvetica", "bold"); doc.setFontSize(8); doc.setTextColor(148, 163, 184);
+  doc.text("INFRASTRUCTURE INTELLIGENCE REPORT  |  PREPARED FOR", 15, 44);
+  doc.setFont("helvetica", "bold"); doc.setFontSize(20); doc.setTextColor(255, 255, 255);
+  doc.text(companyName, 15, 54);
+  doc.setFont("helvetica", "normal"); doc.setFontSize(10); doc.setTextColor(148, 163, 184);
+  doc.text("Professional Infrastructure Intelligence  |  Commercial Use Licensed", 15, 64);
+  doc.setFont("helvetica", "bold"); doc.setFontSize(8); doc.setTextColor(148, 163, 184);
+  doc.text("REPORT ID", 15, 75);
+  doc.text("DATE GENERATED", 60, 75);
+  doc.text("SEARCH RADIUS", 120, 75);
+  doc.setFont("helvetica", "bold"); doc.setFontSize(10);
+  doc.setTextColor(249, 115, 22); doc.text(rid, 15, 82);
+  doc.setTextColor(255, 255, 255); doc.text(dateLong, 60, 82);
+  doc.text(searchRadius + " km", 120, 82);
+  doc.setFillColor(15, 23, 42); doc.rect(15, 92, 180, 14, "F");
+  doc.setFont("helvetica", "bold"); doc.setFontSize(7); doc.setTextColor(148, 163, 184);
+  doc.text("SEARCH ADDRESS", 19, 97);
+  doc.setFont("helvetica", "bold"); doc.setFontSize(10); doc.setTextColor(255, 255, 255);
+  const addrLines = doc.splitTextToSize(String(searchAddress || "Address not provided"), 170);
+  doc.text(addrLines.slice(0, 1), 19, 103);
+
+  const statTotal = facsInRadius.length;
+  const coverStats = [
+    { label: "Total Facilities", value: String(statTotal), color: [30, 41, 59] },
+    { label: "High Impact", value: String(counts.HIGH), color: [239, 68, 68] },
+    { label: "Moderate Impact", value: String(counts.MODERATE), color: [249, 115, 22] },
+    { label: "Low Impact", value: String(counts.LOW), color: [34, 197, 94] },
+  ];
+  coverStats.forEach((s, i) => {
+    const x = 15 + i * 45;
+    doc.setFillColor(248, 250, 252); doc.rect(x, 118, 38, 38, "F");
+    doc.setFillColor(...s.color); doc.rect(x, 118, 38, 4, "F");
+    doc.setFont("helvetica", "bold"); doc.setFontSize(24); doc.setTextColor(...s.color);
+    doc.text(s.value, x + 19, 138, { align: "center" });
+    doc.setFont("helvetica", "bold"); doc.setFontSize(7); doc.setTextColor(100, 116, 139);
+    doc.text(s.label.toUpperCase(), x + 19, 150, { align: "center" });
+  });
+
+  doc.setFillColor(241, 245, 249); doc.rect(15, 162, 180, 22, "F");
+  doc.setFont("helvetica", "bold"); doc.setFontSize(8); doc.setTextColor(100, 116, 139);
+  doc.text("COMBINED TOTALS", 19, 168);
+  doc.setFont("helvetica", "bold"); doc.setFontSize(13); doc.setTextColor(30, 41, 59);
+  doc.text(fmtNum(totalPower) + " MW", 19, 178);
+  doc.text(fmtNum(totalWater) + " gal", 79, 178);
+  doc.text(fmtNum(totalCO2) + " t", 139, 178);
+  doc.setFont("helvetica", "normal"); doc.setFontSize(7); doc.setTextColor(100, 116, 139);
+  doc.text("Combined Power Draw", 19, 182);
+  doc.text("Est. Daily Water Use", 79, 182);
+  doc.text("Est. Annual CO2", 139, 182);
+
+  doc.setFont("helvetica", "bold"); doc.setFontSize(11); doc.setTextColor(30, 41, 59);
+  doc.text("This Report Contains", 15, 192);
+  doc.setFillColor(249, 115, 22); doc.rect(15, 195, 40, 0.7, "F");
+  const coverBullets = [
+    "Executive summary with key findings and impact distribution",
+    "Infrastructure impact summary segmented by category",
+    "Closest facility deep dive with full metric breakdown",
+    statTotal + " " + (statTotal === 1 ? "facility" : "facilities") + " across " + numFacPages + " " + (numFacPages === 1 ? "page" : "pages"),
+    "Regional context with live registry growth indicators",
+    "Professional action steps for site selection and risk review",
+    "Full glossary of HumZones terminology",
+    "Disclaimer and licensing terms for commercial use",
+  ];
+  doc.setFont("helvetica", "normal"); doc.setFontSize(8);
+  coverBullets.forEach((b, i) => {
+    doc.setTextColor(249, 115, 22); doc.text("•", 17, 202 + i * 5);
+    doc.setTextColor(71, 85, 105); doc.text(b, 22, 202 + i * 5);
+  });
+
+  // Cover footer (full-width band with logo and report ID right-aligned)
+  doc.setFillColor(30, 41, 59); doc.rect(0, 265, PAGE_W, 32, "F");
+  {
+    const sf = doc.internal.scaleFactor;
+    const Y1 = 269;
+    const baseY = Y1 + 10 * 0.6 * 0.82;
+    doc.setFont("helvetica", "bold"); doc.setFontSize(10);
+    const wHum = doc.getStringUnitWidth("Hum") * 10 / sf;
+    const wZones = doc.getStringUnitWidth("Zones") * 10 / sf;
+    const tmSize = Math.max(4, Math.floor(10 * 0.42));
+    const wTM = doc.getStringUnitWidth("TM") * tmSize / sf;
+    doc.setFontSize(10); doc.setTextColor(255, 255, 255);
+    doc.text("Hum", 15, baseY);
+    doc.setTextColor(249, 115, 22);
+    doc.text("Zones", 15 + wHum, baseY);
+    doc.setFontSize(tmSize);
+    doc.text("TM", 15 + wHum + wZones, baseY - 10 * 0.05);
+    const endX = 15 + wHum + wZones + wTM + 0.5;
+    doc.setFontSize(10); doc.setFont("helvetica", "bold"); doc.setTextColor(255, 255, 255);
+    doc.text(" Technologies Inc.", endX, baseY);
+    doc.setFont("helvetica", "normal"); doc.setFontSize(7); doc.setTextColor(148, 163, 184);
+    doc.text("Report ID: " + rid, 195, baseY, { align: "right" });
+    doc.setFont("helvetica", "normal"); doc.setFontSize(8); doc.setTextColor(249, 115, 22);
+    doc.text("Global Data Center Health & Infrastructure Registry", 15, Y1 + 7 + 6 * 0.75);
+    doc.setFontSize(7); doc.setTextColor(100, 116, 139);
+    doc.text("Licensed for commercial use under your active business plan.", 15, Y1 + 13 + 6 * 0.75);
+  }
+  applyWatermark();
+
+  // ── PAGE 2: EXECUTIVE SUMMARY ─────────────────────────────────────────────
+  doc.addPage();
+  pageHeader(2);
+  doc.setFont("helvetica", "bold"); doc.setFontSize(16); doc.setTextColor(30, 41, 59);
+  doc.text("Executive Summary", 15, 32);
+  doc.setFillColor(249, 115, 22); doc.rect(15, 37, 50, 1.5, "F");
+  doc.setFont("helvetica", "normal"); doc.setFontSize(9); doc.setTextColor(100, 116, 139);
+  doc.text("Top-line findings across the " + searchRadius + "km search radius.", 15, 45);
+
+  doc.setFillColor(255, 247, 237); doc.rect(15, 51, 180, 32, "F");
+  doc.setFillColor(249, 115, 22); doc.rect(15, 51, 3, 32, "F");
+  doc.setFont("helvetica", "bold"); doc.setFontSize(8); doc.setTextColor(249, 115, 22);
+  doc.text("KEY FINDINGS", 22, 57);
+  doc.setFont("helvetica", "normal"); doc.setFontSize(9); doc.setTextColor(30, 41, 59);
+  const closest = facsInRadius[0];
+  const topPowerFac = facsInRadius.length ? [...facsInRadius].sort((a, b) => resolvePower(b) - resolvePower(a))[0] : null;
+  const findingLines = [
+    "• " + statTotal + " " + (statTotal === 1 ? "facility identified" : "facilities identified") + " within " + searchRadius + "km of the search address.",
+    "• " + counts.HIGH + " HIGH impact, " + counts.MODERATE + " MODERATE impact, " + counts.LOW + " LOW impact.",
+    closest ? "• Closest facility: " + (closest.Name || "Unnamed") + " at " + (closest._km != null ? closest._km.toFixed(1) : "?") + " km." : "• No facilities within radius.",
+    topPowerFac ? "• Largest by power: " + (topPowerFac.Name || "Unnamed") + " at " + fmtNum(resolvePower(topPowerFac)) + " MW." : "",
+  ].filter(Boolean);
+  findingLines.forEach((l, i) => doc.text(l, 22, 64 + i * 5));
+
+  const exec = [
+    { label: "Facilities", value: String(statTotal) },
+    { label: "High Impact", value: String(counts.HIGH) },
+    { label: "Moderate Impact", value: String(counts.MODERATE) },
+    { label: "Low Impact", value: String(counts.LOW) },
+    { label: "Total MW", value: fmtNum(totalPower) },
+    { label: "Daily Water (gal)", value: fmtNum(totalWater) },
+    { label: "Annual CO2 (t)", value: fmtNum(totalCO2) },
+  ];
+  exec.forEach((s, i) => {
+    const col = i % 4;
+    const row = Math.floor(i / 4);
+    const x = 15 + col * 45;
+    const y = 92 + row * 32;
+    doc.setFillColor(248, 250, 252); doc.rect(x, y, 38, 28, "F");
+    doc.setFont("helvetica", "bold"); doc.setFontSize(14); doc.setTextColor(30, 41, 59);
+    doc.text(s.value, x + 19, y + 14, { align: "center" });
+    doc.setFont("helvetica", "bold"); doc.setFontSize(6); doc.setTextColor(100, 116, 139);
+    doc.text(s.label.toUpperCase(), x + 19, y + 22, { align: "center" });
+  });
+
+  doc.setFont("helvetica", "bold"); doc.setFontSize(11); doc.setTextColor(30, 41, 59);
+  doc.text("Impact by Distance", 15, 168);
+  doc.setFillColor(249, 115, 22); doc.rect(15, 171, 40, 0.7, "F");
+  const ranges = [
+    { lbl: "0 - 5 km", lo: 0, hi: 5 },
+    { lbl: "5 - 15 km", lo: 5, hi: 15 },
+    { lbl: "15 - 30 km", lo: 15, hi: 30 },
+    { lbl: "30 - 60 km", lo: 30, hi: 60 },
+    { lbl: "60 - " + searchRadius + " km", lo: 60, hi: searchRadius },
+  ];
+  doc.setFillColor(241, 245, 249); doc.rect(15, 175, 180, 8, "F");
+  doc.setFont("helvetica", "bold"); doc.setFontSize(8); doc.setTextColor(71, 85, 105);
+  doc.text("DISTANCE", 19, 180);
+  doc.text("FACILITIES", 75, 180);
+  doc.text("HIGH", 110, 180);
+  doc.text("MODERATE", 130, 180);
+  doc.text("LOW", 160, 180);
+  doc.text("AVG MW", 175, 180);
+  let ry = 187;
+  ranges.forEach(r => {
+    const inR = facsInRadius.filter(f => (f._km || 0) >= r.lo && (f._km || 0) < r.hi);
+    const h = inR.filter(f => exposureTier(f.Risk_Level) === "HIGH").length;
+    const m = inR.filter(f => exposureTier(f.Risk_Level) === "MODERATE").length;
+    const l = inR.filter(f => exposureTier(f.Risk_Level) === "LOW").length;
+    const avgMW = inR.length ? Math.round(inR.reduce((a, f) => a + resolvePower(f), 0) / inR.length) : 0;
+    doc.setFont("helvetica", "normal"); doc.setFontSize(9); doc.setTextColor(30, 41, 59);
+    doc.text(r.lbl, 19, ry);
+    doc.text(String(inR.length), 75, ry);
+    doc.setTextColor(239, 68, 68); doc.text(String(h), 110, ry);
+    doc.setTextColor(249, 115, 22); doc.text(String(m), 130, ry);
+    doc.setTextColor(34, 197, 94); doc.text(String(l), 160, ry);
+    doc.setTextColor(30, 41, 59); doc.text(String(avgMW), 175, ry);
+    ry += 7;
+  });
+
+  pageFooter();
+  applyWatermark();
+
+  // ── PAGE 3: INFRASTRUCTURE IMPACT SUMMARY ─────────────────────────────────
+  doc.addPage();
+  pageHeader(3);
+  doc.setFont("helvetica", "bold"); doc.setFontSize(16); doc.setTextColor(30, 41, 59);
+  doc.text("Infrastructure Impact Summary", 15, 32);
+  doc.setFillColor(249, 115, 22); doc.rect(15, 37, 50, 1.5, "F");
+  doc.setFont("helvetica", "normal"); doc.setFontSize(9); doc.setTextColor(100, 116, 139);
+  doc.text("Distribution of facilities across the four impact tiers used by the HumZones registry.", 15, 45);
+
+  const blocks = [
+    { title: "High Impact", desc: "Large facilities (typically 50MW or more), close proximity to residential areas, or evaporative cooling at scale. Highest documented infrastructure footprint in the registry.", count: counts.HIGH, tc: [239, 68, 68], bc: [254, 242, 242] },
+    { title: "Moderate Impact", desc: "Mid-scale facilities (10 to 50 MW) with measurable power, water, and noise footprints. Common in suburban edges and along major fiber routes.", count: counts.MODERATE, tc: [249, 115, 22], bc: [255, 247, 237] },
+    { title: "Low Impact", desc: "Smaller facilities (under 10 MW) or those with air-cooled designs. Footprint is real but materially smaller than the upper tiers.", count: counts.LOW, tc: [34, 197, 94], bc: [240, 253, 244] },
+    { title: "Methodology", desc: "Impact tier is a relative indicator combining power draw, cooling type, and proximity. It is not a regulatory or medical determination. See the methodology page on humzones.com for the full model.", count: null, tc: [71, 85, 105], bc: [241, 245, 249] },
+  ];
+  let by = 54;
+  blocks.forEach(b => {
+    doc.setFillColor(...b.bc); doc.rect(15, by, 180, 45, "F");
+    doc.setFillColor(...b.tc); doc.rect(15, by, 3, 45, "F");
+    doc.setFont("helvetica", "bold"); doc.setFontSize(11); doc.setTextColor(...b.tc);
+    doc.text(b.title.toUpperCase(), 22, by + 9);
+    if (b.count !== null) {
+      doc.setFont("helvetica", "bold"); doc.setFontSize(20); doc.setTextColor(...b.tc);
+      doc.text(String(b.count), 188, by + 14, { align: "right" });
+      doc.setFont("helvetica", "bold"); doc.setFontSize(7); doc.setTextColor(100, 116, 139);
+      doc.text("FACILITIES", 188, by + 20, { align: "right" });
+    }
+    doc.setFont("helvetica", "normal"); doc.setFontSize(9); doc.setTextColor(71, 85, 105);
+    const wrapped = doc.splitTextToSize(b.desc, 160);
+    doc.text(wrapped, 22, by + 18);
+    by += 50;
+  });
+
+  pageFooter();
+  applyWatermark();
+
+  // ── PAGE 4: CLOSEST FACILITY DEEP DIVE ────────────────────────────────────
+  doc.addPage();
+  pageHeader(4);
+  doc.setFont("helvetica", "bold"); doc.setFontSize(16); doc.setTextColor(30, 41, 59);
+  doc.text("Closest Facility Deep Dive", 15, 32);
+  doc.setFillColor(249, 115, 22); doc.rect(15, 37, 50, 1.5, "F");
+  doc.setFont("helvetica", "normal"); doc.setFontSize(9); doc.setTextColor(100, 116, 139);
+  doc.text("Full metric breakdown for the closest facility within the search radius.", 15, 45);
+
+  if (closest) {
+    const cl = impactColors(exposureTier(closest.Risk_Level));
+    doc.setFillColor(...cl.bc); doc.rect(15, 52, 180, 50, "F");
+    doc.setFillColor(...cl.tc); doc.rect(15, 52, 4, 50, "F");
+    doc.setFont("helvetica", "bold"); doc.setFontSize(14); doc.setTextColor(30, 41, 59);
+    doc.text(String(closest.Name || "Unnamed Facility"), 24, 62);
+    doc.setFont("helvetica", "normal"); doc.setFontSize(10); doc.setTextColor(100, 116, 139);
+    doc.text((closest.Company || "Operator unknown") + "  |  " + (closest.City || "City unknown"), 24, 70);
+    const tier = exposureTier(closest.Risk_Level);
+    const cbw = tier === "MODERATE" ? 38 : 28;
+    doc.setFillColor(...cl.tc); doc.rect(195 - cbw - 4, 56, cbw, 9, "F");
+    doc.setFont("helvetica", "bold"); doc.setFontSize(8); doc.setTextColor(255, 255, 255);
+    doc.text(tier + " IMPACT", 195 - cbw - 4 + cbw / 2, 62, { align: "center" });
+    doc.setFont("helvetica", "bold"); doc.setFontSize(11); doc.setTextColor(...cl.tc);
+    doc.text((closest._km != null ? closest._km.toFixed(1) : "?") + " km from your search address", 24, 82);
+
+    const cMW = resolvePower(closest);
+    const cNoise = resolveNoise(closest);
+    const cWater = resolveWater(closest, cMW);
+    const cCO2 = resolveCO2(closest, cMW);
+    const rows = [
+      ["Operator", closest.Company || "Unknown"],
+      ["City / Region", (closest.City || "Unknown") + (closest.Country ? ", " + closest.Country : "")],
+      ["Power draw", fmtNum(cMW) + " MW"],
+      ["Cooling type", closest.Cooling || "Not on file"],
+      ["Year opened", String(closest.Opened || "Not on file")],
+      ["Modeled noise (fence)", fmtNum(cNoise) + " dB"],
+      ["EMF at fence line", (closest.EMF_Fence_High ? closest.EMF_Fence_High + " mG" : "Modeled estimate")],
+      ["EMF at 100 m", (closest.EMF_100m ? closest.EMF_100m + " mG" : "Modeled estimate")],
+      ["Daily water (est)", fmtNum(cWater) + " gal"],
+      ["Annual CO2 (est)", fmtNum(cCO2) + " t"],
+    ];
+    let dy = 112;
+    rows.forEach((r, i) => {
+      if (i % 2 === 0) { doc.setFillColor(248, 250, 252); doc.rect(15, dy - 5, 180, 11, "F"); }
+      doc.setFont("helvetica", "bold"); doc.setFontSize(9); doc.setTextColor(71, 85, 105);
+      doc.text(r[0].toUpperCase(), 22, dy);
+      doc.setFont("helvetica", "bold"); doc.setFontSize(10); doc.setTextColor(30, 41, 59);
+      doc.text(String(r[1]), 100, dy);
+      dy += 11;
+    });
+  } else {
+    doc.setFont("helvetica", "normal"); doc.setFontSize(11); doc.setTextColor(100, 116, 139);
+    doc.text("No facilities were identified within the search radius.", 15, 70);
+  }
+
+  pageFooter();
+  applyWatermark();
+
+  // ── PAGES 5..(4 + numFacPages): FACILITY LISTINGS ────────────────────────
+  function facilityPages(startPage) {
+    const chunks = [];
+    for (let i = 0; i < facsInRadius.length; i += PER_PAGE) {
+      chunks.push(facsInRadius.slice(i, i + PER_PAGE));
+    }
+    if (chunks.length === 0) chunks.push([]);
+    chunks.forEach((chunk, ci) => {
+      doc.addPage();
+      pageHeader(startPage + ci);
+      if (ci === 0) {
+        doc.setFont("helvetica", "bold"); doc.setFontSize(16); doc.setTextColor(30, 41, 59);
+        doc.text("All Facilities Within " + searchRadius + "km", 15, 32);
+        doc.setFillColor(249, 115, 22); doc.rect(15, 37, 50, 1.5, "F");
+        doc.setFont("helvetica", "normal"); doc.setFontSize(9); doc.setTextColor(100, 116, 139);
+        doc.text(facsInRadius.length + " facilities sorted by distance  |  All figures are modeled estimates", 15, 45);
+      } else {
+        doc.setFont("helvetica", "bold"); doc.setFontSize(14); doc.setTextColor(30, 41, 59);
+        doc.text("All Facilities Within " + searchRadius + "km (continued)", 15, 31);
+        doc.setFillColor(249, 115, 22); doc.rect(15, 35, 50, 1.5, "F");
+      }
+      let cy = CARD_START;
+      chunk.forEach(fac => {
+        const mw = resolvePower(fac);
+        const noise = resolveNoise(fac);
+        drawCard(
+          cy,
+          fac.Name || "Unnamed",
+          fac.Company || "",
+          fac.City || "",
+          "Distance: " + ((fac._km != null) ? fac._km.toFixed(1) : "?") + " km",
+          exposureTier(fac.Risk_Level),
+          fac.Power_MW ? fac.Power_MW + " MW" : (fmtNum(mw) + " MW"),
+          fac.Noise_DB ? fac.Noise_DB + " dB" : (fmtNum(noise) + " dB"),
+          fac.EMF_Fence_High ? fac.EMF_Fence_High + " mG" : "Est.",
+          fac.EMF_100m ? fac.EMF_100m + " mG" : "Est.",
+          fac.Cooling || "N/A",
+          fac.Opened || "N/A",
+        );
+        cy += CARD_H + CARD_GAP;
+      });
+      if (chunk.length === 0) {
+        doc.setFont("helvetica", "normal"); doc.setFontSize(11); doc.setTextColor(100, 116, 139);
+        doc.text("No facilities were found within the search radius.", 15, CARD_START + 10);
+      }
+      pageFooter();
+      applyWatermark();
+    });
+  }
+  facilityPages(5);
+
+  // ── REGIONAL CONTEXT ──────────────────────────────────────────────────────
+  doc.addPage();
+  const regionalPage = 5 + numFacPages;
+  pageHeader(regionalPage);
+  doc.setFont("helvetica", "bold"); doc.setFontSize(16); doc.setTextColor(30, 41, 59);
+  doc.text("Regional Context", 15, 32);
+  doc.setFillColor(249, 115, 22); doc.rect(15, 37, 50, 1.5, "F");
+  doc.setFont("helvetica", "normal"); doc.setFontSize(9); doc.setTextColor(100, 116, 139);
+  doc.text("How this region compares to the wider HumZones registry, with live growth indicators.", 15, 45);
+
+  const totalAll = facs.length;
+  const regionalStats = [
+    { label: "Facilities in Radius", value: String(statTotal) },
+    { label: "Tracked Globally", value: fmtNum(totalAll) },
+    { label: "Share of Global", value: totalAll ? ((statTotal / totalAll) * 100).toFixed(2) + "%" : "N/A" },
+    { label: "Avg MW per Facility", value: statTotal ? fmtNum(totalPower / statTotal) : "N/A" },
+  ];
+  regionalStats.forEach((s, i) => {
+    const x = 15 + i * 45;
+    doc.setFillColor(248, 250, 252); doc.rect(x, 52, 38, 30, "F");
+    doc.setFont("helvetica", "bold"); doc.setFontSize(13); doc.setTextColor(30, 41, 59);
+    doc.text(s.value, x + 19, 67, { align: "center" });
+    doc.setFont("helvetica", "bold"); doc.setFontSize(6); doc.setTextColor(100, 116, 139);
+    doc.text(s.label.toUpperCase(), x + 19, 76, { align: "center" });
+  });
+
+  doc.setFillColor(255, 247, 237); doc.rect(15, 92, 180, 38, "F");
+  doc.setFillColor(249, 115, 22); doc.rect(15, 92, 3, 38, "F");
+  doc.setFont("helvetica", "bold"); doc.setFontSize(8); doc.setTextColor(249, 115, 22);
+  doc.text("WHAT THIS MEANS", 22, 98);
+  doc.setFont("helvetica", "normal"); doc.setFontSize(9); doc.setTextColor(30, 41, 59);
+  const whatLines = doc.splitTextToSize(
+    "This radius represents " + (totalAll ? ((statTotal / totalAll) * 100).toFixed(2) : "0") + "% of the global facility set tracked by HumZones. Use the live growth indicators below to gauge regional trajectory; planned and building sites are leading indicators of where capacity is heading next.",
+    170
+  );
+  doc.text(whatLines, 22, 106);
+
+  doc.setFont("helvetica", "bold"); doc.setFontSize(11); doc.setTextColor(30, 41, 59);
+  doc.text("Live Registry Growth", 15, 140);
+  doc.setFillColor(249, 115, 22); doc.rect(15, 143, 40, 0.7, "F");
+  const statusUpper = (f) => String(f.Facility_Status || "").toUpperCase();
+  const operating = facs.filter(f => statusUpper(f) === "OPERATING").length;
+  const building = facs.filter(f => statusUpper(f) === "BUILDING").length;
+  const planned = facs.filter(f => statusUpper(f) === "PLANNED").length;
+  const liveStats = [
+    { label: "Operating", value: fmtNum(operating), color: [34, 197, 94] },
+    { label: "Building", value: fmtNum(building), color: [249, 115, 22] },
+    { label: "Planned", value: fmtNum(planned), color: [59, 130, 246] },
+  ];
+  liveStats.forEach((s, i) => {
+    const x = 15 + i * 60;
+    doc.setFillColor(248, 250, 252); doc.rect(x, 150, 55, 30, "F");
+    doc.setFillColor(...s.color); doc.rect(x, 150, 55, 3, "F");
+    doc.setFont("helvetica", "bold"); doc.setFontSize(14); doc.setTextColor(...s.color);
+    doc.text(s.value, x + 27, 167, { align: "center" });
+    doc.setFont("helvetica", "bold"); doc.setFontSize(7); doc.setTextColor(100, 116, 139);
+    doc.text(s.label.toUpperCase(), x + 27, 175, { align: "center" });
+  });
+
+  pageFooter();
+  applyWatermark();
+
+  // ── PROFESSIONAL ACTION STEPS ─────────────────────────────────────────────
+  doc.addPage();
+  pageHeader(regionalPage + 1);
+  doc.setFont("helvetica", "bold"); doc.setFontSize(16); doc.setTextColor(30, 41, 59);
+  doc.text("Professional Action Steps", 15, 32);
+  doc.setFillColor(249, 115, 22); doc.rect(15, 37, 50, 1.5, "F");
+  doc.setFont("helvetica", "normal"); doc.setFontSize(9); doc.setTextColor(100, 116, 139);
+  doc.text("Recommended workflow for professionals reviewing infrastructure risk in this region.", 15, 45);
+
+  const actions = [
+    { num: "01", title: "Verify the address coordinates", body: "Cross-check the search address against the latitude and longitude pair used to compute facility distances. A misplaced pin can shift the radius result substantially in dense corridors." },
+    { num: "02", title: "Confirm the highest-impact facilities", body: "For each HIGH impact facility, pull the operator's most recent regulatory filing or utility interconnection record to confirm modeled power draw matches the live operating load." },
+    { num: "03", title: "Document the cooling profile", body: "Cooling type drives the water footprint and a meaningful fraction of the noise footprint. Evaporative designs warrant on-site verification when a project is within 1 km." },
+    { num: "04", title: "Stage a community impact memo", body: "Use the facilities table as the starting point for a formal memo. The closest facility's metric block on page 4 is structured to drop directly into a planning packet." },
+    { num: "05", title: "Re-run before any close", body: "Re-generate this report immediately before a transaction closes. The registry adds Building and Planned facilities continuously; a 30-day-old report can miss a permitted expansion." },
+  ];
+  let ay = 51;
+  actions.forEach(a => {
+    doc.setFillColor(248, 250, 252); doc.rect(15, ay, 180, BLOCK_H, "F");
+    doc.setFillColor(249, 115, 22); doc.rect(15, ay, 3, BLOCK_H, "F");
+    doc.setFont("helvetica", "bold"); doc.setFontSize(18); doc.setTextColor(249, 115, 22);
+    doc.text(a.num, 22, ay + 12);
+    doc.setFont("helvetica", "bold"); doc.setFontSize(11); doc.setTextColor(30, 41, 59);
+    doc.text(a.title, 40, ay + 11);
+    doc.setFont("helvetica", "normal"); doc.setFontSize(9); doc.setTextColor(71, 85, 105);
+    const wrap = doc.splitTextToSize(a.body, 152);
+    doc.text(wrap, 40, ay + 19);
+    ay += BLOCK_H + 2;
+  });
+
+  pageFooter();
+  applyWatermark();
+
+  // ── GLOSSARY ──────────────────────────────────────────────────────────────
+  doc.addPage();
+  pageHeader(regionalPage + 2);
+  doc.setFont("helvetica", "bold"); doc.setFontSize(16); doc.setTextColor(30, 41, 59);
+  doc.text("Glossary", 15, 32);
+  doc.setFillColor(249, 115, 22); doc.rect(15, 37, 50, 1.5, "F");
+  doc.setFont("helvetica", "normal"); doc.setFontSize(9); doc.setTextColor(100, 116, 139);
+  doc.text("Key terms used throughout HumZones professional reports.", 15, 45);
+
+  const glossary = [
+    ["Impact Category", "Relative tier (HIGH, MODERATE, LOW) combining power draw, cooling type, and proximity."],
+    ["Power Draw (MW)", "Estimated megawatts of electrical load. Sourced from utility filings where available."],
+    ["EMF Fence Line", "Modeled milligauss reading at the facility perimeter from substations and feeders."],
+    ["EMF 100 m", "Modeled milligauss reading at 100 meters from the same emission sources."],
+    ["Noise (dB)", "Modeled dB(A) sound pressure at the fence line under typical operating load."],
+    ["Cooling Type", "Air, chilled water, or evaporative. Drives water footprint and a portion of noise."],
+    ["Water Use (gal/day)", "Daily water consumption estimate based on cooling type and load."],
+    ["Annual CO2 (t)", "Estimated annual carbon emissions in metric tons from total power draw."],
+    ["Facility Status", "Operating, Building, or Planned. From operator announcements and permits."],
+    ["Search Radius", "Distance in kilometers from the search address used to filter facilities."],
+    ["Modeled Estimate", "Calculated value from publicly available data, not a certified measurement."],
+    ["Report ID", "Unique identifier in the format HZ-PRO-YYYYMMDD-NNNNN for audit and re-issue."],
+  ];
+  let gy = 53;
+  glossary.forEach((g, i) => {
+    if (i % 2 === 0) { doc.setFillColor(248, 250, 252); doc.rect(15, gy - 4, 180, 16, "F"); }
+    doc.setFont("helvetica", "bold"); doc.setFontSize(9); doc.setTextColor(30, 41, 59);
+    doc.text(g[0], 22, gy + 1);
+    doc.setFont("helvetica", "normal"); doc.setFontSize(8); doc.setTextColor(71, 85, 105);
+    const w = doc.splitTextToSize(g[1], 110);
+    doc.text(w, 75, gy + 1);
+    gy += 16;
+  });
+
+  pageFooter();
+  applyWatermark();
+
+  // ── DISCLAIMER ────────────────────────────────────────────────────────────
+  doc.addPage();
+  pageHeader(regionalPage + 3);
+  doc.setFont("helvetica", "bold"); doc.setFontSize(16); doc.setTextColor(30, 41, 59);
+  doc.text("Disclaimer and Licensing", 15, 32);
+  doc.setFillColor(249, 115, 22); doc.rect(15, 37, 50, 1.5, "F");
+  doc.setFont("helvetica", "normal"); doc.setFontSize(9); doc.setTextColor(100, 116, 139);
+  doc.text("Please review the following terms before relying on this report for any decision.", 15, 45);
+
+  const sections = [
+    ["Informational Purpose Only", "This report is provided for informational and public awareness purposes only. Nothing in this report constitutes medical, legal, scientific, environmental, financial, or real estate advice."],
+    ["No Certified Measurements", "All figures including power draw, water use, CO2 emissions, noise levels, and EMF ranges are modeled estimates derived from publicly available information. They are not certified field measurements."],
+    ["Impact Tiers Are Relative", "Impact categories (HIGH, MODERATE, LOW) are relative indicators of facility scale and proximity, not regulatory, scientific, or medical determinations of harm."],
+    ["No Health Claims", "HumZones makes no claim that any listed facility causes, contributes to, or is associated with any specific health condition or outcome."],
+    ["Data Currency", "Registry data is updated continuously. This snapshot reflects the registry state at the time of generation; re-run reports immediately before any transaction close."],
+    ["Commercial License", "Use of this report is licensed under your active HumZones business plan. Redistribution outside your organization requires written consent."],
+    ["Third-Party References", "References to organizations such as WHO and IARC are provided for general context and do not constitute endorsement by those bodies."],
+    ["Limitation of Liability", "HumZones Technologies Inc. accepts no liability for decisions made in reliance on the information in this report. Always consult appropriately qualified professionals."],
+  ];
+  let sy = 52;
+  sections.forEach(s => {
+    doc.setFont("helvetica", "bold"); doc.setFontSize(10); doc.setTextColor(30, 41, 59);
+    doc.text(s[0], 15, sy);
+    doc.setFont("helvetica", "normal"); doc.setFontSize(8); doc.setTextColor(71, 85, 105);
+    const w = doc.splitTextToSize(s[1], 180);
+    doc.text(w, 15, sy + 4);
+    sy += 4 + w.length * 3.5 + 5;
+  });
+
+  // Final branded footer band
+  doc.setFillColor(30, 41, 59); doc.rect(0, 265, PAGE_W, 32, "F");
+  {
+    const sf = doc.internal.scaleFactor;
+    const Y1 = 269;
+    const baseY = Y1 + 10 * 0.6 * 0.82;
+    doc.setFont("helvetica", "bold"); doc.setFontSize(10);
+    const wHum = doc.getStringUnitWidth("Hum") * 10 / sf;
+    const wZones = doc.getStringUnitWidth("Zones") * 10 / sf;
+    const tmSize = Math.max(4, Math.floor(10 * 0.42));
+    const wTM = doc.getStringUnitWidth("TM") * tmSize / sf;
+    doc.setFontSize(10); doc.setTextColor(255, 255, 255);
+    doc.text("Hum", 15, baseY);
+    doc.setTextColor(249, 115, 22);
+    doc.text("Zones", 15 + wHum, baseY);
+    doc.setFontSize(tmSize);
+    doc.text("TM", 15 + wHum + wZones, baseY - 10 * 0.05);
+    const endX = 15 + wHum + wZones + wTM + 0.5;
+    doc.setFontSize(10); doc.setFont("helvetica", "bold"); doc.setTextColor(255, 255, 255);
+    doc.text(" Technologies Inc.", endX, baseY);
+    doc.setFont("helvetica", "normal"); doc.setFontSize(8); doc.setTextColor(249, 115, 22);
+    doc.text("Global Data Center Health & Infrastructure Registry", 15, Y1 + 7 + 6 * 0.75);
+    doc.setFontSize(7); doc.setTextColor(100, 116, 139);
+    doc.text("humzones.com  |  hello@humzones.com  |  Report ID: " + rid, 15, Y1 + 13 + 6 * 0.75);
+    doc.text("End of report.", 195, Y1 + 13 + 6 * 0.75, { align: "right" });
+  }
+  applyWatermark();
+
+  return { doc, dateStr, rid };
+}
+
+// Greenfield Realty Partners sample wrapper used by the /business
+// "Download Sample Report" CTA. Identical multi-page layout as the paid
+// version with a diagonal SAMPLE watermark overlay on every page so a
+// free demo is unambiguously distinguishable from a real deliverable.
+async function generateSampleBusinessReportPDF() {
+  const SAMPLE_FACS = [
+    { Name: "Amazon Web Services IAD23",   Company: "AWS",                  City: "Ashburn, VA",  Risk_Level: "HIGH",     _km: 12.4, Power_MW: 120, Cooling: "Evaporative",   Opened: "2019" },
+    { Name: "Equinix DC12",                Company: "Equinix",              City: "Ashburn, VA",  Risk_Level: "MODERATE", _km: 18.7, Power_MW: 36,  Cooling: "Chilled Water", Opened: "2014" },
+    { Name: "Microsoft Azure East US",     Company: "Microsoft",            City: "Boydton, VA",  Risk_Level: "LOW",      _km: 28.3, Power_MW: 100, Cooling: "Air",           Opened: "2020" },
+    { Name: "Digital Realty IAD44",        Company: "Digital Realty",       City: "Ashburn, VA",  Risk_Level: "MODERATE", _km: 34.1, Power_MW: 36,  Cooling: "Chilled Water", Opened: "2017" },
+    { Name: "QTS Richmond 1",              Company: "QTS Realty Trust",     City: "Richmond, VA", Risk_Level: "HIGH",     _km: 48.2, Power_MW: 130, Cooling: "Evaporative",   Opened: "2018" },
+    { Name: "Equinix DC10",                Company: "Equinix",              City: "Ashburn, VA",  Risk_Level: "MODERATE", _km: 51.3, Power_MW: 36,  Cooling: "Chilled Water", Opened: "2013" },
+    { Name: "Google Loudoun County",       Company: "Google",               City: "Leesburg, VA", Risk_Level: "LOW",      _km: 58.7, Power_MW: 150, Cooling: "Air",           Opened: "2021" },
+    { Name: "CyrusOne Northern VA",        Company: "CyrusOne",             City: "Sterling, VA", Risk_Level: "MODERATE", _km: 62.1, Power_MW: 20,  Cooling: "Chilled Water", Opened: "2016" },
+    { Name: "Iron Mountain Manassas",      Company: "Iron Mountain",        City: "Manassas, VA", Risk_Level: "HIGH",     _km: 71.4, Power_MW: 280, Cooling: "Evaporative",   Opened: "2019" },
+    { Name: "DataBank LGA3",               Company: "DataBank",             City: "Culpeper, VA", Risk_Level: "LOW",      _km: 82.6, Power_MW: 15,  Cooling: "Air",           Opened: "2015" },
+    { Name: "Vantage Ashburn III",         Company: "Vantage Data Centers", City: "Ashburn, VA",  Risk_Level: "MODERATE", _km: 88.3, Power_MW: 48,  Cooling: "Chilled Water", Opened: "2020" },
+    { Name: "CoreSite BO1",                Company: "CoreSite",             City: "Reston, VA",   Risk_Level: "HIGH",     _km: 94.7, Power_MW: 18,  Cooling: "Evaporative",   Opened: "2012" },
+  ];
+  return generateBusinessReportPDF({
+    searchAddress: "1600 Pennsylvania Avenue NW, Washington DC 20500",
+    facsInRadius: SAMPLE_FACS,
+    searchRadius: 100,
+    facs: SAMPLE_FACS,
+    businessAccount: { company: "Greenfield Realty Partners" },
+    sample: true,
+  });
+}
+
 // ─── SAMPLE REPORT PDF ───────────────────────────────────────────────────────
 // Builds a downloadable sample report. Every page carries a diagonal light-grey
 // SAMPLE watermark and all facilities and figures are placeholder data, so it
@@ -2541,14 +3314,14 @@ async function buildSampleReportPdf(opts = {}) {
     address = "Sample Address, Sample City, Sample Region",
     summaryRows = [
       ["Total facilities within 100km", "12"],
-      ["HIGH exposure category facilities", "3"],
-      ["MODERATE exposure category facilities", "5"],
-      ["LOW exposure category facilities", "4"],
+      ["HIGH impact category facilities", "3"],
+      ["MODERATE impact category facilities", "5"],
+      ["LOW impact category facilities", "4"],
       ["Combined estimated power draw", "612 MW"],
       ["Combined estimated daily water draw", "2,140,000 gallons"],
       ["Combined estimated annual CO2 impact", "1,180,000 tons"],
     ],
-    summaryParagraph = "This sample report identifies 12 placeholder data center facilities within 100km of a sample address. Of these, 3 are in the HIGH infrastructure exposure category, 5 are MODERATE and 4 are LOW, based on power scale, proximity to residential areas and cooling type. A full HumZones report lists every facility near a real searched address with the same depth of detail shown on the following pages.",
+    summaryParagraph = "This sample report identifies 12 placeholder data center facilities within 100km of a sample address. Of these, 3 are in the HIGH infrastructure impact category, 5 are MODERATE and 4 are LOW, based on power scale, proximity to residential areas and cooling type. A full HumZones report lists every facility near a real searched address with the same depth of detail shown on the following pages.",
     facilities = [
       { name:"SAMPLE Data Center Alpha", company:"Sample Operator LLC", city:"Sample City, Sample Region", dist:"2.4 km", cat:"HIGH", power:"95 MW", noise:"68 dB", emfFence:"6 mG", emf100:"3 mG", co2:"310,000 tons per year", water:"680,000 gallons per day", cooling:"Evaporative", opened:"2022" },
       { name:"SAMPLE Data Center Beta", company:"Example Infrastructure Group", city:"Sample Town, Sample Region", dist:"11.8 km", cat:"MODERATE", power:"38 MW", noise:"64 dB", emfFence:"3 mG", emf100:"1 mG", co2:"120,000 tons per year", water:"210,000 gallons per day", cooling:"Chilled water", opened:"2020" },
@@ -2661,7 +3434,7 @@ async function buildSampleReportPdf(opts = {}) {
     setText(15,23,42); doc.text(`Distance: ${f.dist} from sample address`, M, y);
     const cc = catColor(f.cat);
     setText(cc[0],cc[1],cc[2]);
-    doc.text(`Exposure Category: ${f.cat}`, M + 300, y);
+    doc.text(`Impact Category: ${f.cat}`, M + 300, y);
     setText(15,23,42);
     y += 28;
     const facStats = [
@@ -2725,7 +3498,7 @@ async function buildSampleReportPdf(opts = {}) {
   const sampleDisclaimer = [
     "This HumZones Sample Report is provided to demonstrate the format and content of a HumZones professional report. Every facility, address, figure and category shown in this document is placeholder sample data and does not describe any real location.",
     "All figures in a full HumZones report, including power, noise, modeled EMF ranges, CO2 and water usage, are modeled estimates compiled from public sources such as planning filings, utility records, environmental assessments, operator disclosures and permitting databases. They are not certified field measurements.",
-    "Infrastructure exposure categories are relative indicators for general awareness only. They do not constitute a scientific, environmental or health determination of any kind.",
+    "Infrastructure impact categories are relative indicators for general awareness only. They do not constitute a scientific, environmental or health determination of any kind.",
     "HumZones reports are informational resources only and do not constitute medical, legal, scientific or environmental advice. HumZones Technologies Inc. makes no warranties regarding the accuracy or completeness of the information in a report and shall not be liable for any decisions made in reliance on it.",
   ];
   sampleDisclaimer.forEach(p => {
@@ -3498,7 +4271,7 @@ function normalizeBusinessAccount(rec) {
 const REPORT_INCLUDES = [
   "Complete list of all data centers within 100km of any address",
   "Distance from address to each facility",
-  "Infrastructure exposure category",
+  "Infrastructure impact category",
   "Power draw in megawatts",
   "Estimated noise levels in decibels",
   "Modeled EMF exposure ranges",
@@ -3781,13 +4554,14 @@ const BusinessPlansPage = ({ onNavigate, facilityCount, facs = [] }) => {
     window.location.href = PLAN_LINKS[key];
   };
 
-  // Generates the placeholder sample PDF on the fly and triggers a download.
+  // Generates the watermarked Greenfield Realty sample using the new
+  // multi-page business format and triggers a download.
   const handleSampleDownload = async () => {
     if (sampleBusy) return;
     setSampleBusy(true);
     try {
-      const { doc } = await buildSampleReportPdf();
-      doc.save("HumZones-Sample-Report.pdf");
+      const { doc } = await generateSampleBusinessReportPDF();
+      doc.save("HumZones-Sample-Business-Report.pdf");
     } catch (e) {
       console.error("Sample report generation failed:", e);
       window.alert("We could not generate the sample report. Please try again.");
@@ -4291,7 +5065,7 @@ const BusinessGeneratePage = ({ onNavigate }) => {
         .filter(f => f && f._km <= radius)
         .sort((a, b) => a._km - b._km);
 
-      setResults({ address: displayName, lat, lng, facilities: facsNear });
+      setResults({ address: displayName, lat, lng, facilities: facsNear, allFacs });
     } catch (e) {
       setSearchErr(e.message || "Search failed. Please try again.");
     } finally {
@@ -4312,15 +5086,18 @@ const BusinessGeneratePage = ({ onNavigate }) => {
     try {
       const highRiskCount = results.facilities.filter(f => String(f.Risk_Level || "").toUpperCase() === "HIGH").length;
 
-      const { doc, datePart } = await buildAreaReportPdf({
+      const { doc, dateStr } = await generateBusinessReportPDF({
         searchAddress: results.address,
-        facsNear: results.facilities,
-        radiusKm: radius,
-        facilities100km: results.facilities.length,
-        highRisk: highRiskCount,
+        facsInRadius: results.facilities,
+        searchRadius: radius,
+        facs: results.allFacs || results.facilities,
+        businessAccount: account,
       });
-      const filename = `HumZones-Business-Report-${pdfFilenameSafe(results.address)}-${datePart}.pdf`;
+      const filename = `HumZones-Report-${pdfFilenameSafe(results.address)}-${dateStr}.pdf`;
       doc.save(filename);
+      // Aliased so the downstream Business_Reports write keeps using the
+      // same datePart name the legacy buildAreaReportPdf flow returned.
+      const datePart = dateStr;
 
       // Re-read the live Business_Accounts row by email so the deduction is
       // based on the authoritative Credits_Remaining rather than a stale
@@ -4982,15 +5759,14 @@ const BusinessDashboardPage = ({ onNavigate }) => {
         .filter(f => f && f._km <= row.radius)
         .sort((a, b) => a._km - b._km);
 
-      const highRiskCount = facsNear.filter(f => String(f.Risk_Level || "").toUpperCase() === "HIGH").length;
-      const { doc, datePart } = await buildAreaReportPdf({
+      const { doc, dateStr } = await generateBusinessReportPDF({
         searchAddress: row.address,
-        facsNear,
-        radiusKm: row.radius,
-        facilities100km: facsNear.length,
-        highRisk: highRiskCount,
+        facsInRadius: facsNear,
+        searchRadius: row.radius,
+        facs: allFacs,
+        businessAccount: account,
       });
-      const filename = `HumZones-Business-Report-${pdfFilenameSafe(row.address)}-${datePart}.pdf`;
+      const filename = `HumZones-Report-${pdfFilenameSafe(row.address)}-${dateStr}.pdf`;
       doc.save(filename);
       showToast("Report re-downloaded successfully");
     } catch (e) {
@@ -5034,6 +5810,14 @@ const BusinessDashboardPage = ({ onNavigate }) => {
           <div style={{display:"flex",gap:12,flexWrap:"wrap"}}>
             <button onClick={()=>onNavigate("/business-generate")} style={{padding:"14px 26px",borderRadius:12,border:"none",cursor:"pointer",fontFamily:"inherit",fontSize:15,fontWeight:900,background:"linear-gradient(135deg,#ef4444,#f97316)",color:"#fff",boxShadow:"0 10px 28px rgba(249,115,22,.4)"}}>Generate Report</button>
             <a href="/business" onClick={e=>{e.preventDefault();onNavigate("/business");}} style={{padding:"14px 22px",borderRadius:12,border:"1px solid rgba(255,255,255,.22)",fontFamily:"inherit",fontSize:14,fontWeight:800,background:"rgba(255,255,255,.06)",color:"#fff",textDecoration:"none",display:"inline-flex",alignItems:"center"}}>Need more reports?</a>
+          </div>
+          <div style={{display:"flex",alignItems:"flex-start",gap:8,padding:"10px 14px",borderRadius:8,background:"#eff6ff",borderLeft:"3px solid #3b82f6",marginTop:16}}>
+            <span aria-hidden="true" style={{flexShrink:0,display:"inline-flex",alignItems:"center",justifyContent:"center",width:16,height:16,borderRadius:"50%",background:"#3b82f6",color:"#fff",fontSize:10,fontWeight:800,marginTop:2,lineHeight:1}}>i</span>
+            <p style={{fontSize:13,color:"#1e3a8a",lineHeight:1.55,margin:0}}>
+              Your business name from your profile will appear on the cover of every report you generate. Visit{" "}
+              <a href="/business-profile" onClick={e=>{e.preventDefault();onNavigate("/business-profile");}} style={{color:"#f97316",fontWeight:700,textDecoration:"none"}}>My Profile</a>
+              {" "}to ensure your company name is correct before generating reports.
+            </p>
           </div>
         </div>
 
@@ -5106,7 +5890,7 @@ const BusinessDashboardPage = ({ onNavigate }) => {
                         <div style={{fontSize:12,color:"rgba(255,255,255,.55)",display:"flex",gap:14,flexWrap:"wrap"}}>
                           <span>{r.date}</span>
                           <span>{r.facilities} facilities</span>
-                          <span>{r.highRisk} high exposure</span>
+                          <span>{r.highRisk} high impact</span>
                           <span>{r.radius}km radius</span>
                           {r.plan && <span>{r.plan}</span>}
                         </div>
@@ -5411,7 +6195,7 @@ const CHAT_IDLE_DELAY_2 = 30000;
 // are used. The welcome message always shows the defaults.
 const CHAT_FOLLOWUPS_DEFAULT = [
   "Find data centers near me",
-  "What do exposure categories mean?",
+  "What do impact categories mean?",
   "How do I get a full report?",
 ];
 const CHAT_FOLLOWUP_RULES = [
@@ -5422,7 +6206,7 @@ const CHAT_FOLLOWUP_RULES = [
   ]},
   { test:/exposure|emf|noise/, chips:[
     "How are these figures calculated?",
-    "What do the exposure categories mean?",
+    "What do the impact categories mean?",
     "Where can I read the methodology?",
   ]},
   { test:/business|plans|subscription|credits/, chips:[
@@ -6190,7 +6974,7 @@ const MyReportPage = ({ onNavigate }) => {
                   <div style={{fontSize:13,color:"rgba(255,255,255,.6)",display:"flex",gap:14,flexWrap:"wrap",marginBottom:14}}>
                     {r.date && <span>Purchased {r.date}</span>}
                     {r.facilities != null && <span>{r.facilities} facilities</span>}
-                    {r.highRisk != null && <span>{r.highRisk} high exposure</span>}
+                    {r.highRisk != null && <span>{r.highRisk} high impact</span>}
                   </div>
                   <button onClick={()=>redownload(r)} disabled={downloadingId === r.id} style={{padding:"11px 20px",borderRadius:10,border:"none",cursor:downloadingId === r.id ? "not-allowed" : "pointer",fontFamily:"inherit",fontSize:14,fontWeight:800,background:"linear-gradient(135deg,#ef4444,#f97316)",color:"#fff",boxShadow:"0 6px 18px rgba(249,115,22,.34)"}}>
                     {downloadingId === r.id ? "Generating..." : "Re-download Report"}
@@ -7031,7 +7815,7 @@ const buildFaqData = (facilityCountLabelText) => [
     { q:"Can I submit a correction?", a:"Yes. If you believe any data is materially incorrect please contact us at hello@humzones.com or use our contact form. We review all correction requests promptly." },
   ]},
   { section:"Reports", items:[
-    { q:"What is included in a HumZones Area Report?", a:"Your personalized report includes a complete list of all data center facilities within 100km of your address, distance from your location to each facility, infrastructure exposure category, reported power draw, estimated noise levels, modeled EMF exposure ranges, estimated CO2 and water impact, infrastructure and community impact considerations, and practical awareness steps." },
+    { q:"What is included in a HumZones Area Report?", a:"Your personalized report includes a complete list of all data center facilities within 100km of your address, distance from your location to each facility, infrastructure impact category, reported power draw, estimated noise levels, modeled EMF exposure ranges, estimated CO2 and water impact, infrastructure and community impact considerations, and practical awareness steps." },
     { q:"Can I retrieve my report after downloading it?", a:"Yes. Every report you purchase is saved to your account. Visit humzones.com/my-report and enter your purchase email address to retrieve any past report at any time." },
     { q:"Do you offer refunds?", a:"Reports are delivered instantly as digital downloads. Due to the nature of digital products all sales are final. If you experience a technical issue please contact hello@humzones.com and we will do our best to assist." },
     { q:"What is the Business Plan?", a:"Our business plans offer bulk report credits for professionals who need to generate multiple reports. Plans start at $99 per month for 10 reports. Visit humzones.com/business for full details." },
@@ -7099,7 +7883,7 @@ const FaqPage = ({ onNavigate, facilityCount }) => {
 const TERMS_SECTIONS = [
   { h:"Acceptance of Terms", b:"By accessing or using humzones.com you agree to be bound by these Terms of Service and our Privacy Policy. If you do not agree to these terms please do not use our service. HumZones Technologies Inc. reserves the right to update these terms at any time. Continued use of the service after changes constitutes acceptance of the updated terms." },
   { h:"Description of Service", b:"HumZones provides an online platform for accessing publicly compiled information about data center infrastructure. We offer free facility search, personalized area reports for purchase, business subscription plans, and a community report submission system." },
-  { h:"Informational Purpose Only", b:"All information provided by HumZones including facility data, modeled estimates, exposure categories, and report content is for informational and public awareness purposes only. Nothing on this site constitutes medical, legal, scientific, environmental or financial advice. HumZones Technologies Inc. makes no warranties about the accuracy, completeness or fitness for any particular purpose of the information provided." },
+  { h:"Informational Purpose Only", b:"All information provided by HumZones including facility data, modeled estimates, impact categories, and report content is for informational and public awareness purposes only. Nothing on this site constitutes medical, legal, scientific, environmental or financial advice. HumZones Technologies Inc. makes no warranties about the accuracy, completeness or fitness for any particular purpose of the information provided." },
   { h:"Purchased Reports", b:"Reports purchased through HumZones are digital products delivered instantly upon payment. All sales are final. No refunds will be issued for digital downloads. By purchasing a report you acknowledge that the content is based on modeled estimates compiled from public sources and does not represent certified measurements or professional assessments of any kind." },
   { h:"Business Subscriptions", b:"Business subscription plans are billed monthly or annually as selected. Monthly plans may be cancelled at any time and will not renew after the current billing period. Annual plans are billed for the full year and are non-refundable. Credits reset at the start of each billing period and unused credits do not roll over." },
   { h:"User Conduct", b:"You agree not to use HumZones to:\n- Submit false or misleading community reports\n- Attempt to access other users accounts or data\n- Use automated tools to scrape or extract data without permission\n- Use the service for any unlawful purpose\n- Attempt to interfere with the operation of the service" },
@@ -7140,15 +7924,15 @@ const TermsPage = ({ onNavigate }) => (
 
 // ─── /disclaimer: LEGAL DISCLAIMER ───────────────────────────────────────────
 const DISCLAIMER_SECTIONS = [
-  { h:"Informational Purpose Only", b:"All information published on humzones.com including facility data, modeled estimates, infrastructure exposure categories and report content is provided for general informational and public awareness purposes only. Nothing on this platform constitutes medical, legal, scientific, environmental, financial or real estate advice. You should consult appropriately qualified professionals before making any decision that relies on information obtained from this platform." },
+  { h:"Informational Purpose Only", b:"All information published on humzones.com including facility data, modeled estimates, infrastructure impact categories and report content is provided for general informational and public awareness purposes only. Nothing on this platform constitutes medical, legal, scientific, environmental, financial or real estate advice. You should consult appropriately qualified professionals before making any decision that relies on information obtained from this platform." },
   { h:"No Certified Measurements", b:"None of the figures published on humzones.com represent certified field measurements. All power draw, noise level, water consumption, CO2 and electromagnetic field figures are modeled estimates derived from publicly available information using documented formulas. Actual values may vary significantly by facility design, operating conditions and season.\n\nThe electromagnetic field exposure ranges published on this platform are modeled estimates only. They are not the result of any instrumentation, on-site testing, or certified measurement process. The term modeled EMF exposure range means a calculated approximation based on facility power draw and distance, not a reading from any measuring device. These ranges should not be cited as measured values in any legal, regulatory, medical or scientific context." },
-  { h:"No Health Claims", b:"HumZones Technologies Inc. makes no claim that any facility listed on this platform causes, contributes to, or is associated with any health condition or outcome. Infrastructure exposure categories are relative indicators of facility scale and proximity, not medical, scientific or regulatory determinations of harm.\n\nReferences on this platform to published research by organizations such as the World Health Organization (WHO), the International Agency for Research on Cancer (IARC), or other bodies are provided for general context only. Such references do not constitute an endorsement by those organizations of HumZones or any claim made on this platform. HumZones Technologies Inc. does not represent that any published research applies to any specific facility listed in our database." },
+  { h:"No Health Claims", b:"HumZones Technologies Inc. makes no claim that any facility listed on this platform causes, contributes to, or is associated with any health condition or outcome. Infrastructure impact categories are relative indicators of facility scale and proximity, not medical, scientific or regulatory determinations of harm.\n\nReferences on this platform to published research by organizations such as the World Health Organization (WHO), the International Agency for Research on Cancer (IARC), or other bodies are provided for general context only. Such references do not constitute an endorsement by those organizations of HumZones or any claim made on this platform. HumZones Technologies Inc. does not represent that any published research applies to any specific facility listed in our database." },
   { h:"Community Reports", b:"Community reports published on humzones.com are submitted by individual members of the public and represent solely the personal opinions, experiences and beliefs of their authors. HumZones Technologies Inc.:\n\n- Does not verify the accuracy of any statement made in a community report\n- Does not adopt or endorse any statement made in a community report\n- Does not represent that any community report reflects the views of HumZones Technologies Inc.\n- Does not guarantee that community reports are free from error, bias or inaccuracy\n- Reserves the right to decline to publish or to remove any community report at its sole discretion\n\nCommunity reports are published as a public service to facilitate community awareness and dialogue. They are not evidence of any wrongdoing by any facility operator and should not be characterized as such. Any person who believes a published community report contains false or defamatory information may contact hello@humzones.com to request review and removal." },
   { h:"Fair Comment and Public Interest", b:"The information published on humzones.com is published in the public interest for the purpose of promoting transparency about infrastructure development in residential communities. HumZones Technologies Inc. asserts its right to publish factual information compiled from public sources and to facilitate public discourse about matters of community concern.\n\nAll information published on this platform that was obtained from public sources is believed to be accurate at the time of publication. HumZones Technologies Inc. relies on the defense of fair comment, honest opinion, and responsible communication in publishing this information and facilitating community reports about matters of public interest.\n\nNothing in this disclaimer shall be construed as an admission that any information published on this platform is false, misleading or defamatory." },
   { h:"No Liability", b:"To the maximum extent permitted by applicable law, HumZones Technologies Inc. shall not be liable for any direct, indirect, incidental, special, consequential or punitive damages arising from your access to or use of this platform, or from your reliance on any information published here, whether based in contract, tort or any other legal theory.\n\nIn no event shall the total aggregate liability of HumZones Technologies Inc. to you for all claims arising from your use of this platform exceed the greater of (a) the total amount paid by you to HumZones Technologies Inc. in the twelve months preceding the claim or (b) one hundred Canadian dollars (CAD $100)." },
   { h:"No Partnership or Affiliation", b:"HumZones Technologies Inc. is not affiliated with, endorsed by, or in any way connected to any data center operator, technology company, utility company, real estate company, government agency or regulatory body mentioned on this platform. The listing of any facility on this platform does not imply any relationship between HumZones Technologies Inc. and the facility operator." },
   { h:"Accuracy of Publicly Available Information", b:"All facility information published on this platform including facility names, addresses, operator names and operational status has been compiled from sources that were publicly available at the time of compilation. HumZones Technologies Inc. has made reasonable efforts to ensure the accuracy of this information. However we cannot guarantee that all information is current, complete or free from error.\n\nFacility operators who believe their facility information is inaccurate are encouraged to contact us at hello@humzones.com. We will review and update information promptly upon receiving credible evidence of an inaccuracy. The existence of an inaccuracy does not give rise to any legal claim against HumZones Technologies Inc. provided we correct the inaccuracy within a reasonable time after receiving notice." },
-  { h:"Assumption of Risk", b:"By accessing and using humzones.com you acknowledge that:\n\n1. You have read and understood this disclaimer in full\n2. You understand that all figures are modeled estimates not certified measurements\n3. You understand that infrastructure exposure categories are relative indicators not scientific or medical determinations\n4. You will not rely on information from this platform as the sole basis for any medical, legal, financial, real estate or other significant decision without consulting qualified professionals\n5. You assume full responsibility for how you use and interpret information obtained from this platform\n6. You will not use information from this platform to harass, defame or make false accusations against any facility operator or individual" },
+  { h:"Assumption of Risk", b:"By accessing and using humzones.com you acknowledge that:\n\n1. You have read and understood this disclaimer in full\n2. You understand that all figures are modeled estimates not certified measurements\n3. You understand that infrastructure impact categories are relative indicators not scientific or medical determinations\n4. You will not rely on information from this platform as the sole basis for any medical, legal, financial, real estate or other significant decision without consulting qualified professionals\n5. You assume full responsibility for how you use and interpret information obtained from this platform\n6. You will not use information from this platform to harass, defame or make false accusations against any facility operator or individual" },
   { h:"Governing Law", b:"This disclaimer and your use of humzones.com are governed by the laws of Canada, without regard to its conflict of law provisions. Any dispute arising from or relating to this platform shall be resolved in the courts of Canada.\n\nYou agree that any claim against HumZones Technologies Inc. must be brought within one year of the date the claim arose or be forever barred. Class action lawsuits against HumZones Technologies Inc. are expressly waived to the maximum extent permitted by applicable law." },
   { h:"DMCA and Content Removal", b:"If you believe that content published on humzones.com infringes your intellectual property rights or contains false and defamatory statements about you or your organization please contact us immediately at hello@humzones.com with:\n\n- Your full name and contact information\n- A description of the content you believe is problematic\n- The specific URL where the content appears\n- A description of the basis for your claim\n\nWe will review all such requests within 5 business days and take appropriate action where warranted." },
 ];
@@ -8065,9 +8849,9 @@ export default function App() {
     const level = score>=6?"HIGH":score>=3?"MODERATE":"LOWER";
 
     const summary = score>=6
-      ? `Based on your answers, you are in a HIGH exposure situation. Your combination of ${a.dist==="Less than 0.25 miles"?"very close proximity (under a quarter mile)":a.dist==="0.25 to 0.5 miles"?"close proximity (under half a mile)":"moderate proximity"}${a.kids==="Yes"?", children in your household":""}${a.preg==="Yes"?", and pregnancy":""} creates a compounding risk profile that warrants immediate and serious attention. The research is unambiguous: people in your situation face measurably elevated exposure to three separate categories of documented health hazards. First, power-frequency EMF from substations and high-voltage lines at this distance regularly exceeds the 3 to 4 milligauss threshold where epidemiological studies found elevated childhood leukemia rates. Second, diesel PM2.5 from monthly generator tests is a WHO Group 1 carcinogen with no established safe exposure level. Third, chronic low-frequency noise operates below the threshold of normal hearing measurement but penetrates walls and disrupts sleep architecture over time. Each of these independently carries documented health risks. Together, as a combined chronic exposure, they represent a situation that deserves professional environmental assessment, formal regulatory complaints, and a conversation with your doctor.`
+      ? `Based on your answers, you are in a HIGH impact situation. Your combination of ${a.dist==="Less than 0.25 miles"?"very close proximity (under a quarter mile)":a.dist==="0.25 to 0.5 miles"?"close proximity (under half a mile)":"moderate proximity"}${a.kids==="Yes"?", children in your household":""}${a.preg==="Yes"?", and pregnancy":""} creates a compounding risk profile that warrants immediate and serious attention. The research is unambiguous: people in your situation face measurably elevated exposure to three separate categories of documented health hazards. First, power-frequency EMF from substations and high-voltage lines at this distance regularly exceeds the 3 to 4 milligauss threshold where epidemiological studies found elevated childhood leukemia rates. Second, diesel PM2.5 from monthly generator tests is a WHO Group 1 carcinogen with no established safe exposure level. Third, chronic low-frequency noise operates below the threshold of normal hearing measurement but penetrates walls and disrupts sleep architecture over time. Each of these independently carries documented health risks. Together, as a combined chronic exposure, they represent a situation that deserves professional environmental assessment, formal regulatory complaints, and a conversation with your doctor.`
       : score>=3
-      ? `Based on your answers, you are in a MODERATE exposure situation. Your proximity and household circumstances place you within the documented impact range of this facility. ${a.dist==="0.25 to 0.5 miles"?"At under half a mile, you are well within the zone where low-frequency noise, diesel exhaust during generator tests, and elevated EMF have been measured and documented.":a.dist==="0.5 to 1 mile"?"At under one mile, low-frequency sound from cooling systems and generator operations reaches your home, particularly at night when ambient noise drops.":"At your distance, the primary concerns are low-frequency noise at night, diesel exhaust during monthly generator tests, and substation EMF if you are near the electrical infrastructure."} While your risk is lower than those closest to the fence line, the cumulative effects of long-term exposure to industrial noise, diesel exhaust during monthly generator tests, and elevated EMF are real and worth taking seriously. Residents at this distance have documented sleep disruption, intermittent headaches, and heightened anxiety linked to generator test events. Monitoring, documentation, and precautionary steps are appropriate right now, and you have standing to file formal noise and air quality concerns with your local authority.`
+      ? `Based on your answers, you are in a MODERATE impact situation. Your proximity and household circumstances place you within the documented impact range of this facility. ${a.dist==="0.25 to 0.5 miles"?"At under half a mile, you are well within the zone where low-frequency noise, diesel exhaust during generator tests, and elevated EMF have been measured and documented.":a.dist==="0.5 to 1 mile"?"At under one mile, low-frequency sound from cooling systems and generator operations reaches your home, particularly at night when ambient noise drops.":"At your distance, the primary concerns are low-frequency noise at night, diesel exhaust during monthly generator tests, and substation EMF if you are near the electrical infrastructure."} While your risk is lower than those closest to the fence line, the cumulative effects of long-term exposure to industrial noise, diesel exhaust during monthly generator tests, and elevated EMF are real and worth taking seriously. Residents at this distance have documented sleep disruption, intermittent headaches, and heightened anxiety linked to generator test events. Monitoring, documentation, and precautionary steps are appropriate right now, and you have standing to file formal noise and air quality concerns with your local authority.`
       : `Based on your answers, your immediate risk is LOWER than residents closer to the facility. ${a.dist==="More than 1 mile"?"At over one mile, you are beyond the zone where the most acute effects have been documented, though low-frequency sound and substation EMF have been measured at meaningful levels further than most people expect.":"At your distance, direct health impacts are less well-documented, though they are not zero."} The most important thing to understand is that data centers are not static. They expand. New substations get added. Generator capacity increases. Residents who tracked a facility from its early stages were far better positioned to challenge expansions than those who noticed problems only after years of exposure. Your lower risk today is a reason to stay informed and document a baseline, not a reason to be unconcerned. Check back if the facility announces expansion, if new substations are installed nearby, or if you or family members begin experiencing unexplained sleep disruption or headaches.`;
 
     return{level,score,flags,actions,summary};
