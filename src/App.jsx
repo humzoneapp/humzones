@@ -959,7 +959,7 @@ const SHARE_TARGETS = [
 ];
 
 const ShareSection = () => (
-  <section aria-label="Share HumZones" className="share-section" style={{background:"#fff",textAlign:"center",borderRadius:16,boxShadow:"0 20px 60px rgba(0,0,0,0.2)",marginBottom:28}}>
+  <section aria-label="Share HumZones" className="share-section" style={{background:"#fff",textAlign:"center",borderRadius:16,boxShadow:"0 20px 60px rgba(0,0,0,0.2)",marginBottom:0}}>
     <p style={{fontSize:13,color:"#94a3b8",margin:0,marginBottom:14,fontWeight:600,letterSpacing:".02em"}}>
       Know someone who should check this?
     </p>
@@ -8153,7 +8153,7 @@ export default function App() {
         </div>
 
         {/* MAIN */}
-        <main className="main" ref={topRef} style={{maxWidth:1040,margin:"0 auto",padding:"36px 24px 72px",width:"100%",boxSizing:"border-box",overflowX:"hidden"}}>
+        <main className="main" ref={topRef} style={{maxWidth:1040,margin:"0 auto",padding:"36px 24px 32px",width:"100%",boxSizing:"border-box",overflowX:"hidden"}}>
 
           {/* FIND DATA CENTERS NEAR ME */}
           <section id="near-me" className="near-panel" style={{background:"#fff",borderRadius:16,boxShadow:"0 20px 60px rgba(0,0,0,0.2)",padding:"26px 26px 22px",marginBottom:28,scrollMarginTop:24}}>
