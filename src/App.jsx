@@ -3767,8 +3767,9 @@ const BusinessPlansPage = ({ onNavigate, facilityCount, facs = [] }) => {
           {plans.map(p => {
             const price = annual ? p.annual : p.monthly;
             const cadence = annual ? "/year" : "/month";
+            const cardId = `plan-${p.key === "unlimited" ? "enterprise" : p.key}`;
             return (
-              <div key={p.key} style={{position:"relative",background:p.popular?"linear-gradient(160deg,rgba(249,115,22,.12),rgba(15,23,42,.6))":"rgba(15,23,42,.55)",border:p.popular?"1.5px solid rgba(249,115,22,.6)":"1px solid rgba(255,255,255,.1)",borderRadius:18,padding:"30px 26px",display:"flex",flexDirection:"column",boxShadow:p.popular?"0 24px 60px rgba(249,115,22,.22)":"0 12px 40px rgba(0,0,0,.25)"}}>
+              <div key={p.key} id={cardId} style={{position:"relative",background:p.popular?"linear-gradient(160deg,rgba(249,115,22,.12),rgba(15,23,42,.6))":"rgba(15,23,42,.55)",border:p.popular?"1.5px solid rgba(249,115,22,.6)":"1px solid rgba(255,255,255,.1)",borderRadius:18,padding:"30px 26px",display:"flex",flexDirection:"column",boxShadow:p.popular?"0 24px 60px rgba(249,115,22,.22)":"0 12px 40px rgba(0,0,0,.25)",scrollMarginTop:80}}>
                 {p.popular && (
                   <div style={{position:"absolute",top:-14,left:"50%",transform:"translateX(-50%)",background:"linear-gradient(135deg,#ef4444,#f97316)",color:"#fff",padding:"6px 16px",borderRadius:30,fontSize:11,fontWeight:900,letterSpacing:".14em"}}>MOST POPULAR</div>
                 )}
@@ -7157,9 +7158,9 @@ const GH_MENU = {
         { title: "What Is Included",     desc: "See full report contents",                 action: "contents" },
       ]},
       { head: "BUSINESS PLANS", items: [
-        { title: "Starter $99/month",       desc: "10 reports per month",                  to: "/business" },
-        { title: "Professional $249/month", desc: "30 reports per month",                  to: "/business" },
-        { title: "Enterprise $599/month",   desc: "200 reports per month",                 to: "/business" },
+        { title: "Starter $99/month",       desc: "10 reports per month",                  action: "plan", planId: "plan-starter" },
+        { title: "Professional $249/month", desc: "30 reports per month",                  action: "plan", planId: "plan-professional" },
+        { title: "Enterprise $599/month",   desc: "200 reports per month",                 action: "plan", planId: "plan-enterprise" },
       ]},
       { head: "YOUR REPORTS", items: [
         { title: "Retrieve My Report",   desc: "Access past purchases",                    to: "/my-report" },
@@ -7298,6 +7299,16 @@ const GlobalHeader = ({ onNavigate, path }) => {
     else scroll();
   };
 
+  const goPlan = (id) => {
+    setOpen(null); setMobileOpen(false);
+    const scroll = () => {
+      const el = document.getElementById(id);
+      if (el) el.scrollIntoView({ behavior:"smooth", block:"start" });
+    };
+    if (path !== "/business") { onNavigate("/business"); setTimeout(scroll, 350); }
+    else scroll();
+  };
+
   const runSample = async () => {
     if (sampleBusy) return;
     setSampleBusy(true);
@@ -7316,6 +7327,7 @@ const GlobalHeader = ({ onNavigate, path }) => {
     if (item.action === "registry") return goRegistry();
     if (item.action === "map")      return goMap();
     if (item.action === "contents") return goContents();
+    if (item.action === "plan")     return goPlan(item.planId);
     if (item.action === "sample")   return runSample();
     if (item.to) { setOpen(null); setMobileOpen(false); onNavigate(item.to); }
   };
