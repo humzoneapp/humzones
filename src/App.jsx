@@ -3669,6 +3669,12 @@ const ReportSuccessPage = ({ onBack, onNavigate }) => {
                 Download Again
               </button>
             </div>
+            <div style={{marginTop:28,maxWidth:520,marginLeft:"auto",marginRight:"auto",background:"rgba(249,115,22,.10)",borderLeft:"3px solid #f97316",borderRadius:8,padding:"12px 16px",textAlign:"left"}}>
+              <p style={{fontSize:13,color:"rgba(255,255,255,.78)",lineHeight:1.6,margin:0}}>
+                Glad this was useful? Help us keep the database growing.{" "}
+                <a href="/donate" onClick={e=>{e.preventDefault();onNavigate("/donate");}} style={{color:"#f97316",fontWeight:700,textDecoration:"none"}}>Support HumZones</a>.
+              </p>
+            </div>
           </>
         )}
 
@@ -4297,6 +4303,9 @@ const Footer = ({ onNavigate, facilities = [] }) => {
               <a href="/#near-me" onClick={e=>{e.preventDefault();goNearMe();}} className="hz-foot-link" style={linkBase}>Find Data Centers Near Me</a>
               {navLink("Community Reports","/submit-report")}
               {navLink("Submit Your Report","/submit-report")}
+              <a href="/donate" onClick={e=>{e.preventDefault();go("/donate");}} className="hz-foot-link" style={linkBase}>
+                <span aria-hidden="true" style={{color:"#f97316",marginRight:6}}>♥</span>Donate
+              </a>
               {navLink("Methodology","/methodology")}
               {navLink("FAQ","/faq")}
             </div>
@@ -7272,6 +7281,10 @@ const SubmitReportPage = ({ onNavigate }) => {
                   Submit Another Report
                 </button>
               </div>
+              <p style={{marginTop:16,fontSize:13,color:"#64748b",lineHeight:1.6}}>
+                Want to help us reach more communities? Consider supporting HumZones.{" "}
+                <a href="/donate" onClick={e=>{e.preventDefault();onNavigate("/donate");}} style={{color:"#f97316",fontWeight:700,textDecoration:"none"}}>Donate</a>
+              </p>
             </>
           ) : (
             <>
@@ -7848,6 +7861,316 @@ const DisclaimerPage = ({ onNavigate }) => (
   </div>
 );
 
+// ─── /donate: DONATIONS PAGE ─────────────────────────────────────────────────
+// Stripe Payment Link URLs for one-time and recurring donations. Each link
+// must be configured in the Stripe dashboard to redirect on success to
+// /donate-thank-you with type, amount, and session_id query params, e.g.
+//   https://humzones.com/donate-thank-you?type=one-time&amount=25&session_id={CHECKOUT_SESSION_ID}
+// Swap the placeholder strings below with the live Payment Link URLs.
+const DONATE_LINKS = {
+  one: {
+    5:   "STRIPE_DONATE_5",
+    10:  "STRIPE_DONATE_10",
+    25:  "STRIPE_DONATE_25",
+    50:  "STRIPE_DONATE_50",
+    100: "STRIPE_DONATE_100",
+    custom: "STRIPE_DONATE_CUSTOM",
+  },
+  monthly: {
+    3:   "STRIPE_DONATE_3MO",
+    5:   "STRIPE_DONATE_5MO",
+    10:  "STRIPE_DONATE_10MO",
+    15:  "STRIPE_DONATE_15MO",
+    25:  "STRIPE_DONATE_25MO",
+    custom: "STRIPE_DONATE_CUSTOM_MO",
+  },
+};
+
+// Airtable Donations table identifiers. Field IDs are used so column
+// renames in Airtable cannot break the POST.
+const DONATIONS_TABLE = "tblM7lnzFRgLCMDrE";
+const DONATIONS_FIELD = {
+  Email:             "fldsKVLLaXxDkXDuy",
+  Amount:            "fld7tNLBOXDUoNb8X",
+  Type:              "fldKA7PN2HLwKH5eS",
+  Date:              "fld3KtugwMn3x8KQN",
+  Stripe_Session_ID: "fldk56iasW2i0xM0Z",
+};
+
+const DonatePage = ({ onNavigate }) => {
+  const [mode, setMode] = useState("one"); // "one" or "monthly"
+  const [selected, setSelected] = useState(null); // a preset number or "custom"
+  const [customAmount, setCustomAmount] = useState("");
+
+  // Reset the picked tier whenever the mode toggles so an old selection
+  // from the other cadence never carries over.
+  const switchMode = (m) => {
+    if (m === mode) return;
+    setMode(m);
+    setSelected(null);
+    setCustomAmount("");
+  };
+
+  const presets = mode === "one"
+    ? [5, 10, 25, 50, 100]
+    : [3, 5, 10, 15, 25];
+
+  // Persist the picked amount + mode through Stripe so the thank-you page
+  // can render the right copy and write the right row to Airtable.
+  const startCheckout = () => {
+    let amount = null;
+    let url = null;
+    if (selected === "custom") {
+      const v = parseFloat(customAmount);
+      if (!Number.isFinite(v) || v <= 0) return;
+      amount = v;
+      url = DONATE_LINKS[mode].custom;
+    } else if (typeof selected === "number") {
+      amount = selected;
+      url = DONATE_LINKS[mode][selected];
+    } else {
+      return;
+    }
+    if (!url) return;
+    const typeParam = mode === "monthly" ? "monthly" : "one-time";
+    const join = url.includes("?") ? "&" : "?";
+    const successQs = "client_reference_id=" + encodeURIComponent(typeParam + "_" + amount);
+    // Same-tab redirect per spec. The Stripe Payment Link is configured to
+    // append session_id to its own success URL; we tack the type and amount
+    // on through client_reference_id so the thank-you page can recover them.
+    window.location.href = url + join + successQs;
+  };
+
+  const isReady = (selected === "custom" && parseFloat(customAmount) > 0) || typeof selected === "number";
+  const effectiveAmount = selected === "custom" ? customAmount : selected;
+  const ctaLabel = mode === "monthly"
+    ? "Start $" + (effectiveAmount || "0") + "/mo"
+    : "Donate $" + (effectiveAmount || "0") + " Now";
+
+  const fundBoxes = [
+    { icon: "📚", title: "Database Growth",   desc: "Expanding our registry to cover more facilities worldwide." },
+    { icon: "🔎", title: "Research",          desc: "Sourcing and verifying facility data from public records." },
+    { icon: "🖥️", title: "Infrastructure",    desc: "Server costs, hosting and keeping the site fast and free." },
+    { icon: "⚖️", title: "Legal Protection",  desc: "Protecting the community voice against pressure campaigns." },
+  ];
+
+  const pillStyle = (active) => ({
+    flex: 1,
+    padding: "14px 22px",
+    borderRadius: 999,
+    border: active ? "2px solid #f97316" : "2px solid #e2e8f0",
+    background: active ? "#f97316" : "#fff",
+    color: active ? "#fff" : "#475569",
+    fontSize: 15,
+    fontWeight: 800,
+    cursor: "pointer",
+    fontFamily: "inherit",
+    transition: "all .15s",
+  });
+
+  const amountCardStyle = (active) => ({
+    background: active ? "#f97316" : "#fff",
+    border: active ? "2px solid #f97316" : "2px solid #e2e8f0",
+    borderRadius: 14,
+    padding: "20px 12px",
+    textAlign: "center",
+    cursor: "pointer",
+    fontFamily: "inherit",
+    transition: "all .15s",
+    color: active ? "#fff" : "#0f172a",
+  });
+
+  return (
+    <div style={{minHeight:"100vh",background:"#f8fafc",width:"100%",maxWidth:"100vw",overflowX:"hidden"}}>
+      {/* HERO */}
+      <section style={{background:"linear-gradient(150deg,#020c1b 0%,#0f172a 45%,#1e0535 100%)",padding:"60px 24px 70px"}}>
+        <div style={{maxWidth:820,margin:"0 auto",textAlign:"center"}}>
+          <div style={{display:"inline-block",fontSize:12,color:"#f97316",letterSpacing:".18em",textTransform:"uppercase",fontWeight:800,marginBottom:14,padding:"6px 14px",borderRadius:30,background:"rgba(249,115,22,.12)",border:"1px solid rgba(249,115,22,.3)"}}>Support HumZones</div>
+          <h1 style={{fontSize:"clamp(34px,5.5vw,52px)",fontWeight:900,letterSpacing:"-.02em",color:"#fff",lineHeight:1.1,marginBottom:14}}>
+            Help Us Keep Communities Informed
+          </h1>
+          <div style={{width:60,height:3,background:"#f97316",borderRadius:2,margin:"0 auto 22px"}}/>
+          <p style={{fontSize:17,color:"rgba(255,255,255,.78)",lineHeight:1.65,maxWidth:680,margin:"0 auto"}}>
+            HumZones is an independent public awareness project. We track data center infrastructure so residents can understand what is being built near their homes. Your support keeps the database growing and the lights on.
+          </p>
+        </div>
+      </section>
+
+      {/* WHAT DONATIONS FUND */}
+      <section style={{maxWidth:1100,margin:"0 auto",padding:"48px 24px 12px"}}>
+        <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(220px,1fr))",gap:18}}>
+          {fundBoxes.map(b => (
+            <div key={b.title} style={{background:"#f1f5f9",border:"1px solid #e2e8f0",borderRadius:14,padding:"22px 20px"}}>
+              <div style={{fontSize:28,marginBottom:8}}>{b.icon}</div>
+              <div style={{fontSize:15,fontWeight:800,color:"#0f172a",marginBottom:6}}>{b.title}</div>
+              <div style={{fontSize:13,color:"#64748b",lineHeight:1.55}}>{b.desc}</div>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* DONATE PANEL */}
+      <section style={{maxWidth:720,margin:"0 auto",padding:"40px 24px"}}>
+        <div style={{background:"#fff",border:"1px solid #e2e8f0",borderRadius:18,padding:"28px 28px 30px",boxShadow:"0 8px 32px rgba(15,23,42,.06)"}}>
+          {/* One-time vs monthly toggle */}
+          <div style={{display:"flex",gap:10,marginBottom:24}}>
+            <button onClick={()=>switchMode("one")} style={pillStyle(mode === "one")}>Give Once</button>
+            <button onClick={()=>switchMode("monthly")} style={pillStyle(mode === "monthly")}>Give Monthly</button>
+          </div>
+
+          {/* Amount grid: 2 rows x 3 columns */}
+          <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:12}}>
+            {presets.map(n => {
+              const active = selected === n;
+              return (
+                <button key={n} onClick={()=>{setSelected(n);setCustomAmount("");}} style={amountCardStyle(active)}>
+                  <div style={{fontSize:24,fontWeight:900,letterSpacing:"-.01em"}}>${n}</div>
+                  <div style={{fontSize:11,color:active?"rgba(255,255,255,.85)":"#94a3b8",marginTop:4,fontWeight:600}}>
+                    {mode === "monthly" ? "per month" : "one-time gift"}
+                  </div>
+                </button>
+              );
+            })}
+            {/* Custom button slot */}
+            <button onClick={()=>setSelected("custom")} style={amountCardStyle(selected === "custom")}>
+              <div style={{fontSize:18,fontWeight:900,letterSpacing:"-.01em"}}>Custom</div>
+              <div style={{fontSize:11,color:selected==="custom"?"rgba(255,255,255,.85)":"#94a3b8",marginTop:4,fontWeight:600}}>
+                {mode === "monthly" ? "your amount/mo" : "your amount"}
+              </div>
+            </button>
+          </div>
+
+          {/* Custom amount input (revealed when Custom is selected) */}
+          {selected === "custom" && (
+            <div style={{marginTop:16}}>
+              <label style={{fontSize:13,fontWeight:700,color:"#0f172a",display:"block",marginBottom:6}}>
+                Enter your amount {mode === "monthly" ? "(per month)" : ""}
+              </label>
+              <div style={{display:"flex",alignItems:"center",gap:8}}>
+                <span style={{fontSize:20,fontWeight:900,color:"#0f172a"}}>$</span>
+                <input
+                  type="number" min="1" step="1"
+                  value={customAmount}
+                  onChange={e=>setCustomAmount(e.target.value)}
+                  placeholder="50"
+                  style={{flex:1,padding:"12px 14px",borderRadius:10,border:"1.5px solid #e2e8f0",fontSize:16,fontFamily:"inherit",outline:"none"}}
+                />
+              </div>
+            </div>
+          )}
+
+          {/* CTA */}
+          {isReady && (
+            <button
+              onClick={startCheckout}
+              style={{width:"100%",marginTop:22,padding:"16px 24px",borderRadius:14,border:"none",background:"linear-gradient(135deg,#ef4444,#f97316)",color:"#fff",fontSize:16,fontWeight:900,letterSpacing:".02em",cursor:"pointer",fontFamily:"inherit",boxShadow:"0 10px 28px rgba(249,115,22,.4)"}}
+            >
+              {ctaLabel}
+            </button>
+          )}
+        </div>
+
+        {/* Transparency note */}
+        <div style={{marginTop:22,background:"#f1f5f9",borderLeft:"3px solid #3b82f6",borderRadius:8,padding:"14px 16px"}}>
+          <p style={{fontSize:13,color:"#1e3a8a",lineHeight:1.6,margin:0}}>
+            We are transparent about how donations are used. HumZones is independently operated. Donations help cover server costs, data research and database maintenance. No donation data is ever sold. You can cancel a monthly donation at any time by contacting{" "}
+            <a href="mailto:hello@humzones.com" style={{color:"#f97316",fontWeight:700,textDecoration:"none"}}>hello@humzones.com</a>.
+          </p>
+        </div>
+
+        {/* Mission stat */}
+        <div style={{marginTop:22,textAlign:"center",padding:"18px 4px"}}>
+          <p style={{fontSize:14,color:"#475569",lineHeight:1.65,margin:0}}>
+            Over 1,143 facilities tracked. Millions of people live near data center infrastructure without knowing it. Every dollar helps us reach more communities.
+          </p>
+        </div>
+      </section>
+
+      <Footer onNavigate={onNavigate}/>
+    </div>
+  );
+};
+
+// ─── /donate-thank-you: POST-CHECKOUT CONFIRMATION ───────────────────────────
+const DonateThankYouPage = ({ onNavigate }) => {
+  // Stripe appends ?session_id when its success URL is hit. The donate
+  // page passes the type and amount through client_reference_id, which
+  // Stripe forwards to the success URL as a separate query param.
+  const params = useMemo(() => new URLSearchParams(typeof window !== "undefined" ? window.location.search : ""), []);
+  const sessionId = params.get("session_id") || "";
+  const directType = params.get("type") || "";
+  const directAmount = params.get("amount") || "";
+  const ref = params.get("client_reference_id") || "";
+  // Parse fallback from client_reference_id: "one-time_25" or "monthly_10"
+  let parsedType = directType;
+  let parsedAmount = directAmount;
+  if ((!parsedType || !parsedAmount) && ref) {
+    const idx = ref.lastIndexOf("_");
+    if (idx > 0) {
+      if (!parsedType) parsedType = ref.slice(0, idx);
+      if (!parsedAmount) parsedAmount = ref.slice(idx + 1);
+    }
+  }
+  const isMonthly = parsedType === "monthly";
+
+  const savedRef = useRef(false);
+  useEffect(() => {
+    if (savedRef.current) return;
+    if (!sessionId && !parsedAmount) return;
+    savedRef.current = true;
+    const today = new Date().toISOString().slice(0, 10);
+    const fields = {
+      [DONATIONS_FIELD.Date]: today,
+    };
+    if (parsedAmount) fields[DONATIONS_FIELD.Amount] = Number(parsedAmount);
+    if (parsedType)   fields[DONATIONS_FIELD.Type]   = isMonthly ? "Monthly" : "One-Time";
+    if (sessionId)    fields[DONATIONS_FIELD.Stripe_Session_ID] = sessionId;
+    const emailParam = params.get("email");
+    if (emailParam) fields[DONATIONS_FIELD.Email] = emailParam;
+    fetch(`${APIURL}/${DONATIONS_TABLE}?returnFieldsByFieldId=true`, {
+      method: "POST",
+      headers: HDR,
+      body: JSON.stringify({ fields }),
+    }).catch(e => console.warn("[HumZones] Donations save failed:", e));
+  }, [sessionId, parsedAmount, parsedType, isMonthly, params]);
+
+  return (
+    <div style={{minHeight:"100vh",background:"linear-gradient(150deg,#020c1b 0%,#0f172a 50%,#1e0535 100%)",color:"#fff"}}>
+      <main style={{maxWidth:620,margin:"0 auto",padding:"60px 24px 80px",textAlign:"center"}}>
+        <div style={{width:90,height:90,borderRadius:"50%",background:"linear-gradient(135deg,#ef4444,#f97316)",margin:"0 auto 22px",display:"flex",alignItems:"center",justifyContent:"center",boxShadow:"0 18px 50px rgba(249,115,22,.45)"}}>
+          <svg width="44" height="44" viewBox="0 0 24 24" fill="#fff" aria-hidden="true">
+            <path d="M12 21s-7-4.35-7-10a4 4 0 0 1 7-2.65A4 4 0 0 1 19 11c0 5.65-7 10-7 10z"/>
+          </svg>
+        </div>
+        <h1 style={{fontSize:30,fontWeight:900,letterSpacing:"-.01em",marginBottom:14}}>Thank You for Supporting HumZones</h1>
+        <p style={{fontSize:16,color:"rgba(255,255,255,.78)",lineHeight:1.65,marginBottom:18,maxWidth:520,marginLeft:"auto",marginRight:"auto"}}>
+          Your contribution helps us keep communities informed about the infrastructure being built near their homes. Every dollar makes a difference.
+        </p>
+        {isMonthly && (
+          <p style={{fontSize:14,color:"rgba(255,255,255,.65)",lineHeight:1.65,marginBottom:24,maxWidth:520,marginLeft:"auto",marginRight:"auto"}}>
+            Your monthly support means we can plan ahead and keep the database growing. You can cancel anytime by emailing{" "}
+            <a href="mailto:hello@humzones.com" style={{color:"#f97316",fontWeight:700,textDecoration:"none"}}>hello@humzones.com</a>.
+          </p>
+        )}
+        {parsedAmount && (
+          <div style={{display:"inline-block",padding:"10px 18px",borderRadius:30,background:"rgba(249,115,22,.12)",border:"1px solid rgba(249,115,22,.4)",fontSize:14,fontWeight:700,color:"#f97316",marginBottom:24}}>
+            ${parsedAmount}{isMonthly ? " per month" : " one-time"}
+          </div>
+        )}
+        <div style={{display:"flex",gap:12,justifyContent:"center",flexWrap:"wrap",marginTop:8}}>
+          <button onClick={()=>onNavigate("/")} style={{padding:"14px 28px",borderRadius:12,border:"none",background:"linear-gradient(135deg,#ef4444,#f97316)",color:"#fff",fontSize:15,fontWeight:900,cursor:"pointer",fontFamily:"inherit",boxShadow:"0 10px 28px rgba(249,115,22,.4)"}}>
+            Return Home
+          </button>
+          <button onClick={()=>onNavigate("/submit-report")} style={{padding:"14px 26px",borderRadius:12,border:"1.5px solid rgba(255,255,255,.25)",background:"transparent",color:"#fff",fontSize:15,fontWeight:800,cursor:"pointer",fontFamily:"inherit"}}>
+            Submit Your Experience
+          </button>
+        </div>
+      </main>
+      <Footer onNavigate={onNavigate}/>
+    </div>
+  );
+};
+
 // ─── SCROLL TO TOP ───────────────────────────────────────────────────────────
 // Scrolls the window to the top whenever the active route changes, so footer
 // links and other cross-page navigation always land at the top of the
@@ -7962,6 +8285,7 @@ const GH_MENU = {
       { head: "PARTICIPATE", items: [
         { title: "Submit Your Report",   desc: "Share your experience",                    to: "/submit-report" },
         { title: "Community Reports",    desc: "Read verified resident reports",           to: "/" },
+        { title: "Donate",               desc: "Support the registry",                     to: "/donate", accent: "heart" },
         { title: "Contact Us",           desc: "Get in touch with our team",               to: "/contact" },
       ]},
       { head: "RESEARCH", items: [
@@ -8172,6 +8496,7 @@ const GlobalHeader = ({ onNavigate, path }) => {
                     disabled={item.action==="sample" && sampleBusy}
                   >
                     <span className="hz-gh-mega-link-title">
+                      {item.accent === "heart" && <span aria-hidden="true" style={{color:"#f97316",marginRight:6}}>♥</span>}
                       {item.action==="sample" && sampleBusy ? "Generating Sample..." : item.title}
                     </span>
                     <span className="hz-gh-mega-link-desc">{item.desc}</span>
@@ -8202,6 +8527,7 @@ const GlobalHeader = ({ onNavigate, path }) => {
                     onClick={()=>handleItem(item)}
                     disabled={item.action==="sample" && sampleBusy}
                   >
+                    {item.accent === "heart" && <span aria-hidden="true" style={{color:"#f97316",marginRight:6}}>♥</span>}
                     {item.action==="sample" && sampleBusy ? "Generating Sample..." : item.title}
                   </button>
                 ))}
@@ -8812,6 +9138,10 @@ export default function App() {
         <TermsPage onNavigate={navigate}/>
       ) : path === "/disclaimer" ? (
         <DisclaimerPage onNavigate={navigate}/>
+      ) : path === "/donate" ? (
+        <DonatePage onNavigate={navigate}/>
+      ) : path === "/donate-thank-you" ? (
+        <DonateThankYouPage onNavigate={navigate}/>
       ) : (
       <div style={{minHeight:"100vh",background:"#f1f5f9",width:"100%",maxWidth:"100vw",overflowX:"hidden"}}>
 
@@ -8885,6 +9215,14 @@ export default function App() {
               <Icon name="close" size={16} color="rgba(255,255,255,.7)"/> Clear search
             </button>
           )}
+
+          <a
+            href="/donate"
+            onClick={e=>{e.preventDefault();navigate("/donate");}}
+            style={{marginTop:24,fontSize:13,color:"rgba(255,255,255,.55)",textDecoration:"none",fontWeight:600,letterSpacing:".04em",position:"relative",zIndex:1,display:"inline-flex",alignItems:"center",gap:6}}
+          >
+            <span aria-hidden="true" style={{color:"#f97316"}}>♥</span> Support Our Mission
+          </a>
 
           {!dc && !country && (
             <div className="floating scroll-hint" style={{position:"absolute",bottom:36,left:0,right:0,margin:"0 auto",color:"rgba(255,255,255,.25)",fontSize:14,zIndex:1,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:6,textAlign:"center",width:"100%"}}>
