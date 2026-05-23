@@ -1,5 +1,11 @@
 {
   "rewrites": [
     { "source": "/((?!api/).*)", "destination": "/index.html" }
+  ],
+  "crons": [
+    {
+      "path": "/api/archive-old-reports",
+      "schedule": "0 0 1 * *"
+    }
   ]
 }
