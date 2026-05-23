@@ -1089,7 +1089,7 @@ const MapSection = ({ facilities, loading, onSelectFacility }) => {
   ];
 
   return (
-    <section aria-label="Data center world map" className="hz-map-section" style={{padding:"32px 0"}}>
+    <section id="interactive-map" aria-label="Data center world map" className="hz-map-section" style={{padding:"32px 0",scrollMarginTop:80}}>
       {/* Heading */}
       <div style={{textAlign:"center",maxWidth:760,margin:"0 auto 22px"}}>
         <div style={{fontSize:12,fontWeight:800,letterSpacing:".16em",color:"#94a3b8",textTransform:"uppercase",marginBottom:9}}>
@@ -7112,7 +7112,7 @@ const GH_MENU = {
         { title: "Search by Location",   desc: "Browse by country, state and city",        to: "/" },
       ]},
       { head: "OUR DATABASE", items: [
-        { title: "Interactive Map",      desc: "Visual map of all tracked facilities",     to: "/get-report" },
+        { title: "Interactive Map",      desc: "Visual map of all tracked facilities",     action: "map" },
         { title: "1,143+ Facilities",    desc: "Growing global registry",                  to: "/" },
         { title: "Live Registry Status", desc: "Operating, building and proposed",         action: "registry" },
       ]},
@@ -7254,6 +7254,16 @@ const GlobalHeader = ({ onNavigate, path }) => {
     else scroll();
   };
 
+  const goMap = () => {
+    setOpen(null); setMobileOpen(false);
+    const scroll = () => {
+      const el = document.getElementById("interactive-map");
+      if (el) el.scrollIntoView({ behavior:"smooth", block:"start" });
+    };
+    if (path !== "/") { onNavigate("/"); setTimeout(scroll, 350); }
+    else scroll();
+  };
+
   const runSample = async () => {
     if (sampleBusy) return;
     setSampleBusy(true);
@@ -7270,6 +7280,7 @@ const GlobalHeader = ({ onNavigate, path }) => {
   const handleItem = (item) => {
     if (item.action === "nearme")   return goNearMe();
     if (item.action === "registry") return goRegistry();
+    if (item.action === "map")      return goMap();
     if (item.action === "sample")   return runSample();
     if (item.to) { setOpen(null); setMobileOpen(false); onNavigate(item.to); }
   };
