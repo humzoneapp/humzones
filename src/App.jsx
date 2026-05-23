@@ -1088,7 +1088,7 @@ const MapSection = ({ facilities, loading, onSelectFacility }) => {
   ];
 
   return (
-    <section aria-label="Data center world map" className="hz-map-section" style={{padding:"6px 0 32px"}}>
+    <section aria-label="Data center world map" className="hz-map-section" style={{padding:"32px 0"}}>
       {/* Heading */}
       <div style={{textAlign:"center",maxWidth:760,margin:"0 auto 22px"}}>
         <div style={{fontSize:12,fontWeight:800,letterSpacing:".16em",color:"#94a3b8",textTransform:"uppercase",marginBottom:9}}>
