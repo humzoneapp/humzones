@@ -516,9 +516,10 @@ const CSS = `
   .hz-trap{position:absolute;left:-9999px;opacity:0;pointer-events:none;tab-index:-1}
 
   @media(max-width:768px){
-    /* Extra top padding clears the absolutely positioned top nav so it never
-       overlaps the hero content on mobile. Desktop keeps its inline padding. */
-    .hero{padding:96px 20px 60px!important;min-height:auto!important}
+    /* The old absolutely-positioned hero nav is gone; the sticky GlobalHeader
+       reserves its own space in flow so the hero only needs a normal top
+       padding above the HUMZONES.COM pill. */
+    .hero{padding:32px 20px 60px!important;min-height:auto!important}
     .hero h1{font-size:48px!important}
     .scroll-hint{display:none!important}
     .search-row{flex-direction:column!important}
