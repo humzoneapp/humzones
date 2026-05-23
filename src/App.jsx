@@ -543,7 +543,7 @@ const CSS = `
        not stack extra space onto the gaps. */
     .main{padding:24px 16px 24px!important}
     .near-panel{padding:22px 16px 18px!important;margin-bottom:24px!important}
-    .hz-map-section{padding:0!important;margin-bottom:24px!important}
+    .hz-map-section{padding:24px 0 0!important;margin-bottom:24px!important}
     /* /get-report hero: trim the bottom padding on phones so the
        "Live Database" map heading sits closer to the search button. */
     .hz-getreport-hero{padding-bottom:40px!important}
