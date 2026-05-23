@@ -1,3 +1,4 @@
+// HumZones - Build refresh May 23 2026
 // HumZones - Last updated: May 22 2026
 // Build marker: 2026-05-22, force fresh Vercel deployment of the full-width navy nav bar.
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
