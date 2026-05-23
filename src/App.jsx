@@ -2462,14 +2462,16 @@ async function generateBusinessReportPDF({
     doc.setFont("helvetica", "bold"); doc.setFontSize(11); doc.setTextColor(...b.tc);
     doc.text(b.title.toUpperCase(), 22, by + 9);
     if (b.count !== null) {
-      doc.setFont("helvetica", "bold"); doc.setFontSize(20); doc.setTextColor(...b.tc);
-      doc.text(String(b.count), 188, by + 14, { align: "right" });
       doc.setFont("helvetica", "bold"); doc.setFontSize(7); doc.setTextColor(100, 116, 139);
-      doc.text("FACILITIES", 188, by + 20, { align: "right" });
+      doc.text("FACILITIES", 188, by + 9, { align: "right" });
+      doc.setFont("helvetica", "bold"); doc.setFontSize(20); doc.setTextColor(...b.tc);
+      doc.text(String(b.count), 188, by + 20, { align: "right" });
     }
     doc.setFont("helvetica", "normal"); doc.setFontSize(9); doc.setTextColor(71, 85, 105);
-    const wrapped = doc.splitTextToSize(b.desc, 160);
-    doc.text(wrapped, 22, by + 18);
+    // Wrap to 132mm so the description can never reach the right-column
+    // FACILITIES / count block (which lives between x=170 and x=188).
+    const wrapped = doc.splitTextToSize(b.desc, 132);
+    doc.text(wrapped, 22, by + 28);
     by += 50;
   });
 
@@ -2782,19 +2784,22 @@ async function generateBusinessReportPDF({
 // version with a diagonal SAMPLE watermark overlay on every page so a
 // free demo is unambiguously distinguishable from a real deliverable.
 async function generateSampleBusinessReportPDF() {
+  // Facility_Status is included so the Regional Context page's Live
+  // Registry Growth panel renders realistic Operating / Building / Planned
+  // counts in the sample (otherwise every tile reads zero).
   const SAMPLE_FACS = [
-    { Name: "Amazon Web Services IAD23",   Company: "AWS",                  City: "Ashburn, VA",  Risk_Level: "HIGH",     _km: 12.4, Power_MW: 120, Cooling: "Evaporative",   Opened: "2019" },
-    { Name: "Equinix DC12",                Company: "Equinix",              City: "Ashburn, VA",  Risk_Level: "MODERATE", _km: 18.7, Power_MW: 36,  Cooling: "Chilled Water", Opened: "2014" },
-    { Name: "Microsoft Azure East US",     Company: "Microsoft",            City: "Boydton, VA",  Risk_Level: "LOW",      _km: 28.3, Power_MW: 100, Cooling: "Air",           Opened: "2020" },
-    { Name: "Digital Realty IAD44",        Company: "Digital Realty",       City: "Ashburn, VA",  Risk_Level: "MODERATE", _km: 34.1, Power_MW: 36,  Cooling: "Chilled Water", Opened: "2017" },
-    { Name: "QTS Richmond 1",              Company: "QTS Realty Trust",     City: "Richmond, VA", Risk_Level: "HIGH",     _km: 48.2, Power_MW: 130, Cooling: "Evaporative",   Opened: "2018" },
-    { Name: "Equinix DC10",                Company: "Equinix",              City: "Ashburn, VA",  Risk_Level: "MODERATE", _km: 51.3, Power_MW: 36,  Cooling: "Chilled Water", Opened: "2013" },
-    { Name: "Google Loudoun County",       Company: "Google",               City: "Leesburg, VA", Risk_Level: "LOW",      _km: 58.7, Power_MW: 150, Cooling: "Air",           Opened: "2021" },
-    { Name: "CyrusOne Northern VA",        Company: "CyrusOne",             City: "Sterling, VA", Risk_Level: "MODERATE", _km: 62.1, Power_MW: 20,  Cooling: "Chilled Water", Opened: "2016" },
-    { Name: "Iron Mountain Manassas",      Company: "Iron Mountain",        City: "Manassas, VA", Risk_Level: "HIGH",     _km: 71.4, Power_MW: 280, Cooling: "Evaporative",   Opened: "2019" },
-    { Name: "DataBank LGA3",               Company: "DataBank",             City: "Culpeper, VA", Risk_Level: "LOW",      _km: 82.6, Power_MW: 15,  Cooling: "Air",           Opened: "2015" },
-    { Name: "Vantage Ashburn III",         Company: "Vantage Data Centers", City: "Ashburn, VA",  Risk_Level: "MODERATE", _km: 88.3, Power_MW: 48,  Cooling: "Chilled Water", Opened: "2020" },
-    { Name: "CoreSite BO1",                Company: "CoreSite",             City: "Reston, VA",   Risk_Level: "HIGH",     _km: 94.7, Power_MW: 18,  Cooling: "Evaporative",   Opened: "2012" },
+    { Name: "Amazon Web Services IAD23",   Company: "AWS",                  City: "Ashburn, VA",  Risk_Level: "HIGH",     _km: 12.4, Power_MW: 120, Cooling: "Evaporative",   Opened: "2019", Facility_Status: "OPERATING" },
+    { Name: "Equinix DC12",                Company: "Equinix",              City: "Ashburn, VA",  Risk_Level: "MODERATE", _km: 18.7, Power_MW: 36,  Cooling: "Chilled Water", Opened: "2014", Facility_Status: "OPERATING" },
+    { Name: "Microsoft Azure East US",     Company: "Microsoft",            City: "Boydton, VA",  Risk_Level: "LOW",      _km: 28.3, Power_MW: 100, Cooling: "Air",           Opened: "2020", Facility_Status: "OPERATING" },
+    { Name: "Digital Realty IAD44",        Company: "Digital Realty",       City: "Ashburn, VA",  Risk_Level: "MODERATE", _km: 34.1, Power_MW: 36,  Cooling: "Chilled Water", Opened: "2017", Facility_Status: "OPERATING" },
+    { Name: "QTS Richmond 1",              Company: "QTS Realty Trust",     City: "Richmond, VA", Risk_Level: "HIGH",     _km: 48.2, Power_MW: 130, Cooling: "Evaporative",   Opened: "2018", Facility_Status: "OPERATING" },
+    { Name: "Equinix DC10",                Company: "Equinix",              City: "Ashburn, VA",  Risk_Level: "MODERATE", _km: 51.3, Power_MW: 36,  Cooling: "Chilled Water", Opened: "2013", Facility_Status: "OPERATING" },
+    { Name: "Google Loudoun County",       Company: "Google",               City: "Leesburg, VA", Risk_Level: "LOW",      _km: 58.7, Power_MW: 150, Cooling: "Air",           Opened: "2021", Facility_Status: "OPERATING" },
+    { Name: "CyrusOne Northern VA",        Company: "CyrusOne",             City: "Sterling, VA", Risk_Level: "MODERATE", _km: 62.1, Power_MW: 20,  Cooling: "Chilled Water", Opened: "2016", Facility_Status: "BUILDING" },
+    { Name: "Iron Mountain Manassas",      Company: "Iron Mountain",        City: "Manassas, VA", Risk_Level: "HIGH",     _km: 71.4, Power_MW: 280, Cooling: "Evaporative",   Opened: "2019", Facility_Status: "BUILDING" },
+    { Name: "DataBank LGA3",               Company: "DataBank",             City: "Culpeper, VA", Risk_Level: "LOW",      _km: 82.6, Power_MW: 15,  Cooling: "Air",           Opened: "2015", Facility_Status: "OPERATING" },
+    { Name: "Vantage Ashburn III",         Company: "Vantage Data Centers", City: "Ashburn, VA",  Risk_Level: "MODERATE", _km: 88.3, Power_MW: 48,  Cooling: "Chilled Water", Opened: "2020", Facility_Status: "PLANNED" },
+    { Name: "CoreSite BO1",                Company: "CoreSite",             City: "Reston, VA",   Risk_Level: "HIGH",     _km: 94.7, Power_MW: 18,  Cooling: "Evaporative",   Opened: "2012", Facility_Status: "PLANNED" },
   ];
   return generateBusinessReportPDF({
     searchAddress: "1600 Pennsylvania Avenue NW, Washington DC 20500",
