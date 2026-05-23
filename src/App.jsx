@@ -7115,8 +7115,24 @@ const GlobalHeader = ({ onNavigate, path }) => {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [sampleBusy, setSampleBusy] = useState(false);
 
+  // Tiny close delay so the cursor can cross the gap between a nav button
+  // and its mega menu without the menu collapsing mid-traverse. The
+  // dropdown's onMouseEnter cancels this pending close, so a real exit
+  // still feels instant.
+  const closeTimerRef = useRef(null);
+  const cancelClose = () => {
+    if (closeTimerRef.current) { clearTimeout(closeTimerRef.current); closeTimerRef.current = null; }
+  };
+  const scheduleClose = () => {
+    cancelClose();
+    closeTimerRef.current = setTimeout(() => setOpen(null), 160);
+  };
+  const openMenu = (key) => { cancelClose(); setOpen(key); };
+
   // Close every menu when the route changes.
-  useEffect(() => { setOpen(null); setMobileOpen(false); }, [path]);
+  useEffect(() => { cancelClose(); setOpen(null); setMobileOpen(false); }, [path]);
+  // Tear down any pending close timer on unmount.
+  useEffect(() => () => cancelClose(), []);
 
   // Lock body scroll while the mobile drawer is open.
   useEffect(() => {
@@ -7174,8 +7190,13 @@ const GlobalHeader = ({ onNavigate, path }) => {
 
         <nav className="hz-gh-nav" aria-label="Primary">
           {GH_KEYS.map(key => (
-            <div key={key} style={{position:"relative"}} onMouseEnter={()=>setOpen(key)} onMouseLeave={()=>setOpen(null)}>
-              <button type="button" className={`hz-gh-nav-btn${open===key?" is-open":""}`} aria-expanded={open===key} onFocus={()=>setOpen(key)}>
+            <div
+              key={key}
+              style={{position:"relative",height:"100%",display:"flex",alignItems:"center"}}
+              onMouseEnter={()=>openMenu(key)}
+              onMouseLeave={scheduleClose}
+            >
+              <button type="button" className={`hz-gh-nav-btn${open===key?" is-open":""}`} aria-expanded={open===key} onFocus={()=>openMenu(key)} onBlur={scheduleClose}>
                 {GH_MENU[key].label}<GhChev/>
               </button>
             </div>
@@ -7196,7 +7217,7 @@ const GlobalHeader = ({ onNavigate, path }) => {
       </div>
 
       {cur && (
-        <div className="hz-gh-mega" onMouseEnter={()=>setOpen(open)} onMouseLeave={()=>setOpen(null)}>
+        <div className="hz-gh-mega" onMouseEnter={cancelClose} onMouseLeave={scheduleClose}>
           <div className={`hz-gh-mega-inner ${cur.layout===3?"hz-gh-mega-3":"hz-gh-mega-2"}`}>
             {cur.columns.map(col => (
               <div key={col.head}>
