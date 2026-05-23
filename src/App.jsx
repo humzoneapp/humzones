@@ -3282,17 +3282,78 @@ const PLAN_LINKS = {
 
 const BIZ_STORE_KEY = "humzones_business_account";
 
+// Auto-logout policy: 8 hours of inactivity OR 14 days since initial login,
+// whichever comes first. Magic-link auth and bounded blast radius (wasted
+// report credits, not stolen money or PII) put us closer to a B2B SaaS
+// policy than a banking policy, but the absolute cap still catches the
+// abandoned-device case. Tuned in tandem with the Login page's expired
+// notice that surfaces after an auto-logout redirect.
+const SESSION_IDLE_MS     = 8 * 60 * 60 * 1000;
+const SESSION_ABSOLUTE_MS = 14 * 24 * 60 * 60 * 1000;
+const SESSION_EXPIRED_KEY = "humzones_session_expired";
+
+const isSessionExpired = (acct, now = Date.now()) => {
+  if (!acct) return false;
+  const loginAt      = acct.loginAt      || now;
+  const lastActiveAt = acct.lastActiveAt || now;
+  return now - loginAt > SESSION_ABSOLUTE_MS || now - lastActiveAt > SESSION_IDLE_MS;
+};
+
 const readBusinessAccount = () => {
   try {
     const raw = localStorage.getItem(BIZ_STORE_KEY);
     if (!raw) return null;
     const parsed = JSON.parse(raw);
-    return parsed && parsed.email ? parsed : null;
+    if (!parsed || !parsed.email) return null;
+    if (isSessionExpired(parsed)) {
+      try {
+        localStorage.removeItem(BIZ_STORE_KEY);
+        sessionStorage.setItem(SESSION_EXPIRED_KEY, "1");
+      } catch {}
+      return null;
+    }
+    return parsed;
   } catch { return null; }
 };
 
 const writeBusinessAccount = (acct) => {
-  try { localStorage.setItem(BIZ_STORE_KEY, JSON.stringify(acct)); } catch {}
+  try {
+    const now = Date.now();
+    // Preserve the original loginAt across in-place refreshes so the
+    // 14-day absolute cap is measured from the actual sign-in, not from
+    // each Airtable re-sync. Reset it if the stored email changes (a
+    // different user clicked a magic link on this device).
+    let loginAt = now;
+    try {
+      const existing = JSON.parse(localStorage.getItem(BIZ_STORE_KEY) || "null");
+      if (existing && existing.loginAt && existing.email === acct.email) {
+        loginAt = existing.loginAt;
+      }
+    } catch {}
+    const next = { ...acct, loginAt, lastActiveAt: now };
+    localStorage.setItem(BIZ_STORE_KEY, JSON.stringify(next));
+  } catch {}
+};
+
+// Bumps lastActiveAt only; does not extend an already-expired session
+// (in that case the record is cleared so the next readBusinessAccount
+// returns null and any guarded page redirects to login).
+const touchBusinessAccount = () => {
+  try {
+    const raw = localStorage.getItem(BIZ_STORE_KEY);
+    if (!raw) return;
+    const parsed = JSON.parse(raw);
+    if (!parsed || !parsed.email) return;
+    if (isSessionExpired(parsed)) {
+      try {
+        localStorage.removeItem(BIZ_STORE_KEY);
+        sessionStorage.setItem(SESSION_EXPIRED_KEY, "1");
+      } catch {}
+      return;
+    }
+    parsed.lastActiveAt = Date.now();
+    localStorage.setItem(BIZ_STORE_KEY, JSON.stringify(parsed));
+  } catch {}
 };
 
 const clearBusinessAccount = () => {
@@ -4659,6 +4720,20 @@ const BusinessLoginPage = ({ onNavigate }) => {
   const [sending, setSending] = useState(false);
   const startedRef = useRef(false);
 
+  // One-shot banner shown after an auto-logout redirect (8h idle or
+  // 14d absolute cap). readBusinessAccount sets the flag when it nulls
+  // out an expired record; we clear it on read so a manual page refresh
+  // here doesn't keep re-displaying the banner.
+  const [expiredNotice, setExpiredNotice] = useState(false);
+  useEffect(() => {
+    try {
+      if (sessionStorage.getItem(SESSION_EXPIRED_KEY) === "1") {
+        sessionStorage.removeItem(SESSION_EXPIRED_KEY);
+        setExpiredNotice(true);
+      }
+    } catch {}
+  }, []);
+
   useEffect(() => {
     if (mode !== "verifying" || startedRef.current) return;
     startedRef.current = true;
@@ -4716,6 +4791,12 @@ const BusinessLoginPage = ({ onNavigate }) => {
           <h1 style={{fontSize:28,fontWeight:900,letterSpacing:"-.01em",marginBottom:10}}>Sign In to Your HumZones Account</h1>
           <p style={{fontSize:15,color:"rgba(255,255,255,.7)",lineHeight:1.65}}>We use secure magic links instead of passwords. Enter your email and we will send you an instant login link. No password needed, ever.</p>
         </div>
+
+        {expiredNotice && mode !== "verifying" && (
+          <div style={{padding:"12px 14px",borderRadius:10,background:"rgba(249,115,22,.12)",border:"1px solid rgba(249,115,22,.4)",color:"#fed7aa",fontSize:14,marginBottom:16,textAlign:"center"}}>
+            You were signed out for your security. Please sign in again.
+          </div>
+        )}
 
         {mode === "verifying" && (
           <div style={{background:"rgba(15,23,42,.55)",border:"1px solid rgba(255,255,255,.1)",borderRadius:16,padding:"30px",textAlign:"center"}}>
@@ -7485,6 +7566,36 @@ export default function App() {
     setPath(to);
     window.scrollTo(0,0);
   };
+
+  // Auto-logout machinery for logged-in business sessions. Two effects:
+  // (1) any user activity bumps lastActiveAt on a 60s throttle so an
+  //     actively-used tab stays signed in; (2) every 60s we re-check the
+  //     stored session and, if it's gone stale while sitting on a guarded
+  //     page, redirect to /business-login. readBusinessAccount itself sets
+  //     the SESSION_EXPIRED_KEY flag that the login page reads to render a
+  //     "Signed out for your security" banner.
+  useEffect(() => {
+    let lastTouch = 0;
+    const onActivity = () => {
+      const now = Date.now();
+      if (now - lastTouch < 60 * 1000) return;
+      lastTouch = now;
+      touchBusinessAccount();
+    };
+    const events = ["mousemove","keydown","touchstart","click"];
+    events.forEach(e => window.addEventListener(e, onActivity, { passive: true }));
+    return () => events.forEach(e => window.removeEventListener(e, onActivity));
+  }, []);
+
+  useEffect(() => {
+    const GUARDED = ["/business-dashboard","/business-generate","/business-profile"];
+    const tick = () => {
+      if (!GUARDED.includes(window.location.pathname)) return;
+      if (readBusinessAccount() === null) navigate("/business-login");
+    };
+    const id = setInterval(tick, 60 * 1000);
+    return () => clearInterval(id);
+  }, []);
 
   const [facs,setFacs]           = useState([]);
   const [loading,setLoading]     = useState(true);
