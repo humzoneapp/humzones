@@ -3501,7 +3501,7 @@ const Footer = ({ onNavigate, facilities = [] }) => {
 
       {/* LIVE REGISTRY STATUS */}
       {statusCounts.length > 0 && (
-        <div style={{background:"#fff",borderBottom:"1px solid #e2e8f0",padding:"34px 24px"}}>
+        <div id="live-registry-status" style={{background:"#fff",borderBottom:"1px solid #e2e8f0",padding:"34px 24px",scrollMarginTop:80}}>
           <div style={{maxWidth:900,margin:"0 auto",textAlign:"center"}}>
             <div style={{fontSize:12,color:"#94a3b8",letterSpacing:".18em",textTransform:"uppercase",fontWeight:800,marginBottom:18}}>Live Registry Status</div>
             <div className="hz-status-grid" style={{display:"flex",flexWrap:"wrap",justifyContent:"center",alignItems:"stretch"}}>
@@ -7035,7 +7035,7 @@ const GH_MENU = {
       { head: "OUR DATABASE", items: [
         { title: "Interactive Map",      desc: "Visual map of all tracked facilities",     to: "/get-report" },
         { title: "1,143+ Facilities",    desc: "Growing global registry",                  to: "/" },
-        { title: "Live Registry Status", desc: "Operating, building and proposed",         to: "/" },
+        { title: "Live Registry Status", desc: "Operating, building and proposed",         action: "registry" },
       ]},
       { head: "LEARN", items: [
         { title: "Methodology",          desc: "How we research and model data",           to: "/methodology" },
@@ -7165,6 +7165,16 @@ const GlobalHeader = ({ onNavigate, path }) => {
     else scroll();
   };
 
+  const goRegistry = () => {
+    setOpen(null); setMobileOpen(false);
+    const scroll = () => {
+      const el = document.getElementById("live-registry-status");
+      if (el) el.scrollIntoView({ behavior:"smooth", block:"start" });
+    };
+    if (path !== "/") { onNavigate("/"); setTimeout(scroll, 350); }
+    else scroll();
+  };
+
   const runSample = async () => {
     if (sampleBusy) return;
     setSampleBusy(true);
@@ -7179,8 +7189,9 @@ const GlobalHeader = ({ onNavigate, path }) => {
   };
 
   const handleItem = (item) => {
-    if (item.action === "nearme") return goNearMe();
-    if (item.action === "sample") return runSample();
+    if (item.action === "nearme")   return goNearMe();
+    if (item.action === "registry") return goRegistry();
+    if (item.action === "sample")   return runSample();
     if (item.to) { setOpen(null); setMobileOpen(false); onNavigate(item.to); }
   };
 
