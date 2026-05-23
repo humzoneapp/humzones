@@ -4299,13 +4299,13 @@ const Footer = ({ onNavigate, facilities = [] }) => {
           <div>
             <div style={colHead}>Explore</div>
             <div style={colWrap}>
+              <a href="/donate" onClick={e=>{e.preventDefault();go("/donate");}} className="hz-foot-link" style={linkBase}>
+                <span aria-hidden="true" style={{color:"#f97316",marginRight:6}}>♥</span>Donate
+              </a>
               {navLink("Home","/")}
               <a href="/#near-me" onClick={e=>{e.preventDefault();goNearMe();}} className="hz-foot-link" style={linkBase}>Find Data Centers Near Me</a>
               {navLink("Community Reports","/submit-report")}
               {navLink("Submit Your Report","/submit-report")}
-              <a href="/donate" onClick={e=>{e.preventDefault();go("/donate");}} className="hz-foot-link" style={linkBase}>
-                <span aria-hidden="true" style={{color:"#f97316",marginRight:6}}>♥</span>Donate
-              </a>
               {navLink("Methodology","/methodology")}
               {navLink("FAQ","/faq")}
             </div>
@@ -7868,21 +7868,21 @@ const DisclaimerPage = ({ onNavigate }) => (
 //   https://humzones.com/donate-thank-you?type=one-time&amount=25&session_id={CHECKOUT_SESSION_ID}
 // Swap the placeholder strings below with the live Payment Link URLs.
 const DONATE_LINKS = {
-  one: {
-    5:   "STRIPE_DONATE_5",
-    10:  "STRIPE_DONATE_10",
-    25:  "STRIPE_DONATE_25",
-    50:  "STRIPE_DONATE_50",
-    100: "STRIPE_DONATE_100",
-    custom: "STRIPE_DONATE_CUSTOM",
+  oneTime: {
+    5:   "STRIPE_DONATE_OT_5",
+    10:  "STRIPE_DONATE_OT_10",
+    25:  "STRIPE_DONATE_OT_25",
+    50:  "STRIPE_DONATE_OT_50",
+    100: "STRIPE_DONATE_OT_100",
+    custom: "STRIPE_DONATE_OT_CUSTOM",
   },
   monthly: {
-    3:   "STRIPE_DONATE_3MO",
-    5:   "STRIPE_DONATE_5MO",
-    10:  "STRIPE_DONATE_10MO",
-    15:  "STRIPE_DONATE_15MO",
-    25:  "STRIPE_DONATE_25MO",
-    custom: "STRIPE_DONATE_CUSTOM_MO",
+    3:   "STRIPE_DONATE_MO_3",
+    5:   "STRIPE_DONATE_MO_5",
+    10:  "STRIPE_DONATE_MO_10",
+    15:  "STRIPE_DONATE_MO_15",
+    25:  "STRIPE_DONATE_MO_25",
+    custom: "STRIPE_DONATE_MO_CUSTOM",
   },
 };
 
@@ -7897,8 +7897,8 @@ const DONATIONS_FIELD = {
   Stripe_Session_ID: "fldk56iasW2i0xM0Z",
 };
 
-const DonatePage = ({ onNavigate }) => {
-  const [mode, setMode] = useState("one"); // "one" or "monthly"
+const DonatePage = ({ onNavigate, facilityCount }) => {
+  const [mode, setMode] = useState("oneTime"); // "oneTime" or "monthly"
   const [selected, setSelected] = useState(null); // a preset number or "custom"
   const [customAmount, setCustomAmount] = useState("");
 
@@ -7911,34 +7911,37 @@ const DonatePage = ({ onNavigate }) => {
     setCustomAmount("");
   };
 
-  const presets = mode === "one"
+  const presets = mode === "oneTime"
     ? [5, 10, 25, 50, 100]
     : [3, 5, 10, 15, 25];
 
-  // Persist the picked amount + mode through Stripe so the thank-you page
-  // can render the right copy and write the right row to Airtable.
+  // Each Stripe Payment Link is configured with its own success URL that
+  // already carries ?type=...&amount=... so the thank-you page can render
+  // the right copy regardless of which link was clicked. We only append
+  // client_reference_id here when we have an email to attach (logged-in
+  // business users); anonymous donors keep flowing without it.
   const startCheckout = () => {
-    let amount = null;
     let url = null;
     if (selected === "custom") {
       const v = parseFloat(customAmount);
       if (!Number.isFinite(v) || v <= 0) return;
-      amount = v;
       url = DONATE_LINKS[mode].custom;
     } else if (typeof selected === "number") {
-      amount = selected;
       url = DONATE_LINKS[mode][selected];
     } else {
       return;
     }
     if (!url) return;
-    const typeParam = mode === "monthly" ? "monthly" : "one-time";
-    const join = url.includes("?") ? "&" : "?";
-    const successQs = "client_reference_id=" + encodeURIComponent(typeParam + "_" + amount);
-    // Same-tab redirect per spec. The Stripe Payment Link is configured to
-    // append session_id to its own success URL; we tack the type and amount
-    // on through client_reference_id so the thank-you page can recover them.
-    window.location.href = url + join + successQs;
+    let email = "";
+    try {
+      const acct = readBusinessAccount();
+      if (acct && acct.email) email = acct.email;
+    } catch {}
+    if (email) {
+      const join = url.includes("?") ? "&" : "?";
+      url = url + join + "client_reference_id=" + encodeURIComponent(email);
+    }
+    window.location.href = url;
   };
 
   const isReady = (selected === "custom" && parseFloat(customAmount) > 0) || typeof selected === "number";
@@ -7946,6 +7949,13 @@ const DonatePage = ({ onNavigate }) => {
   const ctaLabel = mode === "monthly"
     ? "Start $" + (effectiveAmount || "0") + "/mo"
     : "Donate $" + (effectiveAmount || "0") + " Now";
+
+  // Dynamic facility count mirrors the home page stats strip. Falls back
+  // to a neutral phrase until the Airtable fetch lands so the page never
+  // shows a hard-coded number.
+  const missionStat = (Number.isFinite(facilityCount) && facilityCount > 0)
+    ? "Over " + facilityCount.toLocaleString() + " facilities tracked. Millions of people live near data center infrastructure without knowing it. Every dollar helps us reach more communities."
+    : "Thousands of facilities tracked. Millions of people live near data center infrastructure without knowing it. Every dollar helps us reach more communities.";
 
   const fundBoxes = [
     { icon: "📚", title: "Database Growth",   desc: "Expanding our registry to cover more facilities worldwide." },
@@ -8014,7 +8024,7 @@ const DonatePage = ({ onNavigate }) => {
         <div style={{background:"#fff",border:"1px solid #e2e8f0",borderRadius:18,padding:"28px 28px 30px",boxShadow:"0 8px 32px rgba(15,23,42,.06)"}}>
           {/* One-time vs monthly toggle */}
           <div style={{display:"flex",gap:10,marginBottom:24}}>
-            <button onClick={()=>switchMode("one")} style={pillStyle(mode === "one")}>Give Once</button>
+            <button onClick={()=>switchMode("oneTime")} style={pillStyle(mode === "oneTime")}>Give Once</button>
             <button onClick={()=>switchMode("monthly")} style={pillStyle(mode === "monthly")}>Give Monthly</button>
           </div>
 
@@ -8081,7 +8091,7 @@ const DonatePage = ({ onNavigate }) => {
         {/* Mission stat */}
         <div style={{marginTop:22,textAlign:"center",padding:"18px 4px"}}>
           <p style={{fontSize:14,color:"#475569",lineHeight:1.65,margin:0}}>
-            Over 1,143 facilities tracked. Millions of people live near data center infrastructure without knowing it. Every dollar helps us reach more communities.
+            {missionStat}
           </p>
         </div>
       </section>
@@ -8093,46 +8103,42 @@ const DonatePage = ({ onNavigate }) => {
 
 // ─── /donate-thank-you: POST-CHECKOUT CONFIRMATION ───────────────────────────
 const DonateThankYouPage = ({ onNavigate }) => {
-  // Stripe appends ?session_id when its success URL is hit. The donate
-  // page passes the type and amount through client_reference_id, which
-  // Stripe forwards to the success URL as a separate query param.
+  // Stripe's Payment Link success URLs are pre-configured with
+  // ?type=one-time&amount=AMOUNT&session_id={CHECKOUT_SESSION_ID}, so we
+  // can read everything directly from the URL. client_reference_id, if
+  // present, carries the donor's email (passed through by the donate
+  // page when the user is signed in to a business account).
   const params = useMemo(() => new URLSearchParams(typeof window !== "undefined" ? window.location.search : ""), []);
   const sessionId = params.get("session_id") || "";
-  const directType = params.get("type") || "";
-  const directAmount = params.get("amount") || "";
-  const ref = params.get("client_reference_id") || "";
-  // Parse fallback from client_reference_id: "one-time_25" or "monthly_10"
-  let parsedType = directType;
-  let parsedAmount = directAmount;
-  if ((!parsedType || !parsedAmount) && ref) {
-    const idx = ref.lastIndexOf("_");
-    if (idx > 0) {
-      if (!parsedType) parsedType = ref.slice(0, idx);
-      if (!parsedAmount) parsedAmount = ref.slice(idx + 1);
-    }
-  }
-  const isMonthly = parsedType === "monthly";
+  const typeParam = (params.get("type") || "").toLowerCase();
+  const amountParam = params.get("amount") || "";
+  const emailParam = params.get("email") || params.get("client_reference_id") || "";
+  const isMonthly = typeParam === "monthly";
+  const amountNum = parseFloat(amountParam);
 
+  // useRef guard prevents the Airtable POST from firing twice under
+  // React 18 StrictMode (which mounts effects twice in development).
   const savedRef = useRef(false);
   useEffect(() => {
     if (savedRef.current) return;
-    if (!sessionId && !parsedAmount) return;
+    if (!sessionId) return;
     savedRef.current = true;
     const today = new Date().toISOString().slice(0, 10);
     const fields = {
       [DONATIONS_FIELD.Date]: today,
+      [DONATIONS_FIELD.Type]: isMonthly ? "Monthly" : "One-Time",
+      [DONATIONS_FIELD.Stripe_Session_ID]: sessionId,
     };
-    if (parsedAmount) fields[DONATIONS_FIELD.Amount] = Number(parsedAmount);
-    if (parsedType)   fields[DONATIONS_FIELD.Type]   = isMonthly ? "Monthly" : "One-Time";
-    if (sessionId)    fields[DONATIONS_FIELD.Stripe_Session_ID] = sessionId;
-    const emailParam = params.get("email");
+    if (Number.isFinite(amountNum) && amountNum > 0) {
+      fields[DONATIONS_FIELD.Amount] = amountNum;
+    }
     if (emailParam) fields[DONATIONS_FIELD.Email] = emailParam;
     fetch(`${APIURL}/${DONATIONS_TABLE}?returnFieldsByFieldId=true`, {
       method: "POST",
       headers: HDR,
       body: JSON.stringify({ fields }),
     }).catch(e => console.warn("[HumZones] Donations save failed:", e));
-  }, [sessionId, parsedAmount, parsedType, isMonthly, params]);
+  }, [sessionId, amountNum, typeParam, isMonthly, emailParam]);
 
   return (
     <div style={{minHeight:"100vh",background:"linear-gradient(150deg,#020c1b 0%,#0f172a 50%,#1e0535 100%)",color:"#fff"}}>
@@ -8143,19 +8149,15 @@ const DonateThankYouPage = ({ onNavigate }) => {
           </svg>
         </div>
         <h1 style={{fontSize:30,fontWeight:900,letterSpacing:"-.01em",marginBottom:14}}>Thank You for Supporting HumZones</h1>
-        <p style={{fontSize:16,color:"rgba(255,255,255,.78)",lineHeight:1.65,marginBottom:18,maxWidth:520,marginLeft:"auto",marginRight:"auto"}}>
-          Your contribution helps us keep communities informed about the infrastructure being built near their homes. Every dollar makes a difference.
-        </p>
-        {isMonthly && (
-          <p style={{fontSize:14,color:"rgba(255,255,255,.65)",lineHeight:1.65,marginBottom:24,maxWidth:520,marginLeft:"auto",marginRight:"auto"}}>
-            Your monthly support means we can plan ahead and keep the database growing. You can cancel anytime by emailing{" "}
+        {isMonthly ? (
+          <p style={{fontSize:16,color:"rgba(255,255,255,.78)",lineHeight:1.65,marginBottom:24,maxWidth:520,marginLeft:"auto",marginRight:"auto"}}>
+            {amountParam ? "Your $" + amountParam + "/month" : "Your monthly"} support means we can plan ahead and keep the database growing. You can cancel anytime by emailing{" "}
             <a href="mailto:hello@humzones.com" style={{color:"#f97316",fontWeight:700,textDecoration:"none"}}>hello@humzones.com</a>.
           </p>
-        )}
-        {parsedAmount && (
-          <div style={{display:"inline-block",padding:"10px 18px",borderRadius:30,background:"rgba(249,115,22,.12)",border:"1px solid rgba(249,115,22,.4)",fontSize:14,fontWeight:700,color:"#f97316",marginBottom:24}}>
-            ${parsedAmount}{isMonthly ? " per month" : " one-time"}
-          </div>
+        ) : (
+          <p style={{fontSize:16,color:"rgba(255,255,255,.78)",lineHeight:1.65,marginBottom:24,maxWidth:520,marginLeft:"auto",marginRight:"auto"}}>
+            {amountParam ? "Your $" + amountParam : "Your"} contribution helps us keep communities informed about the infrastructure being built near their homes.
+          </p>
         )}
         <div style={{display:"flex",gap:12,justifyContent:"center",flexWrap:"wrap",marginTop:8}}>
           <button onClick={()=>onNavigate("/")} style={{padding:"14px 28px",borderRadius:12,border:"none",background:"linear-gradient(135deg,#ef4444,#f97316)",color:"#fff",fontSize:15,fontWeight:900,cursor:"pointer",fontFamily:"inherit",boxShadow:"0 10px 28px rgba(249,115,22,.4)"}}>
@@ -8283,9 +8285,9 @@ const GH_MENU = {
     layout: 2,
     columns: [
       { head: "PARTICIPATE", items: [
+        { title: "Donate",               desc: "Support the registry",                     to: "/donate", accent: "heart" },
         { title: "Submit Your Report",   desc: "Share your experience",                    to: "/submit-report" },
         { title: "Community Reports",    desc: "Read verified resident reports",           to: "/" },
-        { title: "Donate",               desc: "Support the registry",                     to: "/donate", accent: "heart" },
         { title: "Contact Us",           desc: "Get in touch with our team",               to: "/contact" },
       ]},
       { head: "RESEARCH", items: [
@@ -9139,7 +9141,7 @@ export default function App() {
       ) : path === "/disclaimer" ? (
         <DisclaimerPage onNavigate={navigate}/>
       ) : path === "/donate" ? (
-        <DonatePage onNavigate={navigate}/>
+        <DonatePage onNavigate={navigate} facilityCount={facs.length}/>
       ) : path === "/donate-thank-you" ? (
         <DonateThankYouPage onNavigate={navigate}/>
       ) : (
@@ -9216,13 +9218,10 @@ export default function App() {
             </button>
           )}
 
-          <a
-            href="/donate"
-            onClick={e=>{e.preventDefault();navigate("/donate");}}
-            style={{marginTop:24,fontSize:13,color:"rgba(255,255,255,.55)",textDecoration:"none",fontWeight:600,letterSpacing:".04em",position:"relative",zIndex:1,display:"inline-flex",alignItems:"center",gap:6}}
-          >
-            <span aria-hidden="true" style={{color:"#f97316"}}>♥</span> Support Our Mission
-          </a>
+          <p style={{marginTop:24,fontSize:13,color:"rgba(255,255,255,.55)",fontWeight:500,letterSpacing:".02em",textAlign:"center",position:"relative",zIndex:1,margin:"24px 0 0"}}>
+            Independently operated.{" "}
+            <a href="/donate" onClick={e=>{e.preventDefault();navigate("/donate");}} style={{color:"#f97316",fontWeight:700,textDecoration:"none"}}>Support our mission</a>
+          </p>
 
           {!dc && !country && (
             <div className="floating scroll-hint" style={{position:"absolute",bottom:36,left:0,right:0,margin:"0 auto",color:"rgba(255,255,255,.25)",fontSize:14,zIndex:1,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:6,textAlign:"center",width:"100%"}}>
