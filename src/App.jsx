@@ -566,6 +566,13 @@ const CSS = `
   .hz-status-item + .hz-status-item{border-left:1px solid #e2e8f0}
   @media(max-width:560px){
     .hz-status-item + .hz-status-item{border-left:none}
+    /* Keep the three counts on a single row on phones by forcing no-wrap
+       and shrinking the per-item padding and number size to fit. */
+    .hz-status-grid{flex-wrap:nowrap !important;gap:0}
+    .hz-status-item{padding:6px 4px !important;flex:1 1 0;min-width:0}
+    .hz-status-num{font-size:24px !important}
+    .hz-status-label{font-size:11px !important;margin-top:6px !important;text-align:center;line-height:1.25}
+    .hz-live-dot{width:7px !important;height:7px !important}
   }
   @keyframes hzLivePulse{
     0%{box-shadow:0 0 0 0 rgba(34,197,94,.55)}
@@ -3491,14 +3498,14 @@ const Footer = ({ onNavigate, facilities = [] }) => {
         <div style={{background:"#fff",borderBottom:"1px solid #e2e8f0",padding:"34px 24px"}}>
           <div style={{maxWidth:900,margin:"0 auto",textAlign:"center"}}>
             <div style={{fontSize:12,color:"#94a3b8",letterSpacing:".18em",textTransform:"uppercase",fontWeight:800,marginBottom:18}}>Live Registry Status</div>
-            <div style={{display:"flex",flexWrap:"wrap",justifyContent:"center",alignItems:"stretch"}}>
+            <div className="hz-status-grid" style={{display:"flex",flexWrap:"wrap",justifyContent:"center",alignItems:"stretch"}}>
               {statusCounts.map(s=>(
                 <div key={s.label} className="hz-status-item" style={{display:"flex",flexDirection:"column",alignItems:"center",padding:"6px 30px"}}>
                   <div style={{display:"flex",alignItems:"center",gap:9}}>
                     {s.live && <span className="hz-live-dot" style={{width:9,height:9,borderRadius:"50%",background:"#22c55e",display:"inline-block",flexShrink:0}}/>}
-                    <span style={{fontSize:40,fontWeight:900,lineHeight:1,letterSpacing:"-.02em",color:s.color}}>{s.count}</span>
+                    <span className="hz-status-num" style={{fontSize:40,fontWeight:900,lineHeight:1,letterSpacing:"-.02em",color:s.color}}>{s.count}</span>
                   </div>
-                  <div style={{fontSize:13,fontWeight:700,color:"#64748b",marginTop:9}}>{s.label}</div>
+                  <div className="hz-status-label" style={{fontSize:13,fontWeight:700,color:"#64748b",marginTop:9}}>{s.label}</div>
                 </div>
               ))}
             </div>
