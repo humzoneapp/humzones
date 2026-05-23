@@ -8110,7 +8110,7 @@ const GH_MENU = {
     layout: 3,
     columns: [
       { head: "PERSONAL REPORTS", items: [
-        { title: "Get My Report $14.99", desc: "Instant PDF for any address",              to: "/get-report" },
+        { title: "Get My Report",        desc: "Instant PDF for any address",              to: "/get-report" },
         { title: "Download Sample",      desc: "Preview before you buy",                   action: "sample" },
         { title: "What Is Included",     desc: "See full report contents",                 action: "contents" },
       ]},
