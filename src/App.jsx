@@ -8677,39 +8677,40 @@ export default function App() {
           )}
         </main>
 
-        {/* SCROLL TO TOP BUTTON. Pinned to the bottom left so it never
-           collides with the chat bubble in the bottom right corner. */}
-        {showScrollTop && (
-          <button
-            onClick={()=>window.scrollTo({top:0,behavior:"smooth"})}
-            style={{
-              position:"fixed",
-              bottom:24,
-              left:24,
-              width:48,
-              height:48,
-              borderRadius:"50%",
-              background:"linear-gradient(135deg,#ef4444,#f97316)",
-              border:"none",
-              boxShadow:"0 4px 20px rgba(239,68,68,.45)",
-              cursor:"pointer",
-              zIndex:8888,
-              display:"flex",
-              alignItems:"center",
-              justifyContent:"center",
-              transition:"transform .2s, box-shadow .2s",
-            }}
-            onMouseEnter={e=>{e.currentTarget.style.transform="scale(1.12)";e.currentTarget.style.boxShadow="0 6px 28px rgba(239,68,68,.6)";}}
-            onMouseLeave={e=>{e.currentTarget.style.transform="scale(1)";e.currentTarget.style.boxShadow="0 4px 20px rgba(239,68,68,.45)";}}
-            aria-label="Scroll to top"
-          >
-            <Icon name="chevUp" size={22} color="#fff"/>
-          </button>
-        )}
-
         <Footer onNavigate={navigate} facilities={facs}/>
 
       </div>
+      )}
+      {/* SCROLL TO TOP BUTTON. Rendered outside the route ternary so it
+          is available on every page, desktop and mobile. Pinned to the
+          bottom left so it never collides with the chat bubble in the
+          bottom right corner. */}
+      {showScrollTop && (
+        <button
+          onClick={()=>window.scrollTo({top:0,behavior:"smooth"})}
+          style={{
+            position:"fixed",
+            bottom:24,
+            left:24,
+            width:48,
+            height:48,
+            borderRadius:"50%",
+            background:"linear-gradient(135deg,#ef4444,#f97316)",
+            border:"none",
+            boxShadow:"0 4px 20px rgba(239,68,68,.45)",
+            cursor:"pointer",
+            zIndex:8888,
+            display:"flex",
+            alignItems:"center",
+            justifyContent:"center",
+            transition:"transform .2s, box-shadow .2s",
+          }}
+          onMouseEnter={e=>{e.currentTarget.style.transform="scale(1.12)";e.currentTarget.style.boxShadow="0 6px 28px rgba(239,68,68,.6)";}}
+          onMouseLeave={e=>{e.currentTarget.style.transform="scale(1)";e.currentTarget.style.boxShadow="0 4px 20px rgba(239,68,68,.45)";}}
+          aria-label="Scroll to top"
+        >
+          <Icon name="chevUp" size={22} color="#fff"/>
+        </button>
       )}
       <CookieConsent onNavigate={navigate}/>
       <ChatWidget onNavigate={navigate}/>
