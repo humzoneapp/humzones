@@ -1280,9 +1280,12 @@ const ReportLandingPage = ({ onBack, onNavigate }) => {
   // Detect an active business session so we can swap the Stripe CTA for an
   // in-app "Generate Report" button that bills a credit instead of a card.
   const businessAccount = readBusinessAccount();
+  // An active session means the user has any credits left. Enterprise no
+  // longer offers truly unlimited credits, so the old creditsMonthly >=
+  // 999999 carve-out is gone for active-detection. Legacy records with
+  // 999999 still resolve as "credits remaining" via the >0 check.
   const isBusinessActive = !!(businessAccount && businessAccount.status === "Active" &&
-    (businessAccount.creditsMonthly >= 999999 || businessAccount.creditsRemaining > 0));
-  const businessIsUnlimited = !!(businessAccount && businessAccount.creditsMonthly >= 999999);
+    businessAccount.creditsRemaining > 0);
 
   // Buy CTA: redirects straight to the Stripe-hosted Payment Link. No
   // serverless function is involved; the post-payment redirect is configured
@@ -1313,9 +1316,12 @@ const ReportLandingPage = ({ onBack, onNavigate }) => {
     }
     window.location.href = STRIPE_PAYMENT_LINK;
   };
-  const businessCtaLabel = businessIsUnlimited
-    ? "Generate Report (Unlimited)"
-    : (businessAccount ? `Generate Report (${businessAccount.creditsRemaining} credits remaining)` : "");
+  const businessCtaLabel = (() => {
+    if (!businessAccount) return "";
+    const monthly = businessAccount.creditsMonthly >= 999999 ? 200 : businessAccount.creditsMonthly;
+    const remaining = businessAccount.creditsRemaining >= 999999 ? 200 : businessAccount.creditsRemaining;
+    return `Generate Report (${remaining} of ${monthly} remaining)`;
+  })();
 
   const numbersUnknown = facilities100km === 0;
 
@@ -3255,9 +3261,15 @@ const PLAN_INFO = {
   "starter-annual":       { label:"Starter Annual",      credits:10,     pricePer:"$9.90" },
   professional:           { label:"Professional", credits:30,     pricePer:"$8.30" },
   "professional-annual":  { label:"Professional Annual", credits:30,     pricePer:"$8.30" },
-  unlimited:              { label:"Unlimited",    credits:999999, pricePer:"-" },
-  "unlimited-annual":     { label:"Unlimited Annual",    credits:999999, pricePer:"-" },
+  unlimited:              { label:"Enterprise",        credits:200,    pricePer:"$2.99" },
+  "unlimited-annual":     { label:"Enterprise Annual", credits:200,    pricePer:"$2.99" },
 };
+
+// Legacy Unlimited accounts used Credits_Monthly = 999999. The plan is now
+// Enterprise with a 200-report monthly cap. Treat anything at or above 999999
+// as legacy and migrate it on first read.
+const LEGACY_UNLIMITED_CAP = 999999;
+const ENTERPRISE_MONTHLY   = 200;
 
 const PLAN_LINKS = {
   starter:               "https://buy.stripe.com/test_28E9AVgqm9DX9Kh0iwgMw06",
@@ -3344,7 +3356,30 @@ async function fetchBusinessAccountByEmail(email) {
   if (!r.ok) throw new Error("Airtable lookup failed: " + r.status);
   const d = await r.json();
   const rec = (d.records || [])[0];
-  return rec ? { id: rec.id, fields: rec.fields } : null;
+  if (!rec) return null;
+  return await migrateLegacyUnlimited({ id: rec.id, fields: rec.fields });
+}
+
+// One-shot in-place migration for legacy "Unlimited" accounts. Anything with
+// Credits_Monthly >= 999999 is rewritten to the new Enterprise cap (200/200)
+// the first time we read it back. Returns the rewritten record on success,
+// or the original on failure so a transient Airtable hiccup never blocks
+// the user from signing in.
+async function migrateLegacyUnlimited(rec) {
+  if (!rec || !rec.fields) return rec;
+  const monthly = Number(rec.fields[BIZ_FIELD.Credits_Monthly] || 0);
+  if (monthly < LEGACY_UNLIMITED_CAP) return rec;
+  try {
+    console.log("[migrate] legacy Unlimited account -> Enterprise 200/200:", rec.id);
+    const updated = await patchBusinessAccount(rec.id, {
+      [BIZ_FIELD.Credits_Monthly]:   ENTERPRISE_MONTHLY,
+      [BIZ_FIELD.Credits_Remaining]: ENTERPRISE_MONTHLY,
+    });
+    return { id: updated.id, fields: updated.fields };
+  } catch (e) {
+    console.warn("[migrate] failed to migrate legacy Unlimited:", e);
+    return rec;
+  }
 }
 
 async function createBusinessAccount(fields) {
@@ -3643,13 +3678,14 @@ const BusinessPlansPage = ({ onNavigate, facilityCount, facs = [] }) => {
     },
     {
       key: "unlimited",
-      title: "Unlimited",
+      title: "Enterprise",
       monthly: 599, annual: 5990,
-      credits: "Unlimited reports",
-      perReport: "",
+      credits: "200 reports per month",
+      perReport: "$2.99 per report",
       popular: false,
       features: [
-        "Unlimited reports",
+        "200 report credits per month",
+        "Credits reset monthly",
         "Dedicated dashboard where all your reports are stored, saved and available for re-download at any time",
         "Instant PDF download",
         "Full 100km radius coverage",
@@ -4045,7 +4081,7 @@ const BusinessSuccessPage = ({ onNavigate }) => {
             </div>
             <h1 style={{fontSize:28,fontWeight:900,marginBottom:14}}>Welcome to HumZones {created.firstName}!</h1>
             <p style={{fontSize:17,color:"rgba(255,255,255,.85)",lineHeight:1.65,marginBottom:10}}>
-              You have <strong style={{color:"#f97316"}}>{created.credits >= 999999 ? "unlimited" : created.credits}</strong> report credits ready to use.
+              You have <strong style={{color:"#f97316"}}>{created.credits >= LEGACY_UNLIMITED_CAP ? ENTERPRISE_MONTHLY : created.credits}</strong> report credits ready to use.
             </p>
             <p style={{fontSize:15,color:"rgba(255,255,255,.72)",lineHeight:1.65,marginBottom:28}}>
               Check your email for your login link to access your dashboard.
@@ -4065,9 +4101,8 @@ const BusinessSuccessPage = ({ onNavigate }) => {
 // Distinct from the consumer /report-landing -> Stripe -> /report-success
 // flow. Logged-in business users land here directly to search any address,
 // preview the facilities in range, then download a PDF that costs a credit
-// (or no credit on the Unlimited plan). Each generated report is written
-// to the Business_Reports table so the dashboard can list and re-download
-// them later.
+// on every plan. Each generated report is written to the Business_Reports
+// table so the dashboard can list and re-download them later.
 const BusinessGeneratePage = ({ onNavigate }) => {
   const [account, setAccount] = useState(() => readBusinessAccount());
   const [radius, setRadius] = useState(50);
@@ -4099,9 +4134,17 @@ const BusinessGeneratePage = ({ onNavigate }) => {
 
   if (!account) return null;
 
-  const isUnlimited = account.creditsMonthly >= 999999;
-  const creditsLabel = isUnlimited ? "Unlimited" : `${account.creditsRemaining} reports remaining`;
-  const ctaCreditsLabel = isUnlimited ? "Unlimited" : `${account.creditsRemaining} credits remaining`;
+  // Every plan deducts credits now (Enterprise has a 200 monthly cap, no
+  // truly unlimited tier). Anything still stamped 999999 in localStorage is
+  // treated as 200 until the next Airtable read swaps it in for real.
+  const monthlyCap = account.creditsMonthly >= LEGACY_UNLIMITED_CAP
+    ? ENTERPRISE_MONTHLY
+    : account.creditsMonthly;
+  const remainingDisplay = account.creditsRemaining >= LEGACY_UNLIMITED_CAP
+    ? ENTERPRISE_MONTHLY
+    : account.creditsRemaining;
+  const creditsLabel    = `${remainingDisplay} of ${monthlyCap} reports remaining`;
+  const ctaCreditsLabel = `${remainingDisplay} of ${monthlyCap} remaining`;
 
   const showToast = (msg) => {
     setToast(msg);
@@ -4153,8 +4196,9 @@ const BusinessGeneratePage = ({ onNavigate }) => {
 
   const download = async () => {
     if (!results || downloading) return;
-    // Out-of-credits guard. Unlimited plans skip the check entirely.
-    if (!isUnlimited && account.creditsRemaining <= 0) {
+    // Out-of-credits guard. Every plan deducts credits now, including
+    // Enterprise, so this check applies universally.
+    if (remainingDisplay <= 0) {
       const when = account.renewalDate ? ` Credits reset on ${account.renewalDate}.` : "";
       window.alert(`You have no credits remaining.${when} Visit humzones.com/business to upgrade your plan.`);
       return;
@@ -4186,10 +4230,14 @@ const BusinessGeneratePage = ({ onNavigate }) => {
       }
       const liveFields  = (liveRec && liveRec.fields) || {};
       const liveId      = (liveRec && liveRec.id) || account.id;
-      const liveCredits = Number(liveFields[BIZ_FIELD.Credits_Remaining] || account.creditsRemaining || 0);
-      const liveMonthly = Number(liveFields[BIZ_FIELD.Credits_Monthly] || account.creditsMonthly || 0);
+      const rawCredits  = Number(liveFields[BIZ_FIELD.Credits_Remaining] || account.creditsRemaining || 0);
+      const rawMonthly  = Number(liveFields[BIZ_FIELD.Credits_Monthly] || account.creditsMonthly || 0);
+      // Defensive: if the live record still carries the legacy 999999 cap
+      // (migration has not yet caught it), treat the deduction as if it
+      // were already on the 200 Enterprise cap.
+      const liveCredits   = rawCredits >= LEGACY_UNLIMITED_CAP ? ENTERPRISE_MONTHLY : rawCredits;
+      const liveMonthly   = rawMonthly >= LEGACY_UNLIMITED_CAP ? ENTERPRISE_MONTHLY : rawMonthly;
       const liveGenerated = Number(liveFields[BIZ_FIELD.Reports_Generated] || account.reportsGenerated || 0);
-      const planIsUnlimited = liveMonthly >= 999999 || isUnlimited;
 
       // Write the report row to Business_Reports. Uses field IDs so the row
       // lands in the right columns regardless of any display-name drift.
@@ -4224,19 +4272,14 @@ const BusinessGeneratePage = ({ onNavigate }) => {
         console.error("[business-generate] Business_Reports write threw:", e);
       }
 
-      // Deduct one credit on metered plans. Unlimited plans only increment
-      // Reports_Generated; Credits_Remaining is left untouched.
-      const newRemaining = planIsUnlimited
-        ? liveCredits
-        : Math.max(0, liveCredits - 1);
+      // Deduct one credit on every plan and bump Reports_Generated.
+      const newRemaining = Math.max(0, liveCredits - 1);
       const newGenerated = liveGenerated + 1;
       const acctPayload = {
-        fields: planIsUnlimited
-          ? { [BIZ_FIELD.Reports_Generated]: newGenerated }
-          : {
-              [BIZ_FIELD.Credits_Remaining]: newRemaining,
-              [BIZ_FIELD.Reports_Generated]: newGenerated,
-            },
+        fields: {
+          [BIZ_FIELD.Credits_Remaining]: newRemaining,
+          [BIZ_FIELD.Reports_Generated]: newGenerated,
+        },
       };
       try {
         console.log("[business-generate] PATCH Business_Accounts id:", liveId, "payload:", acctPayload);
@@ -4267,8 +4310,7 @@ const BusinessGeneratePage = ({ onNavigate }) => {
       writeBusinessAccount(next);
       setAccount(next);
 
-      const remainingLabel = planIsUnlimited ? "Unlimited" : `${newRemaining}`;
-      showToast(`Report downloaded. ${remainingLabel} credits remaining.`);
+      showToast(`Report downloaded. ${newRemaining} of ${liveMonthly} credits remaining.`);
     } catch (e) {
       console.error("Business report download failed:", e);
       window.alert("Something went wrong generating your report. Please try again.");
@@ -4744,8 +4786,16 @@ const BusinessDashboardPage = ({ onNavigate }) => {
 
   if (!account) return null;
 
-  const isUnlimited = account.creditsMonthly >= 999999;
-  const creditsLabel = isUnlimited ? "Unlimited" : String(account.creditsRemaining);
+  // Display the Enterprise 200 cap even if a legacy 999999 record has not
+  // yet been migrated. The big numeric label keeps the remaining count and
+  // the subtitle line carries the "of 200 reports remaining" context.
+  const monthlyCap = account.creditsMonthly >= LEGACY_UNLIMITED_CAP
+    ? ENTERPRISE_MONTHLY
+    : account.creditsMonthly;
+  const remainingDisplay = account.creditsRemaining >= LEGACY_UNLIMITED_CAP
+    ? ENTERPRISE_MONTHLY
+    : account.creditsRemaining;
+  const creditsLabel = String(remainingDisplay);
 
   const signOut = () => {
     clearBusinessAccount();
@@ -4847,7 +4897,7 @@ const BusinessDashboardPage = ({ onNavigate }) => {
           <div style={{fontSize:13,color:"#f97316",letterSpacing:".18em",textTransform:"uppercase",fontWeight:800,marginBottom:10}}>Credits</div>
           <div style={{display:"flex",alignItems:"baseline",gap:14,marginBottom:8}}>
             <span style={{fontSize:72,fontWeight:900,letterSpacing:"-.02em",color:"#f97316",lineHeight:1,textShadow:"0 0 28px rgba(249,115,22,.45)"}}>{creditsLabel}</span>
-            <span style={{fontSize:17,color:"rgba(255,255,255,.7)",fontWeight:600}}>Reports Remaining</span>
+            <span style={{fontSize:17,color:"rgba(255,255,255,.7)",fontWeight:600}}>of {monthlyCap} Reports Remaining</span>
           </div>
           <div style={{fontSize:14,color:"rgba(255,255,255,.65)",marginBottom:20}}>
             {account.plan ? `${account.plan} plan` : "Active plan"}
@@ -4990,7 +5040,14 @@ const BusinessProfilePage = ({ onNavigate }) => {
     setTimeout(() => setToast(""), 4000);
   };
 
-  const isUnlimited = account.creditsMonthly >= 999999;
+  // Display the Enterprise 200 cap even on legacy records that have not yet
+  // been migrated from the old Credits_Monthly = 999999 marker.
+  const displayMonthly = account.creditsMonthly >= LEGACY_UNLIMITED_CAP
+    ? ENTERPRISE_MONTHLY
+    : account.creditsMonthly;
+  const displayRemaining = account.creditsRemaining >= LEGACY_UNLIMITED_CAP
+    ? ENTERPRISE_MONTHLY
+    : account.creditsRemaining;
   const dirty = firstName !== (account.firstName || "") ||
     lastName !== (account.lastName || "") ||
     company !== (account.company || "");
@@ -5053,8 +5110,8 @@ const BusinessProfilePage = ({ onNavigate }) => {
   const subRows = [
     ["Current Plan",            account.plan || "-"],
     ["Status",                  account.status || "-"],
-    ["Credits Remaining",       isUnlimited ? "Unlimited" : String(account.creditsRemaining)],
-    ["Credits Per Month",       isUnlimited ? "Unlimited" : String(account.creditsMonthly)],
+    ["Credits Remaining",       String(displayRemaining)],
+    ["Credits Per Month",       String(displayMonthly)],
     ["Renewal Date",            account.renewalDate || "-"],
     ["Date Joined",             account.dateJoined || "-"],
     ["Total Reports Generated", String(account.reportsGenerated || 0)],
@@ -7057,7 +7114,7 @@ const GH_MENU = {
       { head: "BUSINESS PLANS", items: [
         { title: "Starter $99/month",       desc: "10 reports per month",                  to: "/business" },
         { title: "Professional $249/month", desc: "30 reports per month",                  to: "/business" },
-        { title: "Unlimited $599/month",    desc: "Unlimited reports",                     to: "/business" },
+        { title: "Enterprise $599/month",   desc: "200 reports per month",                 to: "/business" },
       ]},
       { head: "YOUR REPORTS", items: [
         { title: "Retrieve My Report",   desc: "Access past purchases",                    to: "/my-report" },
@@ -7071,7 +7128,7 @@ const GH_MENU = {
     layout: 2,
     columns: [
       { head: "PLANS & PRICING", items: [
-        { title: "View All Plans",       desc: "Compare Starter, Professional, Unlimited", to: "/business" },
+        { title: "View All Plans",       desc: "Compare Starter, Professional, Enterprise", to: "/business" },
         { title: "Annual Plans",         desc: "Save 2 months with annual billing",        to: "/business" },
         { title: "Sample Report",        desc: "See what professionals receive",           action: "sample" },
       ]},
