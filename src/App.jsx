@@ -544,6 +544,9 @@ const CSS = `
     .main{padding:24px 16px 24px!important}
     .near-panel{padding:22px 16px 18px!important;margin-bottom:24px!important}
     .hz-map-section{padding:0!important;margin-bottom:24px!important}
+    /* /get-report hero: trim the bottom padding on phones so the
+       "Live Database" map heading sits closer to the search button. */
+    .hz-getreport-hero{padding-bottom:24px!important}
     .share-section{margin-bottom:0!important}
   }
   @media(max-width:480px){
@@ -1804,7 +1807,7 @@ const GetReportPage = ({ onNavigate }) => {
 
 
       {/* HERO */}
-      <section style={{background:"linear-gradient(150deg,#020c1b 0%,#0f172a 45%,#1e0535 100%)",padding:"0 0 56px",position:"relative",overflow:"hidden",borderBottom:"1px solid rgba(249,115,22,.18)"}}>
+      <section className="hz-getreport-hero" style={{background:"linear-gradient(150deg,#020c1b 0%,#0f172a 45%,#1e0535 100%)",padding:"0 0 56px",position:"relative",overflow:"hidden",borderBottom:"1px solid rgba(249,115,22,.18)"}}>
 
         {/* Hero content */}
         <div style={{maxWidth:680,margin:"0 auto",padding:"38px 20px 0",textAlign:"center",position:"relative",zIndex:1}}>
@@ -1850,8 +1853,10 @@ const GetReportPage = ({ onNavigate }) => {
         </div>
       </section>
 
-      {/* RESULTS */}
-      <div ref={resultsRef} className="near-me-results" style={{maxWidth:760,margin:"0 auto",padding:"38px 20px 64px",width:"100%",boxSizing:"border-box",scrollMarginTop:16}}>
+      {/* RESULTS - the wrapper collapses to zero padding before a search
+          has run so the empty section does not push the map far below the
+          hero on /get-report. Padding restores once `loc` is set. */}
+      <div ref={resultsRef} className="near-me-results" style={{maxWidth:760,margin:"0 auto",padding: loc ? "38px 20px 64px" : "0",width:"100%",boxSizing:"border-box",scrollMarginTop:16}}>
 
         {loc && loading && (
           <div style={{background:"#fff",borderRadius:18,padding:"44px 24px",textAlign:"center",boxShadow:"0 4px 18px rgba(0,0,0,.06)",color:"#64748b",fontWeight:600,fontSize:15}}>
