@@ -546,7 +546,7 @@ const CSS = `
     .hz-map-section{padding:0!important;margin-bottom:24px!important}
     /* /get-report hero: trim the bottom padding on phones so the
        "Live Database" map heading sits closer to the search button. */
-    .hz-getreport-hero{padding-bottom:24px!important}
+    .hz-getreport-hero{padding-bottom:40px!important}
     .share-section{margin-bottom:0!important}
   }
   @media(max-width:480px){
