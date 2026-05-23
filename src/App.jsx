@@ -1243,25 +1243,7 @@ const ReportLandingPage = ({ onBack, onNavigate }) => {
     if (sampleBusy) return;
     setSampleBusy(true);
     try {
-      const { doc } = await buildSampleReportPdf({
-        subtitle: "Local infrastructure, environmental, and community impact insights for your area.",
-        address: "123 Main Street, Austin, Texas, United States",
-        summaryRows: [
-          ["Total facilities within 100km", "8"],
-          ["HIGH impact category facilities", "2"],
-          ["MODERATE impact category facilities", "4"],
-          ["LOW impact category facilities", "2"],
-          ["Combined estimated power draw", "318 MW"],
-          ["Combined estimated daily water draw", "1,985,000 gallons"],
-          ["Combined estimated annual CO2 impact", "1,074,600 tons"],
-        ],
-        summaryParagraph: "This sample report identifies 8 placeholder data center facilities within 100km of a sample address. Of these, 2 are in the HIGH infrastructure impact category, 4 are MODERATE and 2 are LOW, based on power scale, proximity to residential areas and cooling type. A full HumZones report lists every facility near a real searched address with the same depth of detail shown on the following pages.",
-        facilities: [
-          { name:"Amazon Data Center",   city:"Austin, Texas, United States", dist:"15.2 km", cat:"HIGH",     power:"120 MW", noise:"68 dB", emfFence:"45 mG", emf100:"5 mG", co2:"405,720 tons per year", water:"900,000 gallons per day" },
-          { name:"Google Cloud Campus",  city:"Austin, Texas, United States", dist:"28.7 km", cat:"MODERATE", power:"45 MW",  noise:"65 dB", emfFence:"40 mG", emf100:"4 mG", co2:"152,145 tons per year", water:"337,500 gallons per day" },
-          { name:"Equinix Data Center",  city:"Austin, Texas, United States", dist:"67.3 km", cat:"LOW",      power:"12 MW",  noise:"60 dB", emfFence:"33 mG", emf100:"2 mG", co2:"40,572 tons per year",  water:"90,000 gallons per day" },
-        ],
-      });
+      const { doc } = await generateSamplePersonalReportPDF();
       doc.save("HumZones-Sample-Report.pdf");
     } catch (e) {
       console.error("Sample report generation failed:", e);
@@ -2820,6 +2802,7 @@ async function generatePersonalReportPDF({
   searchAddress,
   facsInRadius,
   searchRadius = 100,
+  sample = false,
 }) {
   const jsPDFModule = await import("jspdf");
   const { jsPDF } = jsPDFModule;
@@ -2953,6 +2936,28 @@ async function generatePersonalReportPDF({
     doc.text(" Technologies Inc.", endX, baseY);
     doc.setFontSize(7); doc.setFont("helvetica", "normal"); doc.setTextColor(100, 116, 139);
     doc.text("humzones.com  |  Report ID: " + rid + "  |  All figures are modeled estimates", 15, Y2 + 6 * 0.75);
+    applyWatermark();
+  }
+
+  // Diagonal SAMPLE watermark applied last on every page when sample:true
+  // so a freely downloaded demo can never be confused with a paid report.
+  function applyWatermark() {
+    if (!sample) return;
+    try {
+      doc.saveGraphicsState();
+      const gs = new doc.GState({ opacity: 0.15 });
+      doc.setGState(gs);
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(60);
+      doc.setTextColor(150, 150, 150);
+      doc.text("SAMPLE", PAGE_W / 2, PAGE_H / 2, { align: "center", angle: -45 });
+      doc.restoreGraphicsState();
+    } catch (e) {
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(60);
+      doc.setTextColor(220, 220, 220);
+      doc.text("SAMPLE", PAGE_W / 2, PAGE_H / 2, { align: "center", angle: -45 });
+    }
   }
 
   function drawConsumerCard(y, name, company, city, dist, level, power, noise, emfF, emf100, cooling, opened) {
@@ -3074,6 +3079,7 @@ async function generatePersonalReportPDF({
     doc.setFontSize(7); doc.setFont("helvetica", "normal"); doc.setTextColor(100, 116, 139);
     doc.text("Report ID: " + rid + "  |  humzones.com  |  All figures are modeled estimates - not certified measurements", 15, Y2 + 6 * 0.75);
   }
+  applyWatermark();
 
   // ── PAGE 2: AREA AT A GLANCE ──────────────────────────────────────────────
   doc.addPage();
@@ -3372,227 +3378,33 @@ async function generatePersonalReportPDF({
     doc.text("humzones.com  |  hello@humzones.com  |  Report ID: " + rid, 15, Y1 + 14 + 6 * 0.75);
     doc.text("Generated: " + dateLong + "  |  For personal, non-commercial use only.", 15, Y1 + 20 + 6 * 0.75);
   }
+  applyWatermark();
 
   return { doc, dateStr, rid };
 }
 
-// ─── SAMPLE REPORT PDF ───────────────────────────────────────────────────────
-// Builds a downloadable sample report. Every page carries a diagonal light-grey
-// SAMPLE watermark and all facilities and figures are placeholder data, so it
-// can never be confused with a paid area report. Callers pass an opts object to
-// control the cover, executive summary and sample facilities; the defaults
-// produce the generic sample used on the /business page. Returns the jsPDF doc.
-async function buildSampleReportPdf(opts = {}) {
-  const {
-    subtitle = "A demonstration of the infrastructure intelligence included in every HumZones professional report. All facilities and figures shown are placeholder sample data.",
-    address = "Sample Address, Sample City, Sample Region",
-    summaryRows = [
-      ["Total facilities within 100km", "12"],
-      ["HIGH impact category facilities", "3"],
-      ["MODERATE impact category facilities", "5"],
-      ["LOW impact category facilities", "4"],
-      ["Combined estimated power draw", "612 MW"],
-      ["Combined estimated daily water draw", "2,140,000 gallons"],
-      ["Combined estimated annual CO2 impact", "1,180,000 tons"],
-    ],
-    summaryParagraph = "This sample report identifies 12 placeholder data center facilities within 100km of a sample address. Of these, 3 are in the HIGH infrastructure impact category, 5 are MODERATE and 4 are LOW, based on power scale, proximity to residential areas and cooling type. A full HumZones report lists every facility near a real searched address with the same depth of detail shown on the following pages.",
-    facilities = [
-      { name:"SAMPLE Data Center Alpha", company:"Sample Operator LLC", city:"Sample City, Sample Region", dist:"2.4 km", cat:"HIGH", power:"95 MW", noise:"68 dB", emfFence:"6 mG", emf100:"3 mG", co2:"310,000 tons per year", water:"680,000 gallons per day", cooling:"Evaporative", opened:"2022" },
-      { name:"SAMPLE Data Center Beta", company:"Example Infrastructure Group", city:"Sample Town, Sample Region", dist:"11.8 km", cat:"MODERATE", power:"38 MW", noise:"64 dB", emfFence:"3 mG", emf100:"1 mG", co2:"120,000 tons per year", water:"210,000 gallons per day", cooling:"Chilled water", opened:"2020" },
-      { name:"SAMPLE Data Center Gamma", company:"Placeholder Hosting Inc.", city:"Sample Village, Sample Region", dist:"46.2 km", cat:"LOW", power:"12 MW", noise:"60 dB", emfFence:"1 mG", emf100:"below 1 mG", co2:"Near zero", water:"Minimal", cooling:"Air-cooled", opened:"2019" },
-    ],
-  } = opts;
-
-  const jsPDFModule = await import("jspdf");
-  const { jsPDF } = jsPDFModule;
-  const doc = new jsPDF({ unit: "pt", format: "letter" });
-  const PW = doc.internal.pageSize.getWidth();
-  const PH = doc.internal.pageSize.getHeight();
-  const M  = 56;
-  const setText = (r,g,b) => doc.setTextColor(r,g,b);
-  const dateLong = new Date().toLocaleDateString("en-US", { year:"numeric", month:"long", day:"numeric" });
-
-  // Light grey diagonal SAMPLE watermark. Drawn before page content so it
-  // sits behind the text and stays legible underneath.
-  const stampSample = () => {
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(80);
-    doc.setTextColor(226, 232, 240);
-    doc.text("SAMPLE", PW / 2, PH / 2 + 40, { align: "center", angle: 30 });
-    setText(15, 23, 42);
-  };
-
-  const drawTopBand = (rightLabel) => {
-    doc.setFillColor(15, 23, 42);
-    doc.rect(0, 0, PW, 32, "F");
-    doc.setFillColor(249, 115, 22);
-    doc.rect(0, 32, PW, 2, "F");
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(11);
-    setText(255, 255, 255);
-    doc.text("HumZones Sample Report", M, 22);
-    doc.setFont("helvetica", "normal");
-    setText(148, 163, 184);
-    doc.text(rightLabel, PW - M, 22, { align: "right" });
-    setText(15, 23, 42);
-  };
-
-  const catColor = (cat) => cat === "HIGH" ? [239,68,68] : cat === "MODERATE" ? [249,115,22] : [34,197,94];
-
-  // ═══ PAGE 1: COVER
-  stampSample();
-  doc.setFillColor(15, 23, 42); doc.rect(0, 0, PW, 6, "F");
-  doc.setFillColor(249, 115, 22); doc.rect(0, 6, PW, 3, "F");
-
-  doc.setFont("helvetica", "bold"); doc.setFontSize(16);
-  setText(15, 23, 42); doc.text("HumZones", M, 48);
-
-  let y = 200;
-  doc.setFont("helvetica", "bold"); doc.setFontSize(26);
-  setText(15, 23, 42); doc.text("HumZones Sample Report", M, y);
-  y += 30;
-  doc.setFont("helvetica", "normal"); doc.setFontSize(12);
-  setText(100, 116, 139);
-  doc.text(doc.splitTextToSize(subtitle, PW - M*2), M, y);
-
-  y += 74;
-  doc.setFillColor(241, 245, 249); doc.rect(M, y - 22, PW - M*2, 82, "F");
-  doc.setFillColor(249, 115, 22); doc.rect(M, y - 22, 4, 82, "F");
-  doc.setFont("helvetica", "bold"); doc.setFontSize(11);
-  setText(100, 116, 139); doc.text("SAMPLE LOCATION", M + 20, y);
-  doc.setFont("helvetica", "bold"); doc.setFontSize(13);
-  setText(15, 23, 42); doc.text(address, M + 20, y + 22);
-  doc.setFont("helvetica", "normal"); doc.setFontSize(11);
-  setText(100, 116, 139); doc.text("This is not a real address. No real location data is shown.", M + 20, y + 44);
-
-  doc.setFont("helvetica", "bold"); doc.setFontSize(11);
-  setText(15, 23, 42); doc.text("Prepared by HumZones", M, PH - 86);
-  doc.setFont("helvetica", "normal"); doc.setFontSize(10);
-  setText(100, 116, 139);
-  doc.text("Global Data Center Health & Infrastructure Registry", M, PH - 68);
-  doc.text("A service of HumZones Technologies Inc.", M, PH - 52);
-  doc.text("humzones.com", M, PH - 36);
-
-  // ═══ PAGE 2: EXECUTIVE SUMMARY
-  doc.addPage(); stampSample(); drawTopBand("Executive Summary");
-  y = 80;
-  doc.setFont("helvetica", "bold"); doc.setFontSize(22);
-  setText(15, 23, 42); doc.text("Executive Summary", M, y);
-  y += 36;
-  summaryRows.forEach((r, idx) => {
-    if (idx % 2 === 0) { doc.setFillColor(248,250,252); doc.rect(M, y-14, PW-M*2, 28, "F"); }
-    doc.setFont("helvetica", "normal"); doc.setFontSize(12);
-    setText(71,85,105); doc.text(r[0], M+14, y+4);
-    doc.setFont("helvetica", "bold"); setText(15,23,42);
-    doc.text(r[1], PW-M-14, y+4, { align:"right" });
-    y += 28;
-  });
-  y += 22;
-  doc.setFont("helvetica", "normal"); doc.setFontSize(11);
-  setText(71,85,105);
-  doc.text(doc.splitTextToSize(summaryParagraph, PW - M*2), M, y);
-
-  // ═══ SAMPLE FACILITY PAGES
-  facilities.forEach((f, i) => {
-    doc.addPage(); stampSample(); drawTopBand(`Sample Facility ${i+1} of ${facilities.length}`);
-    y = 80;
-    doc.setFont("helvetica", "bold"); doc.setFontSize(20);
-    setText(15,23,42); doc.text(f.name, M, y);
-    y += 22;
-    doc.setFont("helvetica", "normal"); doc.setFontSize(11);
-    setText(100,116,139);
-    if (f.company) { doc.text(f.company, M, y); y += 16; }
-    doc.text(f.city, M, y);
-    y += 26;
-    doc.setFont("helvetica", "bold"); doc.setFontSize(11);
-    setText(15,23,42); doc.text(`Distance: ${f.dist} from sample address`, M, y);
-    const cc = catColor(f.cat);
-    setText(cc[0],cc[1],cc[2]);
-    doc.text(`Impact Category: ${f.cat}`, M + 300, y);
-    setText(15,23,42);
-    y += 28;
-    const facStats = [
-      ["Reported power",       f.power],
-      ["Estimated noise",      f.noise],
-      ["Estimated CO2",        f.co2],
-      ["Estimated water draw", f.water],
-      ["Modeled EMF at fence", f.emfFence],
-      ["Modeled EMF at 100m",  f.emf100],
-    ];
-    if (f.cooling) facStats.push(["Cooling type", f.cooling]);
-    if (f.opened)  facStats.push(["Opened", f.opened]);
-    const colW = (PW - M*2) / 2;
-    facStats.forEach((s, idx) => {
-      const col = idx % 2;
-      if (col === 0 && idx > 0) y += 26;
-      const x = M + col * colW;
-      doc.setFont("helvetica", "bold"); doc.setFontSize(10);
-      setText(100,116,139); doc.text(`${s[0]}:`, x, y);
-      doc.setFont("helvetica", "normal"); doc.setFontSize(10); setText(15,23,42);
-      doc.text(String(s[1]), x + 124, y);
-    });
-    y += 40;
-    doc.setDrawColor(226,232,240); doc.setLineWidth(0.6);
-    doc.line(M, y, PW-M, y);
-    y += 20;
-    doc.setFont("helvetica", "italic"); doc.setFontSize(10);
-    setText(148,163,184);
-    doc.text(doc.splitTextToSize("Sample data shown for demonstration only. These figures are illustrative placeholder values and do not describe any real facility or location.", PW - M*2), M, y);
-  });
-
-  // ═══ INFRASTRUCTURE AND COMMUNITY IMPACT CONSIDERATIONS
-  doc.addPage(); stampSample(); drawTopBand("Impact Considerations");
-  y = 80;
-  doc.setFont("helvetica", "bold"); doc.setFontSize(20);
-  setText(15,23,42);
-  const considTitle = doc.splitTextToSize("Infrastructure and Community Impact Considerations", PW - M*2);
-  doc.text(considTitle, M, y);
-  y += considTitle.length * 24 + 16;
-  const considerations = [
-    "Modeled EMF exposure ranges. Power-frequency electromagnetic fields are associated with the substations and feeder lines that large data centers require. HumZones reports show modeled EMF ranges at the facility fence line and at 100 meters so you can see how modeled exposure changes with distance from the site.",
-    "Estimated noise levels. Data centers operate around the clock and produce a continuous low-frequency hum from cooling systems and transformers. Low-frequency sound carries further and penetrates buildings more readily than higher frequencies, which is why noise is a common subject of community feedback near large facilities.",
-    "Water and CO2 footprint. Evaporative cooling at large facilities draws significant volumes of water from the local supply each day, and around-the-clock electricity demand carries an associated grid emissions footprint. HumZones reports sum the modeled draw across every facility near a searched address.",
-    "Community and development context. Infrastructure-dense areas can see ongoing utility expansion, construction activity and zoning review. The HumZones report gives professionals a clear, location-based view of that context for relocation, valuation, research and consultation work.",
+// Personal sample wrapper used by every consumer-facing "View Sample
+// Report" CTA (the /get-report success teaser, the footer button, and the
+// global header Reports menu). Reuses the paid generator with placeholder
+// Austin facilities and a diagonal SAMPLE watermark on every page.
+async function generateSamplePersonalReportPDF() {
+  const SAMPLE_FACS = [
+    { Name: "Amazon Data Center",        Company: "AWS",             City: "Austin, TX",       Risk_Level: "HIGH",     _km: 5.2,  Power_MW: 120, Cooling: "Evaporative",   Opened: "2019" },
+    { Name: "Google Cloud Campus",       Company: "Google",          City: "Austin, TX",       Risk_Level: "MODERATE", _km: 12.8, Power_MW: 45,  Cooling: "Chilled Water", Opened: "2017" },
+    { Name: "Microsoft Azure Region",    Company: "Microsoft",       City: "San Antonio, TX",  Risk_Level: "LOW",      _km: 24.6, Power_MW: 80,  Cooling: "Air",           Opened: "2020" },
+    { Name: "Equinix DA11",              Company: "Equinix",         City: "Dallas, TX",       Risk_Level: "MODERATE", _km: 38.9, Power_MW: 32,  Cooling: "Chilled Water", Opened: "2015" },
+    { Name: "Digital Realty DFW10",      Company: "Digital Realty",  City: "Dallas, TX",       Risk_Level: "HIGH",     _km: 47.3, Power_MW: 110, Cooling: "Evaporative",   Opened: "2018" },
+    { Name: "CyrusOne Austin II",        Company: "CyrusOne",        City: "Austin, TX",       Risk_Level: "MODERATE", _km: 58.1, Power_MW: 28,  Cooling: "Chilled Water", Opened: "2016" },
+    { Name: "QTS San Antonio 1",         Company: "QTS Realty Trust", City: "San Antonio, TX", Risk_Level: "LOW",      _km: 71.7, Power_MW: 18,  Cooling: "Air",           Opened: "2014" },
+    { Name: "Iron Mountain Houston",     Company: "Iron Mountain",   City: "Houston, TX",      Risk_Level: "HIGH",     _km: 88.4, Power_MW: 95,  Cooling: "Evaporative",   Opened: "2019" },
   ];
-  considerations.forEach(txt => {
-    if (y + 80 > PH - 80) { doc.addPage(); stampSample(); drawTopBand("Impact Considerations"); y = 80; }
-    doc.setFont("helvetica", "normal"); doc.setFontSize(11);
-    setText(71,85,105);
-    const lines = doc.splitTextToSize(txt, PW - M*2);
-    doc.text(lines, M, y);
-    y += lines.length * 14 + 14;
+  return generatePersonalReportPDF({
+    searchAddress: "123 Main Street, Austin, Texas 78701",
+    facsInRadius: SAMPLE_FACS,
+    searchRadius: 100,
+    sample: true,
   });
-
-  // ═══ DISCLAIMER
-  doc.addPage(); stampSample(); drawTopBand("Important Disclaimer");
-  y = 80;
-  doc.setFont("helvetica", "bold"); doc.setFontSize(22);
-  setText(15,23,42); doc.text("Important Disclaimer", M, y);
-  y += 30;
-  const sampleDisclaimer = [
-    "This HumZones Sample Report is provided to demonstrate the format and content of a HumZones professional report. Every facility, address, figure and category shown in this document is placeholder sample data and does not describe any real location.",
-    "All figures in a full HumZones report, including power, noise, modeled EMF ranges, CO2 and water usage, are modeled estimates compiled from public sources such as planning filings, utility records, environmental assessments, operator disclosures and permitting databases. They are not certified field measurements.",
-    "Infrastructure impact categories are relative indicators for general awareness only. They do not constitute a scientific, environmental or health determination of any kind.",
-    "HumZones reports are informational resources only and do not constitute medical, legal, scientific or environmental advice. HumZones Technologies Inc. makes no warranties regarding the accuracy or completeness of the information in a report and shall not be liable for any decisions made in reliance on it.",
-  ];
-  sampleDisclaimer.forEach(p => {
-    if (y + 80 > PH - 80) { doc.addPage(); stampSample(); drawTopBand("Important Disclaimer"); y = 80; }
-    doc.setFont("helvetica", "normal"); doc.setFontSize(10);
-    setText(71,85,105);
-    const lines = doc.splitTextToSize(p, PW - M*2);
-    doc.text(lines, M, y);
-    y += lines.length * 13 + 12;
-  });
-  y += 8;
-  doc.setFont("helvetica", "normal"); doc.setFontSize(10);
-  setText(100,116,139);
-  doc.text("Generated by HumZones Technologies Inc.", M, y); y += 14;
-  doc.text("humzones.com", M, y); y += 14;
-  doc.text(dateLong, M, y);
-
-  return { doc };
 }
-
 // ─── REPORT SUCCESS (post-payment PDF generation) ─────────────────────────────
 // Reached after Stripe checkout success. Reads the captured search context out
 // of localStorage, refetches the buyer email from the Stripe session, pulls
@@ -4379,7 +4191,7 @@ const Footer = ({ onNavigate, facilities = [] }) => {
     if (sampleBusy) return;
     setSampleBusy(true);
     try {
-      const { doc } = await buildSampleReportPdf();
+      const { doc } = await generateSamplePersonalReportPDF();
       doc.save("HumZones-Sample-Report.pdf");
     } catch (e) {
       console.error("Sample report generation failed:", e);
@@ -8280,7 +8092,7 @@ const GlobalHeader = ({ onNavigate, path }) => {
     if (sampleBusy) return;
     setSampleBusy(true);
     try {
-      const { doc } = await buildSampleReportPdf();
+      const { doc } = await generateSamplePersonalReportPDF();
       doc.save("HumZones-Sample-Report.pdf");
       setOpen(null); setMobileOpen(false);
     } catch (e) {
