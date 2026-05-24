@@ -184,16 +184,16 @@ async function main() {
     "IMPORTANT: If you cannot find enough real data center news this week to fill " +
     "a section, write fewer items rather than padding with off-topic content or " +
     "invented stories. Quality over quantity.\n\n" +
-    "CRITICAL LENGTH REQUIREMENT: The entire newsletter must be SHORT.\n" +
-    "Each section maximum:\n" +
-    "- Editor's Note: 2 sentences only\n" +
-    "- What Filed This Week: 2 items maximum, 2 sentences each\n" +
-    "- Facilities in the News: 2 items maximum, 2 sentences each\n" +
-    "- By the Numbers: 3 bullet points, one line each\n" +
+    "STRUCTURE RULES, follow exactly:\n" +
+    "- Editor's Note: 2 sentences maximum\n" +
+    "- What Filed This Week: maximum 2 items only, each item 3 sentences max\n" +
+    "- Facilities in the News: maximum 2 items only, each item 3 sentences max\n" +
+    "- By the Numbers: exactly 3 one-line bullet points\n" +
     "- Community Spotlight: 2 sentences only\n" +
-    "- What to Watch: 2 bullet points, one line each\n" +
-    "Total newsletter must fit within 1200 tokens. Prioritize covering " +
-    "all 6 sections over depth in any single section.\n\n" +
+    "- What to Watch: exactly 2 bullet points, one line each\n" +
+    "Write fewer items with full styling rather than more items with stripped " +
+    "styling. The HTML must be complete and well-formatted with all inline " +
+    "styles intact.\n\n" +
     "CRITICAL: Never use em dashes (--) or en dashes (-) anywhere in the " +
     "output. Use a plain hyphen (-) or rewrite the sentence instead. " +
     "This is a hard requirement.";
@@ -225,26 +225,24 @@ async function main() {
     "humzones.com/submit-report.\n\n" +
     "WHAT TO WATCH: 2 to 3 specific things to monitor next week based on this week's " +
     "developments. Be specific. Name the company, county or filing if possible.\n\n" +
-    "Format the entire newsletter as clean HTML suitable for email. Use ONLY " +
-    "inline styles. Max-width 600px. No external CSS. No images. Mobile-friendly.\n\n" +
-    "Color scheme inline:\n" +
-    "- Background: #ffffff\n" +
-    "- Headings: color:#1e293b; font-family:Arial,sans-serif; font-weight:bold\n" +
-    "- Section labels: color:#f97316; font-size:11px; font-weight:bold; " +
-    "text-transform:uppercase; letter-spacing:1px\n" +
-    "- Body text: color:#475569; font-family:Arial,sans-serif; font-size:15px; " +
-    "line-height:1.6\n" +
-    "- Horizontal rules between sections: border:none; " +
-    "border-top:1px solid #e2e8f0; margin:24px 0\n" +
-    "- Source URLs: color:#94a3b8; font-size:12px\n" +
-    "- Dark navy header at top: background:#1e293b; padding:24px; text-align:center\n" +
-    "- Header text 'Infrastructure Intelligence': color:#ffffff; font-size:20px; " +
-    "font-weight:bold; font-family:Arial,sans-serif\n" +
-    "- Header subtext 'Issue #" + nextNumber + " | " + todayIso() + "': " +
-    "color:#f97316; font-size:13px\n\n" +
-    "Start the HTML with the dark navy header. End with a light grey footer " +
-    "containing 'Infrastructure Intelligence by HumZones | humzones.com' and " +
-    "an unsubscribe placeholder: [UNSUBSCRIBE_LINK]";
+    "HTML formatting requirements:\n" +
+    "- Outer wrapper: max-width 600px, margin 0 auto, font-family Arial sans-serif\n" +
+    "- Top header: background-color #1e293b, padding 24px, text-align center\n" +
+    "  Header title: color #ffffff, font-size 22px, font-weight bold\n" +
+    "  Header subtitle 'Issue #" + nextNumber + " | " + todayIso() + "': " +
+    "color #f97316, font-size 13px\n" +
+    "- Section label above each section: color #f97316, font-size 11px, " +
+    "font-weight bold, text-transform uppercase, letter-spacing 1px\n" +
+    "- Section heading: color #1e293b, font-size 18px, font-weight bold\n" +
+    "- Body text: color #475569, font-size 15px, line-height 1.6\n" +
+    "- Horizontal rule between sections: border none, border-top 1px solid #e2e8f0\n" +
+    "- Story source links: color #94a3b8, font-size 12px\n" +
+    "- Each section in its own div with padding 24px 0\n\n" +
+    "End with a light grey footer containing 'Infrastructure Intelligence by " +
+    "HumZones | humzones.com' and an unsubscribe placeholder: [UNSUBSCRIBE_LINK]\n\n" +
+    "IMPORTANT: Generate complete valid HTML only. Do not include any " +
+    "markdown code fences, backticks, or explanatory text before or after " +
+    "the HTML. Start your response with < and end with the closing HTML tag.";
 
   console.log('[generate-newsletter] calling Anthropic API', new Date().toISOString());
   const draftRes = await callWithRetry({
@@ -278,12 +276,7 @@ async function main() {
     .replace(/&mdash;/g, '-')  // HTML entity em dash
     .replace(/&ndash;/g, '-')  // HTML entity en dash
     .replace(/&#8212;/g, '-')  // numeric entity em dash
-    .replace(/&#8211;/g, '-')  // numeric entity en dash
-    .replace(/padding:[^;'"]+;?/g, '')
-    .replace(/margin:[^;'"]+;?/g, '')
-    .replace(/line-height:[^;'"]+;?/g, '')
-    .replace(/letter-spacing:[^;'"]+;?/g, '')
-    .replace(/\s+style=""\s*/g, ' ');
+    .replace(/&#8211;/g, '-'); // numeric entity en dash
 
   // STEP 3: Generate the issue title and subject line.
   const titleResp = await callAnthropic({
