@@ -8269,6 +8269,16 @@ const LEARN_ARTICLES = [
       { type: "h", text: "What you can do" },
       { type: "p", text: "Once you identify relevant queue entries, you can request more information through your state's public utilities commission, contact your local planning board, or file a public records request for associated permit applications. HumZones tracks planned facilities from interconnection data so you can stay informed without having to monitor the queue yourself." },
     ],
+    faqs: [
+      { q: "How do I find the interconnection queue for my area?",
+        a: "In the Mid-Atlantic region, visit the PJM Interconnection website and search for their queue report. PJM publishes a downloadable spreadsheet updated regularly. Filter by the county or state you are interested in and look for large load requests above 50MW. Similar queues exist for other regions: MISO covers the Midwest, CAISO covers California, and ERCOT covers Texas." },
+      { q: "Does every interconnection request become a real data center?",
+        a: "No. A significant percentage of interconnection requests are withdrawn before construction begins. However, clusters of multiple large requests in the same area are a reliable signal of developer interest. A single request may not materialize but five requests in the same county almost certainly signals active development planning." },
+      { q: "How long does it take from interconnection request to completed data center?",
+        a: "Typically 2 to 5 years from the initial interconnection request to a fully operational facility. The interconnection study process alone can take 12 to 18 months. Construction of a large facility then takes another 18 to 36 months. This means requests filed today may not become operational facilities until 2028 or 2029." },
+      { q: "Can residents object to an interconnection request?",
+        a: "Interconnection requests are utility and grid operator processes, not local government processes, so residents cannot directly object to them the way they can object to a zoning application. However, the interconnection process often triggers related utility filings, such as substation permits and transmission line approvals, that do have public comment periods." },
+    ],
   },
   {
     slug: "utility-filing",
@@ -8293,6 +8303,16 @@ const LEARN_ARTICLES = [
       { type: "h", text: "Filing for comment" },
       { type: "p", text: "Most utility filings have a public comment period. During this window, residents can submit written comments that become part of the official record. These comments are read by regulators and can influence project approvals." },
       { type: "p", text: "To submit a comment, find the docket number for the filing you are interested in and contact your state's public utilities commission for instructions. The process is simpler than it sounds. A clear, factual letter explaining your concerns is sufficient." },
+    ],
+    faqs: [
+      { q: "What is the difference between a state utility commission and a local planning board?",
+        a: "A state utility commission (like the Virginia State Corporation Commission) regulates the utilities themselves, approving new infrastructure like substations and transmission lines. A local planning board regulates land use, approving zoning changes and special use permits for specific buildings. A data center project typically requires approvals from both. The local planning board controls whether the building can be built. The utility commission controls whether the power infrastructure to serve it can be built." },
+      { q: "How do I find the docket number for a utility filing?",
+        a: "Visit your state's public utilities commission website and search for filings by the utility company name (such as Dominion Energy or Pepco) and the county or project name. Most commission websites have searchable docket databases. The docket number is typically a combination of numbers and letters assigned when the filing is submitted." },
+      { q: "Do I need a lawyer to submit a comment on a utility filing?",
+        a: "No. Public comments can be submitted by any member of the public without legal representation. A clear, factual letter explaining your concerns and your relationship to the affected area is sufficient. You do not need to use legal language. However, if you are seeking to formally intervene as a party in a proceeding, which gives you more rights but also more obligations, legal counsel is recommended." },
+      { q: "Are utility filings available online?",
+        a: "Most state utility commissions have moved to online docket systems where filings can be viewed and downloaded for free. Federal filings with FERC (the Federal Energy Regulatory Commission) are available through the FERC eLibrary. Some older documents may require an in-person visit or a formal records request." },
     ],
   },
   {
@@ -8321,6 +8341,16 @@ const LEARN_ARTICLES = [
       { type: "p", text: "In the Mid-Atlantic region, expansion from the Northern Virginia core has been moving toward Prince William County, the Gainesville area, Richmond, and parts of Maryland and Pennsylvania." },
       { type: "h", text: "What this means for residents in emerging areas" },
       { type: "p", text: "If your community is near a primary data center cluster, or if you have noticed utility upgrades, large land purchases by unfamiliar companies, or rezoning applications for industrial use, your area may be in the path of expansion. The time to engage with local planning processes is before projects are approved, not after construction begins." },
+    ],
+    faqs: [
+      { q: "Why is Northern Virginia the global hub for data centers?",
+        a: "Several factors converged: the presence of early internet exchange infrastructure in Ashburn in the 1990s, abundant and relatively affordable power from Dominion Energy, permissive zoning for industrial development, significant state and local tax incentives that persisted for decades, and the resulting concentration of skilled labor. Once a cluster forms it becomes self-reinforcing, with each new facility making the area more attractive for the next one." },
+      { q: "Are data center incentives still available in Virginia?",
+        a: "Virginia eliminated its broad sales tax exemption for data center equipment purchases in 2022 for new projects, after determining that the incentive had cost the state billions in foregone revenue. However, some local incentives and negotiated agreements may still be available. Other states, including Georgia, Texas, and Indiana, have aggressively pursued data center development with their own incentive packages." },
+      { q: "How can I tell if my area is in the path of data center expansion?",
+        a: "Warning signs include large parcels of land being purchased by unfamiliar holding companies, utility companies filing for substation upgrades or new transmission lines, local governments receiving rezoning applications for industrial use on previously agricultural or residential land, and data center industry publications mentioning your county or region as an emerging market." },
+      { q: "Do data centers bring economic benefits to communities?",
+        a: "Data centers typically bring significant tax revenue and construction jobs but relatively few permanent jobs. A large facility may employ only 50 to 100 full-time workers. They place substantial demands on local power grids and water systems. The economic calculus varies significantly by community, and reasonable people disagree about whether the benefits outweigh the infrastructure impacts." },
     ],
   },
   {
@@ -8358,6 +8388,16 @@ const LEARN_ARTICLES = [
       { type: "p", text: "The practical lesson from understanding facility status is this: the earlier you engage in the process, the more options you have. A proposed facility that has not yet received planning approval can still be stopped, modified, or conditioned on community protections. An operating facility is a permanent part of your neighborhood's infrastructure." },
       { type: "p", text: "HumZones tracks facility status in real time so residents can know not just what is there, but what is coming." },
     ],
+    faqs: [
+      { q: "Where can I find the approval status of a data center near me?",
+        a: "Check your local planning department's permit database, which is typically available online. Search for the facility address or the owner company name. The Virginia Department of Environmental Quality and similar state agencies maintain databases of environmental permits. HumZones also tracks facility status in our registry and updates it as new information becomes available." },
+      { q: "Can an approved facility still be stopped?",
+        a: "It is very difficult but not impossible. Legal challenges to approvals can be filed on grounds such as procedural errors, failure to comply with environmental review requirements, or conflicts with existing regulations. These challenges are expensive and uncertain. The most practical approach for residents is to engage during the approval process rather than after." },
+      { q: "What happens if a facility never gets built after approval?",
+        a: "Approvals typically have expiration periods. A special use permit might require construction to begin within 2 to 3 years or it expires. If a project is abandoned, any conditions attached to the approval become moot. The land remains as zoned, which may or may not be appropriate for the surrounding area. Residents can sometimes advocate for rezoning after a project is abandoned." },
+      { q: "How does HumZones determine a facility's status?",
+        a: "We compile status information from multiple public sources including local planning permit databases, utility interconnection records, operator press releases, news reporting, and satellite imagery. Status is updated periodically and marked with the date of last verification. Because our data comes from public sources, there may be a lag between real-world changes and our registry. If you notice an error please use our correction form." },
+    ],
   },
   {
     slug: "what-residents-can-do",
@@ -8391,6 +8431,67 @@ const LEARN_ARTICLES = [
       { type: "p", text: "Some battles cannot be won after a certain point in the process. If a facility is fully approved and funded, stopping it entirely may not be realistic. In those cases, focusing on conditions (noise barriers, generator testing restrictions, landscaping requirements, community benefit agreements) may be more productive than opposing the project outright." },
       { type: "p", text: "The residents who are most effective are those who engage early, stay fact-based, and build coalitions. HumZones exists to give you the information you need to do all three." },
     ],
+    faqs: [
+      { q: "What is the most effective thing residents can do to influence data center development?",
+        a: "The most effective action is early engagement in the local planning process before approvals are granted. Attending public hearings, submitting written comments, and organizing neighbors creates a documented record that elected officials and regulators must respond to. Individual emails are less effective than coordinated group engagement. The time investment required to stop or modify a project is significant, but so is the potential impact." },
+      { q: "Can residents demand noise limits or other conditions on a data center?",
+        a: "Yes, in many jurisdictions residents can advocate for conditions to be attached to special use permits or development agreements. Common conditions include maximum noise levels measured at the property line, restrictions on generator testing hours, landscaping and buffering requirements, and commitments to use renewable energy. Having specific, measurable asks is more effective than general opposition." },
+      { q: "Is there a national organization that helps residents facing data center development?",
+        a: "Organized national advocacy specifically focused on data center infrastructure near residential areas is still emerging. Local community groups, environmental organizations, and neighborhood associations have been the primary vehicles for resident engagement. HumZones provides the data and documentation infrastructure to support these efforts. We are tracking the development of resident networks and will update this guide as the landscape evolves." },
+      { q: "How do I document noise from a data center for regulatory purposes?",
+        a: "Use a calibrated sound level meter app on your smartphone as a starting point. Apps like Decibel X are reasonably accurate for initial documentation. Record the date, time, weather conditions, your distance from the facility, and the measured level. Take readings at multiple times of day including overnight. For formal regulatory complaints, a professional acoustic assessment using calibrated equipment is more credible. Some noise ordinances specify measurement protocols that must be followed for complaints to be actionable." },
+    ],
+  },
+  {
+    slug: "talking-to-officials",
+    category: "Community",
+    title: "How to Talk to Your Local Officials About Data Centers",
+    readTime: "5 min read",
+    preview: "Most residents have never spoken at a planning board meeting or contacted an elected official. Here is a practical guide to making your voice heard effectively.",
+    body: [
+      { type: "p", text: "Talking to elected officials and planning board members can feel intimidating, especially about a technical topic like data center infrastructure. But local officials respond to constituent engagement, particularly when it is specific, fact-based, and organized. This guide explains how to do it effectively." },
+      { type: "h", text: "Know who to contact" },
+      { type: "p", text: "For proposed or pending facilities, the relevant officials depend on what stage of approval the project is in:" },
+      { type: "kv", k: "Local planning board or planning commission", v: "Handles zoning changes, special use permits, and site plan approvals. This is often the most important body for residents to engage with on new data center projects." },
+      { type: "kv", k: "Board of supervisors or county council", v: "The elected body that often has final say on major zoning decisions. Members are directly accountable to voters." },
+      { type: "kv", k: "State legislators", v: "Relevant for issues of state policy such as tax incentives, utility regulation, and environmental standards. Less relevant for individual project decisions." },
+      { type: "kv", k: "State utility commission", v: "Relevant when utility infrastructure (substations, transmission lines) associated with a project requires state approval." },
+      { type: "h", text: "What to say" },
+      { type: "p", text: "Effective constituent communication is specific, factual and personal. Generic opposition is easy to dismiss. Specific concerns backed by data are harder to ignore." },
+      { type: "p", text: "Before contacting an official, know the basics:" },
+      { type: "ul", items: [
+        "The facility name, address, and current status",
+        "What approvals are pending",
+        "What your specific concerns are: noise, traffic, water, visual impact, grid strain",
+        "What conditions or changes you are asking for",
+      ]},
+      { type: "p", text: "Lead with your identity as a constituent and neighbor, not with your conclusion. Officials respond to people, not position papers." },
+      { type: "p", text: "Sample language for a planning board comment: \"My name is [name] and I live at [address], approximately [distance] from the proposed facility. I am concerned about [specific issue] and would like to ask the board to require [specific condition] as a condition of any approval. I have attached supporting documentation from [source].\"" },
+      { type: "h", text: "Attending public hearings" },
+      { type: "p", text: "Public hearings are your most direct opportunity to influence local decisions. To participate:" },
+      { type: "ul", items: [
+        "Check the planning department website or call the planning office to find hearing dates",
+        "Sign up to speak in advance if required, since many boards require advance registration",
+        "Prepare 2 to 3 minutes of remarks, since most boards limit speakers to 3 minutes",
+        "Focus on facts and specific requests rather than general concerns",
+        "Bring neighbors, since a room with 30 concerned residents makes a stronger impression than one",
+      ]},
+      { type: "h", text: "Following up" },
+      { type: "p", text: "After a hearing, follow up in writing to confirm your concerns are in the official record. Ask for a written response. If you receive one, share it with neighbors." },
+      { type: "p", text: "If the decision goes against your interests, ask about the appeals process. Most planning decisions can be appealed to a higher body within a specified time period." },
+      { type: "h", text: "Using HumZones data" },
+      { type: "p", text: "The modeled estimates in your HumZones report can provide useful context for official communications, including estimated power draw, noise levels, and water consumption for facilities in your area. Be clear that these are modeled estimates, not certified measurements, and frame them as questions rather than assertions. \"The HumZones registry estimates this facility draws approximately 120MW. Can you tell us what impact assessment was done for grid capacity in our area?\" is more effective than citing the number as a definitive fact." },
+    ],
+    faqs: [
+      { q: "Do I need to be a registered voter in the jurisdiction to comment at a planning hearing?",
+        a: "In most jurisdictions you do not need to be a registered voter. Any member of the public can attend and comment at planning hearings. Property owners, renters, and business owners in the affected area all typically have standing to comment. Check with your local planning department for specific rules." },
+      { q: "What if the planning board seems to have already made up its mind?",
+        a: "Even when a decision seems predetermined, public comments create a formal record. This record can be referenced in any subsequent legal challenge. It also signals to elected officials that constituents are watching. Long-term, sustained engagement shifts the political calculus even when individual hearings do not go your way." },
+      { q: "Can I submit comments in writing instead of attending in person?",
+        a: "Yes. Written comments submitted before a hearing cutoff date become part of the official record. Written submissions are often more detailed and better documented than in-person testimony. Both written and in-person comments carry weight. Check the planning department website for submission deadlines and formats." },
+      { q: "What if I disagree with the outcome of a planning hearing?",
+        a: "Most planning decisions can be appealed. The appeal process varies by jurisdiction but typically involves filing within 30 days of the decision with a higher board or a court. Grounds for appeal generally include procedural errors, failure to consider required factors, or conflict with existing law. Consult with a local land use attorney if you are considering an appeal." },
+    ],
   },
 ];
 
@@ -8420,12 +8521,37 @@ const LearnBlock = ({ block }) => {
   return null;
 };
 
+// Inject (or remove) a tagged DOM node inside document.head. Used by
+// /learn and /glossary to drop JSON-LD and OpenGraph/Twitter meta tags
+// on mount and clean them up on unmount so they do not leak between
+// routes. Each call is keyed by a stable id stored in data-hz-head.
+const injectHeadEl = (tagName, key, attrs, innerHtml) => {
+  if (typeof document === "undefined") return null;
+  let el = document.querySelector(`${tagName}[data-hz-head="${key}"]`);
+  if (!el) {
+    el = document.createElement(tagName);
+    el.setAttribute("data-hz-head", key);
+    document.head.appendChild(el);
+  }
+  Object.keys(attrs || {}).forEach(k => el.setAttribute(k, attrs[k]));
+  if (innerHtml !== undefined && innerHtml !== null) el.text = innerHtml;
+  return el;
+};
+const removeHeadEl = (key) => {
+  if (typeof document === "undefined") return;
+  const el = document.querySelector(`[data-hz-head="${key}"]`);
+  if (el && el.parentNode) el.parentNode.removeChild(el);
+};
+
 const LearnPage = ({ onNavigate }) => {
   const [search, setSearch] = useState("");
   const [activeCategory, setActiveCategory] = useState("All");
   const [expandedSlug, setExpandedSlug] = useState("");
   const [helpful, setHelpful] = useState({}); // slug -> "up" | "down"
   const [copiedSlug, setCopiedSlug] = useState("");
+  // FAQ accordion open state, keyed by "<slug>::<index>" so different
+  // articles do not collide.
+  const [openFaq, setOpenFaq] = useState({});
 
   // Read the URL hash on mount and auto-expand the matching article. Also
   // listen for hashchange so back/forward navigation works inside the
@@ -8467,6 +8593,69 @@ const LearnPage = ({ onNavigate }) => {
         : "Plain-language guides for residents living near data center infrastructure. Learn about interconnection queues, utility filings, facility status and what you can do."
     );
   }, [expandedSlug]);
+
+  // OpenGraph + Twitter meta tags. Stamped once on mount and cleaned up
+  // on unmount so they do not bleed into other routes.
+  useEffect(() => {
+    injectHeadEl("meta", "learn-og-title",       { property: "og:title",       content: "Resident Guides | HumZones" });
+    injectHeadEl("meta", "learn-og-description", { property: "og:description", content: "Plain-language guides for residents living near data center infrastructure. Learn about interconnection queues, utility filings, and what you can do." });
+    injectHeadEl("meta", "learn-og-url",         { property: "og:url",         content: "https://humzones.com/learn" });
+    injectHeadEl("meta", "learn-og-type",        { property: "og:type",        content: "website" });
+    injectHeadEl("meta", "learn-tw-card",        { name: "twitter:card",        content: "summary" });
+    injectHeadEl("meta", "learn-tw-title",       { name: "twitter:title",       content: "Resident Guides | HumZones" });
+    injectHeadEl("meta", "learn-tw-description", { name: "twitter:description", content: "Plain-language guides for residents living near data center infrastructure." });
+
+    // JSON-LD blob: WebPage + Article schemas (one per article, injected
+    // all at once so crawlers see every article without the user having
+    // to expand them) + a single combined FAQPage covering every FAQ.
+    const articleSchemas = LEARN_ARTICLES.map(a => ({
+      "@context": "https://schema.org",
+      "@type":    "Article",
+      "headline": a.title,
+      "description": a.preview,
+      "url":         "https://humzones.com/learn#" + a.slug,
+      "datePublished": "2026-01-01",
+      "dateModified":  "2026-05-01",
+      "author":    { "@type": "Organization", "name": "HumZones Technologies Inc." },
+      "publisher": {
+        "@type": "Organization",
+        "name":  "HumZones Technologies Inc.",
+        "logo":  { "@type": "ImageObject", "url": "https://humzones.com/favicon.ico" },
+      },
+      "mainEntityOfPage": { "@type": "WebPage", "@id": "https://humzones.com/learn#" + a.slug },
+    }));
+    const webPageSchema = {
+      "@context": "https://schema.org",
+      "@type":    "WebPage",
+      "name":        "Resident Guides | Understanding Data Center Infrastructure | HumZones",
+      "description": "Plain-language guides for residents living near data center infrastructure.",
+      "url":         "https://humzones.com/learn",
+      "publisher": {
+        "@type": "Organization",
+        "name":  "HumZones Technologies Inc.",
+        "url":   "https://humzones.com",
+      },
+    };
+    const faqSchema = {
+      "@context": "https://schema.org",
+      "@type":    "FAQPage",
+      "mainEntity": LEARN_ARTICLES.flatMap(a => (a.faqs || []).map(f => ({
+        "@type": "Question",
+        "name":  f.q,
+        "acceptedAnswer": { "@type": "Answer", "text": f.a },
+      }))),
+    };
+    injectHeadEl("script", "learn-jsonld",     { type: "application/ld+json" }, JSON.stringify([webPageSchema, ...articleSchemas]));
+    injectHeadEl("script", "learn-faq-jsonld", { type: "application/ld+json" }, JSON.stringify(faqSchema));
+
+    return () => {
+      [
+        "learn-og-title","learn-og-description","learn-og-url","learn-og-type",
+        "learn-tw-card","learn-tw-title","learn-tw-description",
+        "learn-jsonld","learn-faq-jsonld",
+      ].forEach(removeHeadEl);
+    };
+  }, []);
 
   const expandArticle = (slug) => {
     setExpandedSlug(slug);
@@ -8632,6 +8821,39 @@ const LearnPage = ({ onNavigate }) => {
             </div>
             {helpful[expanded.slug] && (
               <div style={{marginTop:10,fontSize:13,color:"#64748b"}}>Thanks for the feedback.</div>
+            )}
+
+            {/* FAQ accordion. Each article carries 3-4 questions in its
+                faqs array; these are also rolled into the combined
+                FAQPage JSON-LD blob in the head injection above. */}
+            {Array.isArray(expanded.faqs) && expanded.faqs.length > 0 && (
+              <div style={{marginTop:30,paddingTop:22,borderTop:"1px solid #e2e8f0"}}>
+                <h3 style={{fontSize:18,fontWeight:800,color:"#0f172a",letterSpacing:"-.01em",margin:"0 0 6px"}}>Frequently Asked Questions</h3>
+                <div style={{width:48,height:3,background:"#f97316",borderRadius:2,marginBottom:18}}/>
+                <div style={{display:"flex",flexDirection:"column",gap:8}}>
+                  {expanded.faqs.map((f, i) => {
+                    const key = expanded.slug + "::" + i;
+                    const isOpen = !!openFaq[key];
+                    return (
+                      <div key={key} style={{border:"1px solid #e2e8f0",borderRadius:10,background:isOpen?"#f8fafc":"#fff",overflow:"hidden"}}>
+                        <button
+                          onClick={()=>setOpenFaq(p=>({...p,[key]:!p[key]}))}
+                          aria-expanded={isOpen}
+                          style={{width:"100%",display:"flex",alignItems:"center",justifyContent:"space-between",gap:12,padding:"14px 16px",background:"transparent",border:"none",cursor:"pointer",fontFamily:"inherit",textAlign:"left"}}
+                        >
+                          <span style={{fontSize:15,fontWeight:800,color:"#0f172a",lineHeight:1.4}}>{f.q}</span>
+                          <span aria-hidden="true" style={{fontSize:18,fontWeight:900,color:"#f97316",flexShrink:0,lineHeight:1}}>{isOpen ? "−" : "+"}</span>
+                        </button>
+                        {isOpen && (
+                          <div style={{padding:"0 16px 14px"}}>
+                            <p style={{fontSize:14,color:"#475569",lineHeight:1.7,margin:0}}>{f.a}</p>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
             )}
 
             {/* Related articles */}
@@ -8800,6 +9022,66 @@ const GlossaryPage = ({ onNavigate }) => {
       document.head.appendChild(meta);
     }
     meta.setAttribute("content", "Translate data center jargon into plain language. HumZones explains interconnection queues, megawatts, balancing authorities and more for residents.");
+  }, []);
+
+  // OpenGraph + Twitter meta tags + DefinedTermSet JSON-LD for the
+  // glossary. Cleaned up on unmount so the tags do not leak into other
+  // pages.
+  useEffect(() => {
+    injectHeadEl("meta", "glossary-og-title",       { property: "og:title",       content: "Data Center Infrastructure Glossary | HumZones" });
+    injectHeadEl("meta", "glossary-og-description", { property: "og:description", content: "Translate data center jargon into plain language. Interconnection queues, megawatts, balancing authorities and more explained for residents." });
+    injectHeadEl("meta", "glossary-og-url",         { property: "og:url",         content: "https://humzones.com/glossary" });
+    injectHeadEl("meta", "glossary-og-type",        { property: "og:type",        content: "website" });
+    injectHeadEl("meta", "glossary-tw-card",        { name: "twitter:card",       content: "summary" });
+
+    const definedTermSet = {
+      "@context": "https://schema.org",
+      "@type":    "DefinedTermSet",
+      "name":        "Data Center Infrastructure Glossary",
+      "description": "Plain language definitions of data center infrastructure terms for residents",
+      "url":         "https://humzones.com/glossary",
+      "hasDefinedTerm": [
+        {
+          "@type":      "DefinedTerm",
+          "name":        "Megawatt (MW)",
+          "description": "A unit of electrical power equal to one million watts. A 100MW data center draws enough electricity to continuously power approximately 75,000 average American homes.",
+          "inDefinedTermSet": "https://humzones.com/glossary",
+        },
+        {
+          "@type":      "DefinedTerm",
+          "name":        "Interconnection Queue",
+          "description": "A formal waiting list that companies must join before connecting large new power loads to the electric grid. One of the earliest public signals that a large facility is being planned.",
+          "inDefinedTermSet": "https://humzones.com/glossary",
+        },
+        {
+          "@type":      "DefinedTerm",
+          "name":        "Balancing Authority",
+          "description": "An organization responsible for matching electricity supply with demand in real time across a defined geographic area such as PJM or ERCOT.",
+          "inDefinedTermSet": "https://humzones.com/glossary",
+        },
+        {
+          "@type":      "DefinedTerm",
+          "name":        "WUE (Water Usage Effectiveness)",
+          "description": "An industry standard metric measuring how much water a data center uses per unit of computing work. A large data center can consume over one million gallons of water per day.",
+          "inDefinedTermSet": "https://humzones.com/glossary",
+        },
+        {
+          "@type":      "DefinedTerm",
+          "name":        "Hyperscale Data Center",
+          "description": "A data center exceeding 100MW of power capacity typically operated by Amazon, Microsoft, Google or Meta.",
+          "inDefinedTermSet": "https://humzones.com/glossary",
+        },
+      ],
+    };
+    injectHeadEl("script", "glossary-jsonld", { type: "application/ld+json" }, JSON.stringify(definedTermSet));
+
+    return () => {
+      [
+        "glossary-og-title","glossary-og-description","glossary-og-url","glossary-og-type",
+        "glossary-tw-card",
+        "glossary-jsonld",
+      ].forEach(removeHeadEl);
+    };
   }, []);
 
   // Show the back-to-top button once the user has scrolled past roughly
