@@ -100,6 +100,27 @@ async function callAnthropic(body) {
   return r.json();
 }
 
+async function callWithRetry(payload) {
+  for (let attempt = 1; attempt <= 2; attempt++) {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': process.env.ANTHROPIC_API_KEY,
+        'anthropic-version': '2023-06-01',
+        'anthropic-beta': 'interleaved-thinking-2025-05-14'
+      },
+      body: JSON.stringify(payload)
+    })
+    if (res.status === 429 && attempt === 1) {
+      console.log('[generate-newsletter] Rate limited, waiting 60s before retry...')
+      await new Promise(r => setTimeout(r, 60000))
+      continue
+    }
+    return res
+  }
+}
+
 function joinResponseText(resp) {
   const parts = (resp && resp.content) || [];
   return parts
@@ -168,17 +189,11 @@ async function main() {
     "This is a hard requirement.";
 
   const userPrompt =
-    "Search the web for this week's data center infrastructure news. Use multiple " +
-    "searches to find fresh stories. Search for:\n" +
-    "- 'data center interconnection queue filing 2026 new request'\n" +
-    "- 'hyperscale data center announcement expansion 2026'\n" +
-    "- 'data center planning permit approval 2026'\n" +
-    "- 'data center community residents complaint opposition 2026'\n" +
-    "- 'data center power grid utility upgrade 2026'\n" +
-    "- 'AI data center construction news this week'\n" +
-    "- 'data center water cooling environmental 2026'\n\n" +
-    "Then write a complete Infrastructure Intelligence newsletter issue with " +
-    "EXACTLY this structure:\n\n" +
+    "Search for the latest data center infrastructure news from this week " +
+    "including interconnection queue filings, hyperscale announcements, " +
+    "planning board decisions, and community impact stories. Then write " +
+    "the complete Infrastructure Intelligence newsletter issue in the HTML " +
+    "format specified.\n\n" +
     "EDITOR'S NOTE (2 to 3 sentences): Why this week's developments matter for " +
     "residents. Personal and direct.\n\n" +
     "WHAT FILED THIS WEEK: 2 to 4 items from interconnection queues, utility permit " +
@@ -222,13 +237,18 @@ async function main() {
     "an unsubscribe placeholder: [UNSUBSCRIBE_LINK]";
 
   console.log('[generate-newsletter] calling Anthropic API', new Date().toISOString());
-  const draftResp = await callAnthropic({
-    model: "claude-sonnet-4-5",
-    max_tokens: 4000,
-    tools: [{ type: "web_search_20250305", name: "web_search", max_uses: 6 }],
+  const draftRes = await callWithRetry({
+    model: "claude-sonnet-4-6",
+    max_tokens: 2500,
+    tools: [{ type: "web_search_20250305", name: "web_search", max_uses: 3 }],
     system: systemPrompt,
     messages: [{ role: "user", content: userPrompt }],
   });
+  if (!draftRes.ok) {
+    const text = await draftRes.text().catch(() => "");
+    throw new Error(`Anthropic API failed: ${draftRes.status} ${text}`);
+  }
+  const draftResp = await draftRes.json();
   console.log('[generate-newsletter] Anthropic response received', new Date().toISOString());
 
   const draftHtmlRaw = joinResponseText(draftResp);
@@ -252,7 +272,7 @@ async function main() {
 
   // STEP 3: Generate the issue title and subject line.
   const titleResp = await callAnthropic({
-    model: "claude-sonnet-4-5",
+    model: "claude-sonnet-4-6",
     max_tokens: 300,
     system: "You write compelling email subject lines and newsletter titles.",
     messages: [{
