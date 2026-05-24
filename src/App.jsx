@@ -660,7 +660,7 @@ const CSS = `
   .hz-gh-back:hover{color:#f97316;background:rgba(249,115,22,.08)}
   .hz-gh-logo{display:flex;flex-direction:column;text-decoration:none;cursor:pointer;line-height:1;gap:3px;background:none;border:none;padding:0;font-family:inherit;text-align:left}
   .hz-gh-logo-title{color:#fff;font-weight:800;font-size:20px;letter-spacing:.01em;display:inline-flex;align-items:baseline}
-  .hz-gh-logo-sup{color:#f97316;font-size:10px;font-weight:700;vertical-align:super;margin-left:1px}
+  .hz-gh-logo-sup{color:#f97316;font-size:10px;font-weight:700;vertical-align:super;margin-left:1px;position:relative;top:-6px}
   .hz-gh-logo-tag{color:#f97316;font-size:10px;font-weight:700;letter-spacing:.06em}
   .hz-gh-nav{display:flex;align-items:center;gap:4px}
   .hz-gh-nav-btn{display:inline-flex;align-items:center;gap:5px;background:none;border:none;color:#fff;font-family:inherit;font-size:14px;font-weight:500;padding:8px 16px;cursor:pointer;border-radius:8px;transition:color .15s, background .15s}
@@ -2149,7 +2149,7 @@ async function generateBusinessReportPDF({
     doc.text("Zones", x + wHum, baseY);
     doc.setFontSize(tmSize);
     doc.setTextColor(...colorZones);
-    doc.text("TM", x + wHum + wZones, baseY - mainSize * 0.05);
+    doc.text("TM", x + wHum + wZones, baseY - mainSize * 0.2);
     return x + wHum + wZones + wTM + 0.5;
   }
 
@@ -2205,7 +2205,7 @@ async function generateBusinessReportPDF({
     const tmSize = Math.max(4, Math.floor(11 * 0.42));
     doc.setFontSize(tmSize);
     const wTM = doc.getStringUnitWidth("TM") * tmSize / sf;
-    doc.text("TM", 15 + wHum + wZones, baseY - 11 * 0.05);
+    doc.text("TM", 15 + wHum + wZones, baseY - 11 * 0.2);
     const endX = 15 + wHum + wZones + wTM + 0.5;
     doc.setFontSize(8); doc.setTextColor(148, 163, 184);
     const wPipe = doc.getStringUnitWidth(" | ") * 8 / sf;
@@ -2231,7 +2231,7 @@ async function generateBusinessReportPDF({
     doc.setTextColor(249, 115, 22);
     doc.text("Zones", 15 + wHum, baseY);
     doc.setFontSize(tmSize);
-    doc.text("TM", 15 + wHum + wZones, baseY - 10 * 0.05);
+    doc.text("TM", 15 + wHum + wZones, baseY - 10 * 0.2);
     const endX = 15 + wHum + wZones + wTM + 0.5;
     doc.setFontSize(10); doc.setFont("helvetica", "bold"); doc.setTextColor(255, 255, 255);
     doc.text(" Technologies Inc.", endX, baseY);
@@ -2355,7 +2355,7 @@ async function generateBusinessReportPDF({
     doc.setTextColor(249, 115, 22);
     doc.text("Zones", 15 + wHum, baseY);
     doc.setFontSize(tmSize);
-    doc.text("TM", 15 + wHum + wZones, baseY - 10 * 0.05);
+    doc.text("TM", 15 + wHum + wZones, baseY - 10 * 0.2);
     const endX = 15 + wHum + wZones + wTM + 0.5;
     doc.setFontSize(10); doc.setFont("helvetica", "bold"); doc.setTextColor(255, 255, 255);
     doc.text(" Technologies Inc.", endX, baseY);
@@ -2775,7 +2775,7 @@ async function generateBusinessReportPDF({
     doc.setTextColor(249, 115, 22);
     doc.text("Zones", 15 + wHum, baseY);
     doc.setFontSize(tmSize);
-    doc.text("TM", 15 + wHum + wZones, baseY - 10 * 0.05);
+    doc.text("TM", 15 + wHum + wZones, baseY - 10 * 0.2);
     const endX = 15 + wHum + wZones + wTM + 0.5;
     doc.setFontSize(10); doc.setFont("helvetica", "bold"); doc.setTextColor(255, 255, 255);
     doc.text(" Technologies Inc.", endX, baseY);
@@ -2926,7 +2926,7 @@ async function generatePersonalReportPDF({
     doc.text("Zones", x + wHum, baseY);
     doc.setFontSize(tmSize);
     doc.setTextColor(...colorZones);
-    doc.text("TM", x + wHum + wZones, baseY - mainSize * 0.05);
+    doc.text("TM", x + wHum + wZones, baseY - mainSize * 0.2);
     return x + wHum + wZones + wTM + 0.5;
   }
 
@@ -2959,7 +2959,7 @@ async function generatePersonalReportPDF({
     doc.setTextColor(249, 115, 22);
     doc.text("Zones", 15 + wHum, baseY);
     doc.setFontSize(tmSize);
-    doc.text("TM", 15 + wHum + wZones, baseY - 9 * 0.05);
+    doc.text("TM", 15 + wHum + wZones, baseY - 9 * 0.2);
     const endX = 15 + wHum + wZones + wTM + 0.5;
     doc.setFontSize(9); doc.setFont("helvetica", "bold"); doc.setTextColor(255, 255, 255);
     doc.text(" Technologies Inc.", endX, baseY);
@@ -3101,7 +3101,7 @@ async function generatePersonalReportPDF({
     doc.setTextColor(249, 115, 22);
     doc.text("Zones", 15 + wHum, baseY);
     doc.setFontSize(tmSize);
-    doc.text("TM", 15 + wHum + wZones, baseY - 9 * 0.05);
+    doc.text("TM", 15 + wHum + wZones, baseY - 9 * 0.2);
     const endX = 15 + wHum + wZones + wTM + 0.5;
     doc.setFontSize(9); doc.setFont("helvetica", "bold"); doc.setTextColor(255, 255, 255);
     doc.text(" Technologies Inc.", endX, baseY);
@@ -3397,7 +3397,7 @@ async function generatePersonalReportPDF({
     doc.setTextColor(249, 115, 22);
     doc.text("Zones", 15 + wHum, baseY);
     doc.setFontSize(tmSize);
-    doc.text("TM", 15 + wHum + wZones, baseY - 10 * 0.05);
+    doc.text("TM", 15 + wHum + wZones, baseY - 10 * 0.2);
     const endX = 15 + wHum + wZones + wTM + 0.5;
     doc.setFontSize(10); doc.setFont("helvetica", "bold"); doc.setTextColor(255, 255, 255);
     doc.text(" Technologies Inc.", endX, baseY);
@@ -3625,7 +3625,7 @@ const ReportSuccessPage = ({ onBack, onNavigate }) => {
       <div style={{padding:"22px 24px",display:"flex",alignItems:"center",justifyContent:"center"}}>
         <div>
           <span style={{fontSize:22,fontWeight:900,letterSpacing:".08em",background:"linear-gradient(90deg,#ef4444,#f97316)",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent"}}>HumZones</span>
-          <sup style={{fontSize:12,color:"#f97316",fontWeight:700,verticalAlign:"super",marginLeft:2}}>TM</sup>
+          <sup style={{fontSize:12,color:"#f97316",fontWeight:700,verticalAlign:"super",marginLeft:2,position:"relative",top:"-4px"}}>TM</sup>
         </div>
       </div>
 
@@ -3823,7 +3823,7 @@ const VerifyReportPage = ({ onNavigate }) => {
       <div style={{padding:"22px 24px",display:"flex",alignItems:"center",justifyContent:"center"}}>
         <div>
           <span style={{fontSize:22,fontWeight:900,letterSpacing:".08em",background:"linear-gradient(90deg,#ef4444,#f97316)",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent"}}>HumZones</span>
-          <sup style={{fontSize:12,color:"#f97316",fontWeight:700,verticalAlign:"super",marginLeft:2}}>TM</sup>
+          <sup style={{fontSize:12,color:"#f97316",fontWeight:700,verticalAlign:"super",marginLeft:2,position:"relative",top:"-4px"}}>TM</sup>
         </div>
       </div>
 
@@ -4317,7 +4317,7 @@ const Footer = ({ onNavigate, facilities = [] }) => {
           <div>
             <div style={{marginBottom:8}}>
               <span style={{fontSize:24,fontWeight:900,color:"#fff",letterSpacing:".03em"}}>HumZones</span>
-              <sup style={{fontSize:12,color:"#f97316",fontWeight:700,verticalAlign:"super",marginLeft:2}}>TM</sup>
+              <sup style={{fontSize:12,color:"#f97316",fontWeight:700,verticalAlign:"super",marginLeft:2,position:"relative",top:"-4px"}}>TM</sup>
             </div>
             <div style={{fontSize:13,color:"#94a3b8",marginBottom:3}}>HumZones Technologies Inc.</div>
             <div style={{fontSize:13,color:"#94a3b8",marginBottom:14,lineHeight:1.5}}>Global Data Center Health & Infrastructure Registry</div>
@@ -4792,7 +4792,7 @@ const BusinessSuccessPage = ({ onNavigate }) => {
       <div style={{padding:"22px 24px",textAlign:"center"}}>
         <a href="/" onClick={e=>{e.preventDefault();onNavigate("/");}} style={{textDecoration:"none"}}>
           <span style={{fontSize:22,fontWeight:900,letterSpacing:".08em",background:"linear-gradient(90deg,#ef4444,#f97316)",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent"}}>HumZones</span>
-          <sup style={{fontSize:12,color:"#f97316",fontWeight:700,verticalAlign:"super",marginLeft:2}}>TM</sup>
+          <sup style={{fontSize:12,color:"#f97316",fontWeight:700,verticalAlign:"super",marginLeft:2,position:"relative",top:"-4px"}}>TM</sup>
         </a>
       </div>
 
@@ -6593,7 +6593,7 @@ const UnsubscribePage = ({ onNavigate }) => {
       <div style={{padding:"22px 24px",textAlign:"center"}}>
         <a href="/" onClick={e=>{e.preventDefault();onNavigate("/");}} style={{textDecoration:"none"}}>
           <span style={{fontSize:22,fontWeight:900,letterSpacing:".08em",background:"linear-gradient(90deg,#ef4444,#f97316)",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent"}}>HumZones</span>
-          <sup style={{fontSize:12,color:"#f97316",fontWeight:700,verticalAlign:"super",marginLeft:2}}>TM</sup>
+          <sup style={{fontSize:12,color:"#f97316",fontWeight:700,verticalAlign:"super",marginLeft:2,position:"relative",top:"-4px"}}>TM</sup>
         </a>
       </div>
 
