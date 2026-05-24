@@ -3974,7 +3974,12 @@ const PLAN_LINKS = {
   "unlimited-annual":    "https://buy.stripe.com/test_14AeVffmi5nH4pX2qEgMw01",
 };
 
-const BIZ_STORE_KEY = "humzones_business_account";
+const BIZ_STORE_KEY     = "humzones_business_account";
+// Separate localStorage key holding just the Airtable record ID for the
+// signed-in business account. Kept alongside BIZ_STORE_KEY so the credit
+// deduction flow on /business-generate can GET/PATCH the exact row even
+// if the cached account blob is stale or missing fields.
+const BIZ_RECORD_ID_KEY = "humzones_biz_record_id";
 
 // Auto-logout policy: 8 hours of inactivity OR 14 days since initial login,
 // whichever comes first. Magic-link auth and bounded blast radius (wasted
@@ -4026,6 +4031,12 @@ const writeBusinessAccount = (acct) => {
     } catch {}
     const next = { ...acct, loginAt, lastActiveAt: now };
     localStorage.setItem(BIZ_STORE_KEY, JSON.stringify(next));
+    // Mirror the Airtable record ID into its own key so the credit
+    // deduction flow can read it directly without having to JSON.parse
+    // the full account blob.
+    if (acct && acct.id) {
+      localStorage.setItem(BIZ_RECORD_ID_KEY, acct.id);
+    }
   } catch {}
 };
 
@@ -4051,7 +4062,10 @@ const touchBusinessAccount = () => {
 };
 
 const clearBusinessAccount = () => {
-  try { localStorage.removeItem(BIZ_STORE_KEY); } catch {}
+  try {
+    localStorage.removeItem(BIZ_STORE_KEY);
+    localStorage.removeItem(BIZ_RECORD_ID_KEY);
+  } catch {}
 };
 
 const generateToken = () => {
@@ -4098,6 +4112,22 @@ const addMonths = (months) => {
   d.setDate(Math.min(day, last));
   return d.toISOString().slice(0, 10);
 };
+
+// Fetch a single business account row by Airtable record ID. Used by the
+// /business-generate credit deduction flow so the deduction lands on the
+// exact row the user signed in as, even if the cached account blob has
+// drifted. Returns { id, fields } keyed by field ID, or null on 404.
+async function fetchBusinessAccountById(id) {
+  const recId = String(id || "").trim();
+  if (!recId) return null;
+  const url = `${APIURL}/${BUSINESS_TABLE}/${recId}?returnFieldsByFieldId=true`;
+  const r = await fetch(url, { headers: HDR });
+  if (r.status === 404) return null;
+  if (!r.ok) throw new Error("Airtable lookup failed: " + r.status);
+  const rec = await r.json();
+  if (!rec || !rec.id) return null;
+  return await migrateLegacyUnlimited({ id: rec.id, fields: rec.fields });
+}
 
 // Fetch a single business account row by email. Lower-cased compare so
 // signups that vary capitalisation still resolve. Returns the raw Airtable
@@ -4915,6 +4945,10 @@ const BusinessGeneratePage = ({ onNavigate }) => {
   const [results, setResults] = useState(null); // { address, lat, lng, facilities }
   const [downloading, setDownloading] = useState(false);
   const [toast, setToast] = useState("");
+  // Surface a yellow warning banner near the download button when the
+  // credit-deduction PATCH fails. The PDF download itself still succeeds,
+  // so this is informational rather than blocking.
+  const [creditError, setCreditError] = useState(false);
   const refreshedRef = useRef(false);
 
   // Redirect unauthenticated users + refresh the account from Airtable once
@@ -5007,6 +5041,7 @@ const BusinessGeneratePage = ({ onNavigate }) => {
       return;
     }
     setDownloading(true);
+    setCreditError(false);
     try {
       const highRiskCount = results.facilities.filter(f => String(f.Risk_Level || "").toUpperCase() === "HIGH").length;
 
@@ -5023,19 +5058,23 @@ const BusinessGeneratePage = ({ onNavigate }) => {
       // continues to reference the field by its original name.
       const datePart = dateStr;
 
-      // Re-read the live Business_Accounts row by email so the deduction is
-      // based on the authoritative Credits_Remaining rather than a stale
-      // localStorage snapshot. The fresh record also gives us the right
-      // recordId for the PATCH below.
+      // Re-read the live Business_Accounts row by record ID so the deduction
+      // lands on the exact row the user signed in as. Prefer the dedicated
+      // humzones_biz_record_id key written at login; fall back to account.id
+      // for sessions that pre-date that key.
+      let recordId = "";
+      try { recordId = localStorage.getItem(BIZ_RECORD_ID_KEY) || ""; } catch {}
+      if (!recordId) recordId = account.id || "";
+
       let liveRec = null;
       try {
-        liveRec = await fetchBusinessAccountByEmail(account.email);
-        console.log("[business-generate] fetched live account:", liveRec);
+        liveRec = await fetchBusinessAccountById(recordId);
+        console.log("[business-generate] fetched live account by id:", recordId, liveRec);
       } catch (e) {
-        console.error("[business-generate] live account fetch failed:", e);
+        console.error("[business-generate] live account fetch by id failed:", e);
       }
       const liveFields  = (liveRec && liveRec.fields) || {};
-      const liveId      = (liveRec && liveRec.id) || account.id;
+      const liveId      = (liveRec && liveRec.id) || recordId || account.id;
       const rawCredits  = Number(liveFields[BIZ_FIELD.Credits_Remaining] || account.creditsRemaining || 0);
       const rawMonthly  = Number(liveFields[BIZ_FIELD.Credits_Monthly] || account.creditsMonthly || 0);
       // Defensive: if the live record still carries the legacy 999999 cap
@@ -5087,6 +5126,11 @@ const BusinessGeneratePage = ({ onNavigate }) => {
           [BIZ_FIELD.Reports_Generated]: newGenerated,
         },
       };
+      // PATCH the credit deduction and surface failures to the user via a
+      // yellow banner — the PDF has already saved locally at this point, so
+      // a silent Airtable error would leave the row out of sync without
+      // anyone noticing.
+      let patchOk = false;
       try {
         console.log("[business-generate] PATCH Business_Accounts id:", liveId, "payload:", acctPayload);
         const acctRes = await fetch(`${APIURL}/${BUSINESS_TABLE}/${liveId}?returnFieldsByFieldId=true`, {
@@ -5098,10 +5142,13 @@ const BusinessGeneratePage = ({ onNavigate }) => {
         console.log("[business-generate] PATCH Business_Accounts response:", acctRes.status, acctBody);
         if (!acctRes.ok) {
           console.error("[business-generate] Credit deduction failed:", acctRes.status, acctBody);
+        } else {
+          patchOk = true;
         }
       } catch (e) {
         console.error("[business-generate] Credit deduction threw:", e);
       }
+      if (!patchOk) setCreditError(true);
 
       // Reflect the new counts in the on-screen badge immediately and
       // persist them so other tabs pick up the same values without needing
@@ -5209,10 +5256,20 @@ const BusinessGeneratePage = ({ onNavigate }) => {
       </main>
 
       {results && results.facilities.length > 0 && (
-        <div style={{position:"fixed",bottom:0,left:0,right:0,padding:"14px 18px",background:"rgba(2,12,27,.92)",borderTop:"1px solid rgba(249,115,22,.4)",backdropFilter:"blur(12px)",zIndex:50,display:"flex",justifyContent:"center"}}>
+        <div style={{position:"fixed",bottom:0,left:0,right:0,padding:"14px 18px",background:"rgba(2,12,27,.92)",borderTop:"1px solid rgba(249,115,22,.4)",backdropFilter:"blur(12px)",zIndex:50,display:"flex",flexDirection:"column",alignItems:"center",gap:10}}>
           <button onClick={download} disabled={downloading} style={{maxWidth:560,width:"100%",padding:"16px 22px",borderRadius:12,border:"none",cursor:downloading?"not-allowed":"pointer",fontFamily:"inherit",fontSize:16,fontWeight:900,letterSpacing:".04em",background:"linear-gradient(135deg,#ef4444,#f97316)",color:"#fff",boxShadow:"0 14px 32px rgba(249,115,22,.42)"}}>
             {downloading ? "Generating PDF..." : `Download Report (${ctaCreditsLabel})`}
           </button>
+          {creditError && (
+            <div role="alert" style={{maxWidth:560,width:"100%",display:"flex",alignItems:"flex-start",gap:10,padding:"12px 14px",borderRadius:10,background:"#fef3c7",border:"1px solid #f59e0b",color:"#78350f",fontSize:13,lineHeight:1.5,fontWeight:600}}>
+              <span style={{flex:1}}>
+                Your report downloaded successfully but we could not update your credit balance. Please contact{" "}
+                <a href="mailto:hello@humzones.com" style={{color:"#78350f",fontWeight:800,textDecoration:"underline"}}>hello@humzones.com</a>{" "}
+                and we will adjust it manually.
+              </span>
+              <button onClick={()=>setCreditError(false)} aria-label="Dismiss" style={{background:"transparent",border:"none",color:"#78350f",fontSize:18,fontWeight:900,cursor:"pointer",lineHeight:1,padding:"0 4px",fontFamily:"inherit"}}>&times;</button>
+            </div>
+          )}
         </div>
       )}
 
