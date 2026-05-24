@@ -7957,11 +7957,13 @@ const DonatePage = ({ onNavigate, facilityCount }) => {
     ? "Over " + facilityCount.toLocaleString() + " facilities tracked. Millions of people live near data center infrastructure without knowing it. Every dollar helps us reach more communities."
     : "Thousands of facilities tracked. Millions of people live near data center infrastructure without knowing it. Every dollar helps us reach more communities.";
 
+  // Icons are pulled from the shared Icon component so the donate tiles
+  // visually match the rest of the site (stroked SVGs in HumZones orange).
   const fundBoxes = [
-    { icon: "📚", title: "Database Growth",   desc: "Expanding our registry to cover more facilities worldwide." },
-    { icon: "🔎", title: "Research",          desc: "Sourcing and verifying facility data from public records." },
-    { icon: "🖥️", title: "Infrastructure",    desc: "Server costs, hosting and keeping the site fast and free." },
-    { icon: "⚖️", title: "Legal Protection",  desc: "Protecting the community voice against pressure campaigns." },
+    { icon: "database", title: "Database Growth",  desc: "Expanding our registry to cover more facilities worldwide." },
+    { icon: "search",   title: "Research",         desc: "Sourcing and verifying facility data from public records." },
+    { icon: "monitor",  title: "Infrastructure",   desc: "Server costs, hosting and keeping the site fast and free." },
+    { icon: "scales",   title: "Legal Protection", desc: "Protecting the community voice against pressure campaigns." },
   ];
 
   const pillStyle = (active) => ({
@@ -8011,7 +8013,7 @@ const DonatePage = ({ onNavigate, facilityCount }) => {
         <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(220px,1fr))",gap:18}}>
           {fundBoxes.map(b => (
             <div key={b.title} style={{background:"#f1f5f9",border:"1px solid #e2e8f0",borderRadius:14,padding:"22px 20px"}}>
-              <div style={{fontSize:28,marginBottom:8}}>{b.icon}</div>
+              <div style={{marginBottom:10,lineHeight:1}}><Icon name={b.icon} size={32} color="#f97316"/></div>
               <div style={{fontSize:15,fontWeight:800,color:"#0f172a",marginBottom:6}}>{b.title}</div>
               <div style={{fontSize:13,color:"#64748b",lineHeight:1.55}}>{b.desc}</div>
             </div>
