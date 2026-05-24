@@ -3771,6 +3771,15 @@ const ReportSuccessPage = ({ onBack, onNavigate }) => {
                 <a href="/donate" onClick={e=>{e.preventDefault();onNavigate("/donate");}} style={{color:"#f97316",fontWeight:700,textDecoration:"none"}}>Support HumZones</a>.
               </p>
             </div>
+            {/* Newsletter prompt. Hidden once the visitor has already
+                subscribed (the form sets humzones_nl_subscribed in
+                localStorage on success). */}
+            {(typeof localStorage === "undefined" || localStorage.getItem("humzones_nl_subscribed") !== "1") && (
+              <div style={{marginTop:20,maxWidth:520,marginLeft:"auto",marginRight:"auto",background:"#eff6ff",borderLeft:"3px solid #3b82f6",borderRadius:8,padding:"12px 16px",textAlign:"left"}}>
+                <p style={{fontSize:13,color:"#1e3a8a",lineHeight:1.6,margin:"0 0 8px",fontWeight:700}}>Stay informed about data center developments near you.</p>
+                <NewsletterSignupForm source="Report Download" variant="light" showFirstName={false} compact/>
+              </div>
+            )}
           </>
         )}
 
@@ -4436,7 +4445,14 @@ const Footer = ({ onNavigate, facilities = [] }) => {
             </div>
             <div style={{fontSize:13,color:"#94a3b8",marginBottom:3}}>HumZones Technologies Inc.</div>
             <div style={{fontSize:13,color:"#94a3b8",marginBottom:14,lineHeight:1.5}}>Global Data Center Health & Infrastructure Registry</div>
-            <div style={{fontSize:13,color:"#f97316",fontWeight:700,lineHeight:1.6}}>Transparency in infrastructure. Awareness for communities.</div>
+            <div style={{fontSize:13,color:"#f97316",fontWeight:700,lineHeight:1.6,marginBottom:18}}>Transparency in infrastructure. Awareness for communities.</div>
+            {/* Compact newsletter signup. Email + button, no first name
+                capture (kept minimal for the footer column). */}
+            <div style={{marginTop:4}}>
+              <div style={{fontSize:13,fontWeight:600,color:"#fff",marginBottom:2}}>Infrastructure Intelligence</div>
+              <div style={{fontSize:11,color:"#94a3b8",marginBottom:8}}>Free weekly data center briefing</div>
+              <NewsletterSignupForm source="Footer" variant="footer" showFirstName={false}/>
+            </div>
           </div>
 
           {/* Column 2: Explore */}
@@ -4448,6 +4464,7 @@ const Footer = ({ onNavigate, facilities = [] }) => {
               </a>
               {navLink("Home","/")}
               <a href="/#near-me" onClick={e=>{e.preventDefault();goNearMe();}} className="hz-foot-link" style={linkBase}>Find Data Centers Near Me</a>
+              {navLink("Newsletter","/newsletter")}
               {navLink("Community Reports","/submit-report")}
               {navLink("Submit Your Report","/submit-report")}
               {navLink("Resident Guides","/learn")}
@@ -6864,6 +6881,25 @@ const UnsubscribePage = ({ onNavigate }) => {
       const rec = await fetchBusinessAccountByEmail(email);
       if (rec) await patchBusinessAccount(rec.id, { [BIZ_FIELD.Unsubscribed]: true });
     } catch (e) { console.warn("Business unsubscribe failed:", e); }
+    // Newsletter_Subscribers: a single unsubscribe link removes them from
+    // the weekly newsletter as well as the near-me email list.
+    try {
+      const subsTable    = "tblTTCCngCteIBbbv";
+      const NL_EMAIL     = "fldbcBeZpmy6QxGSd";
+      const NL_UNSUB     = "flddV4PhEATPwiHzl";
+      const formula      = encodeURIComponent(`LOWER({Email}) = '${lc}'`);
+      const lookup = await fetch(`${APIURL}/${subsTable}?filterByFormula=${formula}&maxRecords=1&returnFieldsByFieldId=true`, { headers: HDR });
+      const data = await lookup.json().catch(() => ({}));
+      const rec = (data.records || [])[0];
+      if (rec) {
+        await fetch(`${APIURL}/${subsTable}/${rec.id}`, {
+          method: "PATCH",
+          headers: HDR,
+          body: JSON.stringify({ fields: { [NL_UNSUB]: true } }),
+        });
+      }
+      void NL_EMAIL; // suppress unused-var lint; kept for documentation
+    } catch (e) { console.warn("Newsletter unsubscribe failed:", e); }
     setStatus("done");
   };
 
@@ -7608,6 +7644,10 @@ const SubmitReportPage = ({ onNavigate }) => {
               <p style={{marginTop:16,fontSize:13,color:"#64748b",lineHeight:1.6}}>
                 Want to help us reach more communities? Consider supporting HumZones.{" "}
                 <a href="/donate" onClick={e=>{e.preventDefault();onNavigate("/donate");}} style={{color:"#f97316",fontWeight:700,textDecoration:"none"}}>Donate</a>
+              </p>
+              <p style={{marginTop:10,fontSize:13,color:"#64748b",lineHeight:1.6}}>
+                Want weekly updates on data center infrastructure news?{" "}
+                <a href="/newsletter" onClick={e=>{e.preventDefault();onNavigate("/newsletter");}} style={{color:"#f97316",fontWeight:700,textDecoration:"none"}}>Subscribe to Infrastructure Intelligence</a>
               </p>
             </>
           ) : (
@@ -8879,12 +8919,22 @@ const LearnPage = ({ onNavigate }) => {
       </section>
 
       {/* GLOSSARY CALLOUT */}
-      <section style={{maxWidth:880,margin:"0 auto",padding:"0 24px 56px"}}>
+      <section style={{maxWidth:880,margin:"0 auto",padding:"0 24px 24px"}}>
         <div style={{background:"#fff7ed",border:"1px solid #fed7aa",borderLeft:"4px solid #f97316",borderRadius:12,padding:"18px 22px"}}>
           <p style={{fontSize:15,color:"#7c2d12",lineHeight:1.65,margin:0}}>
             Looking for quick definitions? Visit our Infrastructure Glossary at{" "}
             <a href="/glossary" onClick={e=>{e.preventDefault();onNavigate("/glossary");}} style={{color:"#c2410c",fontWeight:800,textDecoration:"none"}}>humzones.com/glossary</a>.
           </p>
+        </div>
+      </section>
+
+      {/* NEWSLETTER CALLOUT */}
+      <section style={{maxWidth:880,margin:"0 auto",padding:"0 24px 56px"}}>
+        <div style={{background:"linear-gradient(150deg,#0a1628 0%,#0f172a 50%,#1e0535 100%)",borderRadius:12,padding:"32px",border:"1px solid rgba(249,115,22,.28)",marginTop:24}}>
+          <h3 style={{fontSize:20,fontWeight:900,color:"#fff",letterSpacing:"-.01em",margin:"0 0 4px"}}>Get Infrastructure Intelligence</h3>
+          <p style={{fontSize:14,color:"#f97316",fontWeight:700,margin:"0 0 10px"}}>Free every Monday. Data center news in plain language.</p>
+          <p style={{fontSize:13,color:"rgba(255,255,255,.7)",lineHeight:1.65,margin:"0 0 16px"}}>Interconnection queue filings, facility announcements and community impact stories, translated for residents, not engineers.</p>
+          <NewsletterSignupForm source="Learn Page" variant="light" showFirstName={false} compact/>
         </div>
       </section>
 
@@ -9224,12 +9274,22 @@ const GlossaryPage = ({ onNavigate }) => {
       </section>
 
       {/* CALLOUT TO /learn */}
-      <section style={{maxWidth:880,margin:"0 auto",padding:"22px 24px 56px"}}>
+      <section style={{maxWidth:880,margin:"0 auto",padding:"22px 24px 24px"}}>
         <div style={{background:"#fff7ed",border:"1px solid #fed7aa",borderLeft:"4px solid #f97316",borderRadius:12,padding:"18px 22px"}}>
           <p style={{fontSize:15,color:"#7c2d12",lineHeight:1.65,margin:0}}>
             Want to go deeper? Read our resident guides at{" "}
             <a href="/learn" onClick={e=>{e.preventDefault();onNavigate("/learn");}} style={{color:"#c2410c",fontWeight:800,textDecoration:"none"}}>humzones.com/learn</a>.
           </p>
+        </div>
+      </section>
+
+      {/* NEWSLETTER CALLOUT */}
+      <section style={{maxWidth:880,margin:"0 auto",padding:"0 24px 56px"}}>
+        <div style={{background:"linear-gradient(150deg,#0a1628 0%,#0f172a 50%,#1e0535 100%)",borderRadius:12,padding:"32px",border:"1px solid rgba(249,115,22,.28)",marginTop:24}}>
+          <h3 style={{fontSize:20,fontWeight:900,color:"#fff",letterSpacing:"-.01em",margin:"0 0 4px"}}>Get Infrastructure Intelligence</h3>
+          <p style={{fontSize:14,color:"#f97316",fontWeight:700,margin:"0 0 10px"}}>Free every Monday. Data center news in plain language.</p>
+          <p style={{fontSize:13,color:"rgba(255,255,255,.7)",lineHeight:1.65,margin:"0 0 16px"}}>Interconnection queue filings, facility announcements and community impact stories, translated for residents, not engineers.</p>
+          <NewsletterSignupForm source="Glossary Page" variant="light" showFirstName={false} compact/>
         </div>
       </section>
 
@@ -9572,6 +9632,428 @@ const DonateThankYouPage = ({ onNavigate }) => {
   );
 };
 
+// ─── /newsletter: INFRASTRUCTURE INTELLIGENCE NEWSLETTER ─────────────────────
+// Public landing page that explains the weekly briefing, captures signups
+// (double opt-in via /api/newsletter-subscribe), and lists the three most
+// recent Sent issues from Airtable. The full /newsletter/:n viewer below
+// hangs off this same routing branch.
+
+const NL_ISSUES_TABLE = "tbl3pKjNdgxJGYr0u";
+const NL_ISSUE_F = {
+  Issue_Title:    "fld7MRgeaH0NCJBIs",
+  Issue_Number:   "fldFU6TiYG0FmF9S8",
+  Date_Published: "fldqlKArTdhOkKcYI",
+  Subject_Line:   "fld57sICLof4DTx33",
+  Content_HTML:   "fld4Ege6wX7ijRXiw",
+  Status:         "fldKd6AJRxqqzeYJs",
+};
+
+// Format an ISO date as "Month DD, YYYY" without pulling in a date lib.
+const formatLongDate = (iso) => {
+  if (!iso) return "";
+  const d = new Date(iso + "T00:00:00Z");
+  if (Number.isNaN(d.getTime())) return iso;
+  const months = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+  return months[d.getUTCMonth()] + " " + d.getUTCDate() + ", " + d.getUTCFullYear();
+};
+
+// Shared signup form. Three layouts so we can drop it on the dark hero
+// (variant="dark"), inside a light panel (variant="light"), or inside the
+// compact footer column (variant="footer"). Returns the same /api/newsletter-subscribe
+// call regardless. Sets localStorage humzones_nl_subscribed on success so
+// other in-page prompts can hide themselves.
+const NewsletterSignupForm = ({ source, variant = "dark", showFirstName = true, compact = false }) => {
+  const [email, setEmail]         = useState("");
+  const [firstName, setFirstName] = useState("");
+  const [status, setStatus]       = useState("idle"); // idle | submitting | success | error
+  const [errMsg, setErrMsg]       = useState("");
+
+  const submit = async () => {
+    if (status === "submitting" || status === "success") return;
+    const e = email.trim();
+    if (!/^\S+@\S+\.\S+$/.test(e)) {
+      setStatus("error");
+      setErrMsg("Please enter a valid email address.");
+      return;
+    }
+    try { if (sessionStorage.getItem("humzones_nl_submitted") === e) {
+      setStatus("success");
+      return;
+    } } catch {}
+    setStatus("submitting");
+    setErrMsg("");
+    try {
+      const r = await fetch("/api/newsletter-subscribe", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: e, firstName: firstName.trim(), source }),
+      });
+      const data = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(data.error || "Subscription failed");
+      try {
+        sessionStorage.setItem("humzones_nl_submitted", e);
+        localStorage.setItem("humzones_nl_subscribed", "1");
+      } catch {}
+      setStatus("success");
+    } catch (err) {
+      console.error("newsletter-subscribe failed:", err);
+      setStatus("error");
+      setErrMsg("Something went wrong. Please try again or email hello@humzones.com");
+    }
+  };
+
+  const onKey = (ev) => { if (ev.key === "Enter") submit(); };
+
+  if (status === "success") {
+    if (variant === "footer") {
+      return <div style={{fontSize:12,color:"#86efac",fontWeight:700,marginTop:4}}>Subscribed! Check your inbox.</div>;
+    }
+    if (variant === "light") {
+      return <div style={{fontSize:14,color:"#15803d",fontWeight:800,padding:"10px 0"}}>Subscribed! Check your inbox to confirm.</div>;
+    }
+    return (
+      <div style={{display:"flex",alignItems:"center",gap:10,padding:"14px 16px",borderRadius:12,background:"rgba(34,197,94,.12)",border:"1px solid rgba(34,197,94,.4)",color:"#86efac",fontWeight:700,fontSize:14}}>
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#86efac" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>
+        Almost done! Check your inbox to confirm your subscription.
+      </div>
+    );
+  }
+
+  if (variant === "footer") {
+    return (
+      <div>
+        <input
+          type="email"
+          value={email}
+          onChange={ev=>setEmail(ev.target.value)}
+          onKeyDown={onKey}
+          placeholder="Your email"
+          aria-label="Your email"
+          style={{width:"100%",boxSizing:"border-box",background:"#1e293b",border:"1px solid rgba(255,255,255,.16)",color:"#fff",fontSize:12,padding:"8px 10px",borderRadius:6,outline:"none",marginBottom:6,fontFamily:"inherit"}}
+        />
+        <button
+          onClick={submit}
+          disabled={status === "submitting"}
+          style={{width:"100%",padding:"10px",borderRadius:6,border:"none",background:"#f97316",color:"#fff",fontSize:12,fontWeight:800,cursor:status==="submitting"?"wait":"pointer",fontFamily:"inherit",opacity:status==="submitting"?.7:1}}
+        >
+          {status === "submitting" ? "Subscribing..." : "Subscribe"}
+        </button>
+        {status === "error" && <div style={{fontSize:11,color:"#fca5a5",marginTop:6}}>Please try again.</div>}
+      </div>
+    );
+  }
+
+  if (variant === "light") {
+    // Inline pill: input + button side-by-side, used on light backgrounds
+    // (report-success callout). Compact mode tightens padding.
+    return (
+      <div>
+        <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+          <input
+            type="email"
+            value={email}
+            onChange={ev=>setEmail(ev.target.value)}
+            onKeyDown={onKey}
+            placeholder="Your email"
+            aria-label="Your email"
+            style={{flex:"1 1 220px",minWidth:0,boxSizing:"border-box",background:"#fff",border:"1px solid #cbd5e1",color:"#0f172a",fontSize:13,padding:compact?"9px 12px":"11px 14px",borderRadius:8,outline:"none",fontFamily:"inherit"}}
+          />
+          <button
+            onClick={submit}
+            disabled={status === "submitting"}
+            style={{padding:compact?"9px 16px":"11px 18px",borderRadius:8,border:"none",background:"#f97316",color:"#fff",fontSize:13,fontWeight:800,cursor:status==="submitting"?"wait":"pointer",fontFamily:"inherit",opacity:status==="submitting"?.7:1}}
+          >
+            {status === "submitting" ? "..." : "Subscribe"}
+          </button>
+        </div>
+        {status === "error" && <div style={{fontSize:12,color:"#b91c1c",marginTop:6,fontWeight:700}}>{errMsg}</div>}
+      </div>
+    );
+  }
+
+  // Dark variant: stacked, with the small disclaimer line. Used on the
+  // /newsletter hero and the bottom callouts on /learn and /glossary.
+  return (
+    <div>
+      {showFirstName && (
+        <input
+          type="text"
+          value={firstName}
+          onChange={ev=>setFirstName(ev.target.value)}
+          onKeyDown={onKey}
+          placeholder="First name (optional)"
+          aria-label="First name (optional)"
+          style={{width:"100%",boxSizing:"border-box",background:"rgba(255,255,255,.08)",border:"1.5px solid rgba(255,255,255,.18)",color:"#fff",fontSize:15,padding:"14px 16px",borderRadius:12,outline:"none",marginBottom:10,fontFamily:"inherit"}}
+        />
+      )}
+      <input
+        type="email"
+        value={email}
+        onChange={ev=>setEmail(ev.target.value)}
+        onKeyDown={onKey}
+        placeholder="Your email address"
+        aria-label="Your email address"
+        style={{width:"100%",boxSizing:"border-box",background:"rgba(255,255,255,.08)",border:"1.5px solid rgba(255,255,255,.18)",color:"#fff",fontSize:15,padding:"14px 16px",borderRadius:12,outline:"none",marginBottom:10,fontFamily:"inherit"}}
+      />
+      <button
+        onClick={submit}
+        disabled={status === "submitting"}
+        style={{width:"100%",padding:"14px 22px",borderRadius:12,border:"none",background:"linear-gradient(135deg,#ef4444,#f97316)",color:"#fff",fontSize:15,fontWeight:900,letterSpacing:".02em",cursor:status==="submitting"?"wait":"pointer",fontFamily:"inherit",boxShadow:"0 10px 28px rgba(249,115,22,.4)",opacity:status==="submitting"?.75:1}}
+      >
+        {status === "submitting" ? "Subscribing..." : "Subscribe Free"}
+      </button>
+      <p style={{fontSize:12,color:"rgba(255,255,255,.55)",marginTop:10,textAlign:"center"}}>Weekly. Free. Unsubscribe anytime. Data center topics only.</p>
+      {status === "error" && <div style={{fontSize:13,color:"#fca5a5",marginTop:6,fontWeight:700,textAlign:"center"}}>{errMsg}</div>}
+    </div>
+  );
+};
+
+const NewsletterPage = ({ onNavigate }) => {
+  const [recent, setRecent] = useState([]);    // recent Sent issues
+  const [loading, setLoading] = useState(true);
+
+  // SEO + social meta for the page.
+  useEffect(() => {
+    if (typeof document === "undefined") return;
+    document.title = "Infrastructure Intelligence | Weekly Newsletter | HumZones";
+    let meta = document.querySelector('meta[name="description"]');
+    if (!meta) {
+      meta = document.createElement("meta");
+      meta.setAttribute("name", "description");
+      document.head.appendChild(meta);
+    }
+    meta.setAttribute("content", "Free weekly data center news in plain language. Interconnection queue filings, facility announcements and community impact for residents.");
+  }, []);
+
+  // Fetch the three newest Sent issues. Status is a single-select; the
+  // formula relies on its plain text value.
+  useEffect(() => {
+    const formula = encodeURIComponent("{Status} = 'Sent'");
+    const url = `${APIURL}/${NL_ISSUES_TABLE}?filterByFormula=${formula}&pageSize=3&sort%5B0%5D%5Bfield%5D=Issue_Number&sort%5B0%5D%5Bdirection%5D=desc&returnFieldsByFieldId=true`;
+    fetch(url, { headers: HDR })
+      .then(r => r.json())
+      .then(d => setRecent((d && d.records) || []))
+      .catch(e => console.warn("[newsletter] recent issues fetch failed:", e))
+      .finally(() => setLoading(false));
+  }, []);
+
+  return (
+    <div style={{minHeight:"100vh",background:"#f1f5f9",width:"100%",maxWidth:"100vw",overflowX:"hidden"}}>
+      {/* HERO */}
+      <section style={{background:"linear-gradient(150deg,#020c1b 0%,#0f172a 45%,#1e0535 100%)",padding:"56px 24px 60px"}}>
+        <div style={{maxWidth:760,margin:"0 auto",textAlign:"center"}}>
+          <h1 style={{fontSize:"clamp(26px,4vw,34px)",fontWeight:900,letterSpacing:"-.02em",color:"#fff",lineHeight:1.2,marginBottom:10}}>Infrastructure Intelligence</h1>
+          <p style={{fontSize:16,color:"#f97316",fontWeight:700,margin:"0 0 16px"}}>A free weekly briefing for residents and community advocates</p>
+          <p style={{fontSize:15,color:"rgba(255,255,255,.72)",lineHeight:1.7,maxWidth:620,margin:"0 auto"}}>
+            Every week we research interconnection queues, utility filings, planning boards and data center industry news to tell you what is happening near communities like yours, in plain language. No jargon. No agenda. Just what is being built and what it means.
+          </p>
+        </div>
+      </section>
+
+      {/* PREVIEW CARDS */}
+      <section style={{maxWidth:1000,margin:"0 auto",padding:"36px 24px 0"}}>
+        <div className="nl-preview-grid" style={{display:"grid",gridTemplateColumns:"repeat(3, 1fr)",gap:14}}>
+          {[
+            { t: "What Filed This Week", d: "New interconnection requests and utility permit applications translated into plain English." },
+            { t: "Facilities in the News", d: "Data center announcements, expansions and community impact stories from the past 7 days." },
+            { t: "By the Numbers", d: "Key statistics from this week translated into human-scale comparisons that anyone can understand." },
+          ].map(card => (
+            <div key={card.t} style={{background:"#f1f5f9",border:"1px solid #e2e8f0",borderRadius:14,padding:"20px 20px 18px"}}>
+              <div style={{fontSize:15,fontWeight:800,color:"#0f172a",letterSpacing:"-.01em",marginBottom:8}}>{card.t}</div>
+              <p style={{fontSize:13,color:"#475569",lineHeight:1.65,margin:0}}>{card.d}</p>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* SIGNUP */}
+      <section style={{maxWidth:520,margin:"0 auto",padding:"32px 24px 0"}}>
+        <div style={{background:"linear-gradient(150deg,#0f172a 0%,#1e0535 100%)",border:"1px solid rgba(249,115,22,.32)",borderRadius:16,padding:"26px 26px 22px",boxShadow:"0 18px 40px rgba(0,0,0,.18)"}}>
+          <NewsletterSignupForm source="Newsletter Page" variant="dark" showFirstName/>
+        </div>
+      </section>
+
+      {/* RECENT ISSUES */}
+      <section style={{maxWidth:760,margin:"0 auto",padding:"40px 24px 56px"}}>
+        <h2 style={{fontSize:20,fontWeight:900,color:"#0f172a",letterSpacing:"-.01em",margin:"0 0 16px"}}>Recent Issues</h2>
+        {loading ? (
+          <div style={{background:"#fff",border:"1px solid #e2e8f0",borderRadius:14,padding:"22px 24px",color:"#64748b",fontSize:14}}>Loading...</div>
+        ) : recent.length === 0 ? (
+          <div style={{background:"#fff",border:"1px solid #e2e8f0",borderRadius:14,padding:"22px 24px",color:"#475569",fontSize:14,lineHeight:1.6}}>
+            Issue 1 arrives this Monday. Subscribe above to be first to receive it.
+          </div>
+        ) : (
+          <div style={{display:"flex",flexDirection:"column",gap:12}}>
+            {recent.map(rec => {
+              const f = rec.fields || {};
+              const num = f[NL_ISSUE_F.Issue_Number];
+              return (
+                <div key={rec.id} style={{background:"#fff",border:"1px solid #e2e8f0",borderRadius:14,padding:"18px 20px",boxShadow:"0 2px 10px rgba(0,0,0,.04)"}}>
+                  <div style={{fontSize:11,color:"#94a3b8",fontWeight:800,letterSpacing:".10em",textTransform:"uppercase",marginBottom:6}}>Issue #{num} &middot; {formatLongDate(f[NL_ISSUE_F.Date_Published])}</div>
+                  <div style={{fontSize:16,fontWeight:800,color:"#0f172a",marginBottom:8,lineHeight:1.35}}>{f[NL_ISSUE_F.Issue_Title] || "Issue #" + num}</div>
+                  <a href={"/newsletter/" + num} onClick={e=>{e.preventDefault();onNavigate("/newsletter/" + num);}} style={{color:"#f97316",fontWeight:800,fontSize:13,textDecoration:"none"}}>Read this issue &rarr;</a>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </section>
+
+      <style>{`@media(max-width:680px){.nl-preview-grid{grid-template-columns:1fr!important}}`}</style>
+
+      <Footer onNavigate={onNavigate}/>
+    </div>
+  );
+};
+
+const NewsletterIssuePage = ({ onNavigate, issueNumber }) => {
+  const [issue, setIssue] = useState(null);
+  const [status, setStatus] = useState("loading"); // loading | ready | notfound | error
+  const [alreadySubscribed, setAlreadySubscribed] = useState(false);
+
+  useEffect(() => {
+    try { setAlreadySubscribed(localStorage.getItem("humzones_nl_subscribed") === "1"); } catch {}
+  }, []);
+
+  useEffect(() => {
+    const n = parseInt(issueNumber, 10);
+    if (!Number.isFinite(n)) { setStatus("notfound"); return; }
+    const formula = encodeURIComponent(`AND({Issue_Number} = ${n}, {Status} = 'Sent')`);
+    const url = `${APIURL}/${NL_ISSUES_TABLE}?filterByFormula=${formula}&maxRecords=1&returnFieldsByFieldId=true`;
+    fetch(url, { headers: HDR })
+      .then(r => r.json())
+      .then(d => {
+        const rec = (d && d.records || [])[0];
+        if (!rec) { setStatus("notfound"); return; }
+        setIssue(rec);
+        setStatus("ready");
+        if (typeof document !== "undefined") {
+          const title = (rec.fields || {})[NL_ISSUE_F.Issue_Title] || ("Issue #" + n);
+          document.title = title + " | Infrastructure Intelligence | HumZones";
+        }
+      })
+      .catch(e => { console.warn("[newsletter] issue fetch failed:", e); setStatus("error"); });
+  }, [issueNumber]);
+
+  const f = (issue && issue.fields) || {};
+
+  return (
+    <div style={{minHeight:"100vh",background:"#f1f5f9",width:"100%",maxWidth:"100vw",overflowX:"hidden"}}>
+      <section style={{background:"linear-gradient(150deg,#020c1b 0%,#0f172a 45%,#1e0535 100%)",padding:"40px 24px 36px"}}>
+        <div style={{maxWidth:680,margin:"0 auto"}}>
+          <a href="/newsletter" onClick={e=>{e.preventDefault();onNavigate("/newsletter");}} style={{display:"inline-block",fontSize:13,color:"rgba(255,255,255,.7)",fontWeight:700,textDecoration:"none",marginBottom:14}}>&larr; Back to newsletter</a>
+          {status === "ready" && (
+            <>
+              <div style={{display:"inline-block",fontSize:11,color:"#f97316",letterSpacing:".18em",textTransform:"uppercase",fontWeight:800,marginBottom:10,padding:"5px 12px",borderRadius:30,background:"rgba(249,115,22,.12)",border:"1px solid rgba(249,115,22,.3)"}}>Issue #{f[NL_ISSUE_F.Issue_Number]}</div>
+              <h1 style={{fontSize:"clamp(22px,3.5vw,30px)",fontWeight:900,letterSpacing:"-.02em",color:"#fff",lineHeight:1.2,margin:"0 0 8px"}}>{f[NL_ISSUE_F.Issue_Title]}</h1>
+              <p style={{fontSize:13,color:"rgba(255,255,255,.6)",margin:0}}>{formatLongDate(f[NL_ISSUE_F.Date_Published])}</p>
+            </>
+          )}
+          {status === "loading" && <p style={{color:"rgba(255,255,255,.7)"}}>Loading issue...</p>}
+        </div>
+      </section>
+
+      <section style={{maxWidth:680,margin:"0 auto",padding:"30px 24px 8px"}}>
+        {status === "notfound" ? (
+          <div style={{background:"#fff",border:"1px solid #e2e8f0",borderRadius:14,padding:"24px",color:"#475569",fontSize:15,lineHeight:1.65}}>
+            This issue was not found. View all issues at <a href="/newsletter" onClick={e=>{e.preventDefault();onNavigate("/newsletter");}} style={{color:"#f97316",fontWeight:800,textDecoration:"none"}}>/newsletter</a>.
+          </div>
+        ) : status === "error" ? (
+          <div style={{background:"#fff",border:"1px solid #e2e8f0",borderRadius:14,padding:"24px",color:"#475569",fontSize:15,lineHeight:1.65}}>
+            We could not load this issue. Please try again or visit <a href="/newsletter" onClick={e=>{e.preventDefault();onNavigate("/newsletter");}} style={{color:"#f97316",fontWeight:800,textDecoration:"none"}}>/newsletter</a>.
+          </div>
+        ) : status === "ready" ? (
+          <div
+            style={{background:"#fff",border:"1px solid #e2e8f0",borderRadius:14,padding:"6px 6px 12px",boxShadow:"0 2px 12px rgba(0,0,0,.05)"}}
+            dangerouslySetInnerHTML={{ __html: String(f[NL_ISSUE_F.Content_HTML] || "").split("[UNSUBSCRIBE_LINK]").join("https://humzones.com/unsubscribe") }}
+          />
+        ) : null}
+      </section>
+
+      {status === "ready" && !alreadySubscribed && (
+        <section style={{maxWidth:680,margin:"0 auto",padding:"22px 24px 56px"}}>
+          <div style={{background:"#fff7ed",border:"1px solid #fed7aa",borderLeft:"4px solid #f97316",borderRadius:12,padding:"18px 22px"}}>
+            <p style={{fontSize:14,color:"#7c2d12",lineHeight:1.6,margin:"0 0 12px",fontWeight:700}}>Enjoyed this issue? Subscribe to get Infrastructure Intelligence every Monday.</p>
+            <NewsletterSignupForm source="Newsletter Issue Page" variant="light" showFirstName={false} compact/>
+          </div>
+        </section>
+      )}
+
+      <Footer onNavigate={onNavigate}/>
+    </div>
+  );
+};
+
+const NewsletterConfirmPage = ({ onNavigate }) => {
+  const [status, setStatus] = useState("working"); // working | ok | already | invalid
+  const startedRef = useRef(false);
+
+  useEffect(() => {
+    if (startedRef.current) return;
+    startedRef.current = true;
+    const params = new URLSearchParams(window.location.search);
+    const token = params.get("token") || "";
+    const email = params.get("email") || "";
+    if (!token || !email) { setStatus("invalid"); return; }
+    fetch("/api/newsletter-confirm", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ token, email }),
+    })
+      .then(r => r.json())
+      .then(d => {
+        if (d && d.status === "ok")               { setStatus("ok"); try { localStorage.setItem("humzones_nl_subscribed","1"); } catch {} }
+        else if (d && d.status === "already_confirmed") { setStatus("already"); try { localStorage.setItem("humzones_nl_subscribed","1"); } catch {} }
+        else                                       { setStatus("invalid"); }
+      })
+      .catch(e => { console.error("newsletter-confirm error:", e); setStatus("invalid"); });
+  }, []);
+
+  return (
+    <div style={{minHeight:"100vh",background:"linear-gradient(150deg,#020c1b 0%,#0f172a 50%,#1e0535 100%)",color:"#fff"}}>
+      <main style={{maxWidth:560,margin:"0 auto",padding:"60px 24px 80px",textAlign:"center"}}>
+        {status === "working" && (
+          <>
+            <div className="spinning" style={{width:36,height:36,border:"3px solid rgba(255,255,255,.18)",borderTop:"3px solid #f97316",borderRadius:"50%",margin:"0 auto 18px"}}/>
+            <p style={{fontSize:15,color:"rgba(255,255,255,.7)"}}>Confirming your subscription...</p>
+          </>
+        )}
+        {(status === "ok" || status === "already") && (
+          <div style={{background:"rgba(15,23,42,.55)",border:"1px solid rgba(249,115,22,.32)",borderRadius:16,padding:"30px 26px"}}>
+            <div style={{width:80,height:80,borderRadius:"50%",background:"linear-gradient(135deg,#ef4444,#f97316)",margin:"0 auto 20px",display:"flex",alignItems:"center",justifyContent:"center",boxShadow:"0 18px 50px rgba(249,115,22,.4)"}}>
+              <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>
+            </div>
+            <h1 style={{fontSize:24,fontWeight:900,color:"#fff",margin:"0 0 12px"}}>You are subscribed!</h1>
+            <p style={{fontSize:15,color:"rgba(255,255,255,.78)",lineHeight:1.65,margin:"0 auto 22px",maxWidth:480}}>
+              Infrastructure Intelligence arrives every Monday morning. We cover data center interconnection filings, facility news and community impact stories in plain language.
+            </p>
+            <div style={{display:"flex",gap:12,justifyContent:"center",flexWrap:"wrap"}}>
+              <button onClick={()=>onNavigate("/newsletter")} style={{padding:"13px 22px",borderRadius:12,border:"none",background:"linear-gradient(135deg,#ef4444,#f97316)",color:"#fff",fontSize:14,fontWeight:900,cursor:"pointer",fontFamily:"inherit",boxShadow:"0 10px 28px rgba(249,115,22,.4)"}}>
+                Read Recent Issues
+              </button>
+              <button onClick={()=>onNavigate("/")} style={{padding:"13px 22px",borderRadius:12,border:"1px solid rgba(255,255,255,.22)",background:"transparent",color:"#fff",fontSize:14,fontWeight:800,cursor:"pointer",fontFamily:"inherit"}}>
+                Return Home
+              </button>
+            </div>
+          </div>
+        )}
+        {status === "invalid" && (
+          <div style={{background:"rgba(15,23,42,.55)",border:"1px solid rgba(239,68,68,.32)",borderRadius:16,padding:"30px 26px"}}>
+            <h1 style={{fontSize:22,fontWeight:900,color:"#fff",margin:"0 0 12px"}}>This confirmation link has expired or is not valid.</h1>
+            <p style={{fontSize:15,color:"rgba(255,255,255,.78)",lineHeight:1.65,margin:"0 auto 22px",maxWidth:480}}>
+              Please subscribe again at humzones.com/newsletter.
+            </p>
+            <button onClick={()=>onNavigate("/newsletter")} style={{padding:"13px 22px",borderRadius:12,border:"none",background:"linear-gradient(135deg,#ef4444,#f97316)",color:"#fff",fontSize:14,fontWeight:900,cursor:"pointer",fontFamily:"inherit",boxShadow:"0 10px 28px rgba(249,115,22,.4)"}}>
+              Go to Newsletter
+            </button>
+          </div>
+        )}
+      </main>
+      <Footer onNavigate={onNavigate}/>
+    </div>
+  );
+};
+
 // ─── SCROLL TO TOP ───────────────────────────────────────────────────────────
 // Scrolls the window to the top whenever the active route changes, so footer
 // links and other cross-page navigation always land at the top of the
@@ -9686,6 +10168,7 @@ const GH_MENU = {
     layout: 2,
     columns: [
       { head: "PARTICIPATE", items: [
+        { title: "📰 Newsletter",        desc: "Free weekly Infrastructure Intelligence",  to: "/newsletter" },
         { title: "Donate",               desc: "Support the registry",                     to: "/donate", accent: "heart" },
         { title: "Submit Your Report",   desc: "Share your experience",                    to: "/submit-report" },
         { title: "Community Reports",    desc: "Read verified resident reports",           to: "/" },
@@ -10547,6 +11030,12 @@ export default function App() {
         <LearnPage onNavigate={navigate}/>
       ) : path === "/glossary" ? (
         <GlossaryPage onNavigate={navigate}/>
+      ) : path === "/newsletter" ? (
+        <NewsletterPage onNavigate={navigate}/>
+      ) : path.startsWith("/newsletter/") ? (
+        <NewsletterIssuePage onNavigate={navigate} issueNumber={path.slice("/newsletter/".length)}/>
+      ) : path === "/newsletter-confirm" ? (
+        <NewsletterConfirmPage onNavigate={navigate}/>
       ) : path === "/donate-thank-you" ? (
         <DonateThankYouPage onNavigate={navigate}/>
       ) : (
