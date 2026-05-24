@@ -1651,6 +1651,24 @@ const GetReportPage = ({ onNavigate }) => {
   const formLoadTimeRef = useRef(Date.now());
   const resultsRef      = useRef(null);
 
+  // Free sample report download — lets visitors preview the report depth
+  // before committing an address or email. Same placeholder data as the
+  // footer link, so no real facility figures leak.
+  const [sampleBusy, setSampleBusy] = useState(false);
+  const handleSampleDownload = async () => {
+    if (sampleBusy) return;
+    setSampleBusy(true);
+    try {
+      const { doc } = await generateSamplePersonalReportPDF();
+      doc.save("HumZones-Sample-Report.pdf");
+    } catch (e) {
+      console.error("Sample report generation failed:", e);
+      window.alert("We could not generate the sample report. Please try again.");
+    } finally {
+      setSampleBusy(false);
+    }
+  };
+
   useEffect(()=>{
     cachedFetch("Facilities",{"fields[]":FACILITY_LIST_FIELDS})
       .then(d=>setFacs(d))
@@ -1836,6 +1854,17 @@ const GetReportPage = ({ onNavigate }) => {
           </button>
 
           {error && <div style={{fontSize:14,color:"#fca5a5",fontWeight:600,marginTop:14}}>{error}</div>}
+
+          {/* Secondary CTA: download a free sample PDF so visitors can see
+              the report depth before searching. Matches the outline-button
+              styling used in the upsell section. */}
+          <button
+            onClick={handleSampleDownload}
+            disabled={sampleBusy}
+            style={{width:"100%",maxWidth:340,marginTop:14,padding:"14px 30px",borderRadius:12,border:"2px solid #f97316",background:"transparent",color:"#f97316",fontSize:15,fontWeight:900,letterSpacing:".02em",cursor:sampleBusy?"wait":"pointer",fontFamily:"inherit",opacity:sampleBusy?.65:1}}
+          >
+            {sampleBusy ? "Generating Sample..." : "Download Free Sample"}
+          </button>
 
           <p style={{fontSize:12,color:"rgba(255,255,255,.45)",marginTop:16,lineHeight:1.6,maxWidth:480,marginLeft:"auto",marginRight:"auto"}}>
             We use OpenStreetMap to geocode your address. Your location is never stored without your consent.
