@@ -2,8 +2,8 @@ name: Newsletter weekly
 
 on:
   schedule:
-    - cron: '0 6 * * 1'   # Generate — Monday 6am UTC
-    - cron: '0 9 * * 1'   # Send — Monday 9am UTC
+    - cron: '0 6 * * 1'
+    - cron: '0 9 * * 1'
   workflow_dispatch:
     inputs:
       action:
@@ -36,7 +36,9 @@ jobs:
           curl -X POST https://humzones.com/api/generate-newsletter \
             -H "X-Cron-Secret: ${{ secrets.CRON_SECRET }}" \
             -H "Content-Type: application/json" \
-            --fail-with-body
+            --verbose \
+            --fail-with-body \
+            --max-time 60
 
       - name: Send newsletter
         if: steps.action.outputs.action == 'send'
@@ -44,4 +46,6 @@ jobs:
           curl -X POST https://humzones.com/api/send-newsletter \
             -H "X-Cron-Secret: ${{ secrets.CRON_SECRET }}" \
             -H "Content-Type: application/json" \
-            --fail-with-body
+            --verbose \
+            --fail-with-body \
+            --max-time 60
