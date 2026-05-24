@@ -4,15 +4,18 @@ on:
   schedule:
     - cron: '0 6 * * 1'
     - cron: '0 9 * * 1'
+    - cron: '0 6 * * 4'
+    - cron: '0 9 * * 4'
   workflow_dispatch:
     inputs:
       action:
         description: 'Which action to run'
         required: true
-        default: 'generate'
+        default: 'generate-filings'
         type: choice
         options:
-          - generate
+          - generate-filings
+          - generate-news
           - send
 
 jobs:
@@ -25,30 +28,41 @@ jobs:
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
             echo "action=${{ github.event.inputs.action }}" >> $GITHUB_OUTPUT
           elif [ "${{ github.event.schedule }}" = "0 6 * * 1" ]; then
-            echo "action=generate" >> $GITHUB_OUTPUT
+            echo "action=generate-filings" >> $GITHUB_OUTPUT
+          elif [ "${{ github.event.schedule }}" = "0 6 * * 4" ]; then
+            echo "action=generate-news" >> $GITHUB_OUTPUT
           else
             echo "action=send" >> $GITHUB_OUTPUT
           fi
 
       - name: Check out repo
-        if: steps.action.outputs.action == 'generate'
+        if: startsWith(steps.action.outputs.action, 'generate-')
         uses: actions/checkout@v4
 
       - name: Set up Node
-        if: steps.action.outputs.action == 'generate'
+        if: startsWith(steps.action.outputs.action, 'generate-')
         uses: actions/setup-node@v4
         with:
           node-version: '24'
 
       - name: Install dependencies
-        if: steps.action.outputs.action == 'generate'
+        if: startsWith(steps.action.outputs.action, 'generate-')
         run: npm install --no-audit --no-fund
 
-      - name: Generate newsletter
-        if: steps.action.outputs.action == 'generate'
+      - name: Generate filings newsletter
+        if: steps.action.outputs.action == 'generate-filings'
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           AIRTABLE_KEY: ${{ secrets.AIRTABLE_KEY }}
+          NEWSLETTER_TYPE: filings
+        run: node scripts/generate-newsletter.js
+
+      - name: Generate news newsletter
+        if: steps.action.outputs.action == 'generate-news'
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          AIRTABLE_KEY: ${{ secrets.AIRTABLE_KEY }}
+          NEWSLETTER_TYPE: news
         run: node scripts/generate-newsletter.js
 
       - name: Send newsletter
