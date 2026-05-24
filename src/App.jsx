@@ -7501,7 +7501,7 @@ const SubmitReportPage = ({ onNavigate }) => {
       )}
 
       {/* REPORT FORM */}
-      <section ref={formRef} style={{maxWidth:760,margin:"0 auto",padding:"40px 24px 72px"}}>
+      <section ref={formRef} style={{maxWidth:760,margin:"0 auto",padding:"40px 24px 20px"}}>
         <div style={{background:"#fff",border:"1px solid #e2e8f0",borderRadius:18,padding:"32px 32px 34px",boxShadow:"0 4px 24px rgba(0,0,0,.07)"}}>
           <h2 style={{fontSize:24,fontWeight:900,color:"#0f172a",marginBottom:8}}>Your Report</h2>
           {duplicateInfo ? (
