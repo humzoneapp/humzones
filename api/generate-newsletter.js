@@ -17,6 +17,8 @@
 //                      https://generate-secret.vercel.app/32
 //                      The cron will return 401 until this is set.
 
+const FUNCTION_TIMEOUT = 55000;
+
 const AIRTABLE_BASE   = "app2FUPqq8VQSwQ64";
 const ISSUES_TABLE    = "tbl3pKjNdgxJGYr0u";
 const F = {
@@ -135,7 +137,9 @@ module.exports = async (req, res) => {
     return res.status(401).json({ error: "Unauthorized" });
   }
 
-  try {
+  console.log('[newsletter] start', new Date().toISOString());
+
+  const mainLogic = async () => {
     // STEP 1: Pull previous issue headlines to seed the dedup hint.
     const existing = await airtableListAll(ISSUES_TABLE, {});
     const sent = existing
@@ -239,13 +243,15 @@ module.exports = async (req, res) => {
       "containing 'Infrastructure Intelligence by HumZones | humzones.com' and " +
       "an unsubscribe placeholder: [UNSUBSCRIBE_LINK]";
 
+    console.log('[newsletter] calling Anthropic API', new Date().toISOString());
     const draftResp = await callAnthropic({
       model: "claude-sonnet-4-5",
-      max_tokens: 4000,
-      tools: [{ type: "web_search_20250305", name: "web_search" }],
+      max_tokens: 2500,
+      tools: [{ type: "web_search_20250305", name: "web_search", max_uses: 4 }],
       system: systemPrompt,
       messages: [{ role: "user", content: userPrompt }],
     });
+    console.log('[newsletter] Anthropic response received', new Date().toISOString());
     const draftHtmlRaw = joinResponseText(draftResp);
     // Models often wrap HTML in a ```html ... ``` fence; strip if present.
     const draftHtml = draftHtmlRaw
@@ -297,6 +303,7 @@ module.exports = async (req, res) => {
 
     // STEP 5: Save as Draft. The send cron at 9am UTC picks up only
     // issues that an editor has flipped to Status=Ready in Airtable.
+    console.log('[newsletter] saving to Airtable', new Date().toISOString());
     const created = await airtableCreate(ISSUES_TABLE, {
       [F.Issue_Title]:    issueTitle,
       [F.Issue_Number]:   nextNumber,
@@ -306,15 +313,28 @@ module.exports = async (req, res) => {
       [F.Status]:         "Draft",
     });
 
-    return res.status(200).json({
+    console.log('[newsletter] done', new Date().toISOString());
+    return {
       ok: true,
       id: created && created.id,
       issueNumber: nextNumber,
       issueTitle,
       subjectLine,
       message: "Draft saved. Review the issue in Airtable and flip Status to Ready to send at the next 09:00 UTC cron.",
-    });
+    };
+  };
+
+  let timeoutId;
+  const timeoutPromise = new Promise((_, reject) => {
+    timeoutId = setTimeout(() => reject(new Error("Function timeout after 55s")), FUNCTION_TIMEOUT);
+  });
+
+  try {
+    const result = await Promise.race([mainLogic(), timeoutPromise]);
+    clearTimeout(timeoutId);
+    return res.status(200).json(result);
   } catch (e) {
+    clearTimeout(timeoutId);
     console.error("[generate-newsletter] failed:", e && e.message);
     return res.status(500).json({ error: (e && e.message) || "Generation failed" });
   }
