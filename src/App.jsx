@@ -4459,9 +4459,6 @@ const Footer = ({ onNavigate, facilities = [] }) => {
           <div>
             <div style={colHead}>Explore</div>
             <div style={colWrap}>
-              <a href="/donate" onClick={e=>{e.preventDefault();go("/donate");}} className="hz-foot-link" style={linkBase}>
-                <span aria-hidden="true" style={{color:"#f97316",marginRight:6}}>♥</span>Donate
-              </a>
               {navLink("Home","/")}
               <a href="/#near-me" onClick={e=>{e.preventDefault();goNearMe();}} className="hz-foot-link" style={linkBase}>Find Data Centers Near Me</a>
               {navLink("Newsletter","/newsletter")}
@@ -4471,6 +4468,9 @@ const Footer = ({ onNavigate, facilities = [] }) => {
               {navLink("Infrastructure Glossary","/glossary")}
               {navLink("Methodology","/methodology")}
               {navLink("FAQ","/faq")}
+              <a href="/donate" onClick={e=>{e.preventDefault();go("/donate");}} className="hz-foot-link" style={linkBase}>
+                <span aria-hidden="true" style={{color:"#f97316",marginRight:6}}>♥</span>Donate
+              </a>
             </div>
           </div>
 
@@ -10169,10 +10169,10 @@ const GH_MENU = {
     columns: [
       { head: "PARTICIPATE", items: [
         { title: "📰 Newsletter",        desc: "Free weekly Infrastructure Intelligence",  to: "/newsletter" },
-        { title: "Donate",               desc: "Support the registry",                     to: "/donate", accent: "heart" },
         { title: "Submit Your Report",   desc: "Share your experience",                    to: "/submit-report" },
         { title: "Community Reports",    desc: "Read verified resident reports",           to: "/" },
         { title: "Contact Us",           desc: "Get in touch with our team",               to: "/contact" },
+        { title: "Donate",               desc: "Support the registry",                     to: "/donate", accent: "heart" },
       ]},
       { head: "RESEARCH", items: [
         { title: "Methodology",          desc: "Our research approach",                    to: "/methodology" },
