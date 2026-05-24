@@ -19,6 +19,12 @@ jobs:
   run-newsletter:
     runs-on: ubuntu-latest
     steps:
+      - name: Debug secret prefix
+        run: |
+          echo "Secret prefix: ${SECRET:0:4}"
+        env:
+          SECRET: ${{ secrets.CRON_SECRET }}
+
       - name: Determine action
         id: action
         run: |
@@ -38,7 +44,8 @@ jobs:
             -H "Content-Type: application/json" \
             --verbose \
             --fail-with-body \
-            --max-time 60
+            --max-time 60 \
+            -w "\nHTTP Status: %{http_code}\n"
 
       - name: Send newsletter
         if: steps.action.outputs.action == 'send'
@@ -48,4 +55,5 @@ jobs:
             -H "Content-Type: application/json" \
             --verbose \
             --fail-with-body \
-            --max-time 60
+            --max-time 60 \
+            -w "\nHTTP Status: %{http_code}\n"
