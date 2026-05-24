@@ -243,7 +243,7 @@ function wrapIssueForEmail(contentHtml, email) {
       'You subscribed at humzones.com. ' +
       '<a href="' + unsubUrl + '" style="color:#f97316;">Unsubscribe</a>' +
     '</div>';
-  return String(contentHtml || "").replace('[UNSUBSCRIBE_LINK]', unsubUrl) + footer;
+  return String(contentHtml || "").replaceAll('[UNSUBSCRIBE_LINK]', unsubUrl) + footer;
 }
 
 async function sendConfirmationEmail({ email, firstName, token }) {
