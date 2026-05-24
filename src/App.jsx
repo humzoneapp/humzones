@@ -709,6 +709,16 @@ const CSS = `
   .hz-gh-mobile-cta:hover{background:#ea580c}
   .hz-gh-backdrop{position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:10001;animation:hzGhFade .2s ease both}
   @keyframes hzGhFade{from{opacity:0}to{opacity:1}}
+
+  /* Plain-English info tooltip used beside facility metric labels.
+     Pure CSS show/hide so it works on hover (desktop), focus (keyboard)
+     and tap (mobile via tabindex=0 -> focus). The arrow points down so
+     tooltips read as labels above the icon. */
+  .hz-info{position:relative;display:inline-flex;align-items:center;justify-content:center;width:14px;height:14px;border-radius:50%;background:rgba(148,163,184,.18);color:#64748b;font-size:9px;font-weight:900;font-style:italic;cursor:help;margin-left:6px;border:1px solid rgba(148,163,184,.45);user-select:none;outline:none;line-height:1;flex-shrink:0;vertical-align:middle}
+  .hz-info:hover,.hz-info:focus-visible{background:rgba(249,115,22,.2);color:#f97316;border-color:rgba(249,115,22,.55)}
+  .hz-info-tip{position:absolute;bottom:calc(100% + 8px);left:50%;transform:translateX(-50%);background:#1e293b;color:#fff;font-size:12px;font-weight:500;line-height:1.5;letter-spacing:.01em;padding:9px 12px;border-radius:8px;max-width:220px;width:max-content;text-align:left;opacity:0;pointer-events:none;transition:opacity .15s ease;box-shadow:0 10px 28px rgba(0,0,0,.35);z-index:1000;white-space:normal;font-style:normal}
+  .hz-info-tip::after{content:"";position:absolute;top:100%;left:50%;transform:translateX(-50%);border:6px solid transparent;border-top-color:#1e293b}
+  .hz-info:hover .hz-info-tip,.hz-info:focus .hz-info-tip,.hz-info:focus-within .hz-info-tip{opacity:1;pointer-events:auto}
 `;
 
 // ─── COMPONENTS ───────────────────────────────────────────────────────────────
@@ -728,6 +738,54 @@ const SrcLink = ({text,url}) => (
     {text} <Icon name="external" size={13} color="#3b82f6"/>
   </a>
 );
+
+// Small "i" icon that reveals a tooltip on hover/focus. Used beside
+// facility metric labels and the impact badge so residents can see a
+// plain-language explanation without leaving the card. Pure-CSS show
+// logic via tabIndex=0 so mobile tap focuses and opens the tip; a tap
+// elsewhere blurs and closes it.
+const InfoTip = ({ children, label = "More info about this metric" }) => (
+  <span className="hz-info" tabIndex={0} role="button" aria-label={label}>
+    i
+    <span className="hz-info-tip" role="tooltip">{children}</span>
+  </span>
+);
+
+// Plain-language tooltip copy keyed off the metric name. Power and
+// Cooling vary per facility so they are functions; the rest are
+// constant strings.
+const METRIC_TIP = {
+  power: (mw) => {
+    const n = Number(mw);
+    if (!Number.isFinite(n) || n <= 0) {
+      return "The amount of electricity this facility draws during normal operation. Source: public operator filings.";
+    }
+    const homes = Math.round(n * 750).toLocaleString();
+    return `The amount of electricity this facility draws during normal operation. Equivalent to ${homes} homes powered continuously. Source: public operator filings.`;
+  },
+  noise:    "A modeled estimate of noise levels at the facility boundary. Sustained noise above 65dB is comparable to heavy traffic. This figure is an estimate, not a certified measurement.",
+  emfFence: "A modeled estimate of electromagnetic field levels at the facility perimeter. Measured in milliGauss (mG). This is a calculated estimate based on power draw, not a certified field measurement.",
+  emf100m:  "A modeled estimate of electromagnetic field levels 100 meters from the facility perimeter. WHO and IARC have studied potential associations between long-term EMF exposure and health. HumZones makes no health claims.",
+  cooling: (c) => {
+    const v = String(c || "").toLowerCase();
+    if (v.includes("evapora")) return "Evaporative: uses water evaporation to remove heat. Very water intensive, can use millions of gallons daily.";
+    if (v.includes("chilled")) return "Chilled water: circulates cooled water through servers. Lower water use than evaporative but energy intensive.";
+    return "Cooling type for this facility. Chilled water circulates cooled water through servers (lower water use, more energy intensive). Evaporative uses water evaporation to remove heat (very water intensive).";
+  },
+  opened:   "The year this facility began operations according to publicly available records. Facilities expand over time. The current footprint may be significantly larger than when it opened.",
+  water:    "A modeled estimate of daily water draw for cooling. Evaporative cooling can use millions of gallons per day; chilled-water systems use less. This figure is an estimate, not a metered reading.",
+  impact: (level) => {
+    const l = String(level || "").toUpperCase();
+    const closing = l === "HIGH"
+      ? "HIGH indicates the largest estimated local footprint."
+      : l === "MODERATE" || l === "LOW-MODERATE"
+        ? "MODERATE indicates a mid-range estimated local footprint."
+        : l === "LOW"
+          ? "LOW indicates a smaller estimated local footprint."
+          : "Each tier reflects a different estimated local footprint.";
+    return "Infrastructure impact categories are relative indicators based on modeled estimates of power draw and proximity to residential areas. They are not scientific measurements or health determinations. " + closing;
+  },
+};
 
 // OpenStreetMap image component with fallback
 const FacilityMapImage = ({ dc, rc }) => {
@@ -806,9 +864,12 @@ const FacilityMapImage = ({ dc, rc }) => {
       <div style={{position:"absolute",top:0,left:0,right:0,height:5,background:rc}}/>
 
       {/* Status/risk badges */}
-      <div style={{position:"absolute",bottom:18,left:20,display:"flex",gap:8,flexWrap:"wrap"}}>
+      <div style={{position:"absolute",bottom:18,left:20,display:"flex",gap:8,flexWrap:"wrap",alignItems:"center"}}>
         <Chip label={STATUS[dc.Facility_Status]?.label || dc.Facility_Status} color={STATUS[dc.Facility_Status]?.color || "#64748b"}/>
-        <Chip label={exposureLabel(dc.Risk_Level)} color={rc}/>
+        <span style={{display:"inline-flex",alignItems:"center"}}>
+          <Chip label={exposureLabel(dc.Risk_Level)} color={rc}/>
+          <InfoTip label="About impact tiers">{METRIC_TIP.impact(dc.Risk_Level)}</InfoTip>
+        </span>
       </div>
     </div>
   );
@@ -1794,9 +1855,12 @@ const GetReportPage = ({ onNavigate }) => {
           <div style={{padding:"6px 12px",borderRadius:999,background:dclr,color:"#fff",fontWeight:800,fontSize:13,letterSpacing:".02em",boxShadow:`0 4px 14px ${dclr}55`}}>
             {f._km.toFixed(1)} km away
           </div>
-          <div style={{display:"flex",gap:6}}>
+          <div style={{display:"flex",gap:6,alignItems:"center"}}>
             <Chip label={st.label} color={st.color} small/>
-            <Chip label={exposureLabel(f.Risk_Level)} color={rclr} small/>
+            <span style={{display:"inline-flex",alignItems:"center"}}>
+              <Chip label={exposureLabel(f.Risk_Level)} color={rclr} small/>
+              <InfoTip label="About impact tiers">{METRIC_TIP.impact(f.Risk_Level)}</InfoTip>
+            </span>
           </div>
         </div>
       </div>
@@ -4384,6 +4448,7 @@ const Footer = ({ onNavigate, facilities = [] }) => {
               {navLink("Community Reports","/submit-report")}
               {navLink("Submit Your Report","/submit-report")}
               {navLink("Resident Guides","/learn")}
+              {navLink("Infrastructure Glossary","/glossary")}
               {navLink("Methodology","/methodology")}
               {navLink("FAQ","/faq")}
             </div>
@@ -5275,18 +5340,19 @@ const BusinessGeneratePage = ({ onNavigate }) => {
                         <div style={{fontSize:16,fontWeight:800,color:"#fff"}}>{f.Name || "Unnamed facility"}</div>
                         {f.Company && <div style={{fontSize:13,color:"rgba(255,255,255,.6)"}}>{f.Company}</div>}
                       </div>
-                      <span style={{padding:"4px 12px",borderRadius:20,background:`${riskColor(f.Risk_Level)}22`,border:`1px solid ${riskColor(f.Risk_Level)}66`,color:riskColor(f.Risk_Level),fontSize:11,fontWeight:900,letterSpacing:".10em"}}>
+                      <span style={{display:"inline-flex",alignItems:"center",padding:"4px 12px",borderRadius:20,background:`${riskColor(f.Risk_Level)}22`,border:`1px solid ${riskColor(f.Risk_Level)}66`,color:riskColor(f.Risk_Level),fontSize:11,fontWeight:900,letterSpacing:".10em"}}>
                         {exposureLabel(f.Risk_Level)}
+                        <InfoTip label="About impact tiers">{METRIC_TIP.impact(f.Risk_Level)}</InfoTip>
                       </span>
                     </div>
                     <div style={{fontSize:13,color:"#f97316",fontWeight:700,marginBottom:10}}>{Number(f._km).toFixed(1)} km away</div>
                     <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill, minmax(160px, 1fr))",gap:10,fontSize:13,color:"rgba(255,255,255,.78)"}}>
-                      <div><span style={{color:"rgba(255,255,255,.5)"}}>Power: </span>{f.Power_MW != null && f.Power_MW !== "" ? `${f.Power_MW} MW` : "n/a"}</div>
-                      <div><span style={{color:"rgba(255,255,255,.5)"}}>Noise: </span>{f.Noise_DB != null && f.Noise_DB !== "" ? `${f.Noise_DB} dB` : "n/a"}</div>
-                      <div><span style={{color:"rgba(255,255,255,.5)"}}>EMF fence: </span>{f.EMF_Fence_High != null && f.EMF_Fence_High !== "" ? `${f.EMF_Fence_High} mG` : "n/a"}</div>
-                      <div><span style={{color:"rgba(255,255,255,.5)"}}>EMF 100m: </span>{f.EMF_100m != null && f.EMF_100m !== "" ? `${f.EMF_100m} mG` : "n/a"}</div>
-                      <div><span style={{color:"rgba(255,255,255,.5)"}}>Cooling: </span>{f.Cooling || "n/a"}</div>
-                      <div><span style={{color:"rgba(255,255,255,.5)"}}>Opened: </span>{f.Opened || "n/a"}</div>
+                      <div><span style={{color:"rgba(255,255,255,.5)"}}>Power<InfoTip label="About power draw">{METRIC_TIP.power(f.Power_MW)}</InfoTip>: </span>{f.Power_MW != null && f.Power_MW !== "" ? `${f.Power_MW} MW` : "n/a"}</div>
+                      <div><span style={{color:"rgba(255,255,255,.5)"}}>Noise<InfoTip label="About noise estimate">{METRIC_TIP.noise}</InfoTip>: </span>{f.Noise_DB != null && f.Noise_DB !== "" ? `${f.Noise_DB} dB` : "n/a"}</div>
+                      <div><span style={{color:"rgba(255,255,255,.5)"}}>EMF fence<InfoTip label="About EMF at fence">{METRIC_TIP.emfFence}</InfoTip>: </span>{f.EMF_Fence_High != null && f.EMF_Fence_High !== "" ? `${f.EMF_Fence_High} mG` : "n/a"}</div>
+                      <div><span style={{color:"rgba(255,255,255,.5)"}}>EMF 100m<InfoTip label="About EMF at 100m">{METRIC_TIP.emf100m}</InfoTip>: </span>{f.EMF_100m != null && f.EMF_100m !== "" ? `${f.EMF_100m} mG` : "n/a"}</div>
+                      <div><span style={{color:"rgba(255,255,255,.5)"}}>Cooling<InfoTip label="About cooling type">{METRIC_TIP.cooling(f.Cooling)}</InfoTip>: </span>{f.Cooling || "n/a"}</div>
+                      <div><span style={{color:"rgba(255,255,255,.5)"}}>Opened<InfoTip label="About opened year">{METRIC_TIP.opened}</InfoTip>: </span>{f.Opened || "n/a"}</div>
                     </div>
                   </div>
                 ))}
@@ -8606,6 +8672,277 @@ const LearnPage = ({ onNavigate }) => {
   );
 };
 
+// ─── /glossary: INFRASTRUCTURE GLOSSARY ──────────────────────────────────────
+// Plain-language definitions of the terminology residents encounter in
+// utility filings, planning documents and news coverage of data center
+// development. Each term carries a "What this means for you" panel that
+// translates the definition into resident-level impact, plus an optional
+// example. The page is a single component with client-side search and
+// category filtering.
+
+const GLOSSARY_CATEGORIES = ["Power & Energy", "Infrastructure", "Environmental", "Regulatory", "Data Centers"];
+
+const GLOSSARY_CATEGORY_COLOR = {
+  "Power & Energy":  { bg: "rgba(234,179,8,.12)",  border: "#eab308", text: "#854d0e" },
+  "Infrastructure":  { bg: "rgba(59,130,246,.12)", border: "#3b82f6", text: "#1d4ed8" },
+  "Environmental":   { bg: "rgba(34,197,94,.12)",  border: "#22c55e", text: "#15803d" },
+  "Regulatory":      { bg: "rgba(139,92,246,.12)", border: "#8b5cf6", text: "#6d28d9" },
+  "Data Centers":    { bg: "rgba(249,115,22,.12)", border: "#f97316", text: "#c2410c" },
+};
+
+const GLOSSARY_TERMS = [
+  // Power & Energy
+  { term: "Megawatt (MW)", category: "Power & Energy",
+    definition: "A unit of electrical power equal to one million watts. Data centers are measured in megawatts of power capacity.",
+    means: "A 100MW data center draws enough electricity to continuously power approximately 75,000 average American homes. When you see a facility listed as 500MW, that is the equivalent power demand of a mid-sized city, concentrated in a single building near your neighborhood.",
+    example: "Amazon's Northern Virginia data centers collectively draw over 2,000MW." },
+  { term: "Gigawatt (GW)", category: "Power & Energy",
+    definition: "One thousand megawatts. Used to describe regional or national-scale power demand.",
+    means: "The entire data center industry in Virginia now consumes over 20% of the state's total electricity generation. When planners talk about gigawatt-scale demand, they are describing infrastructure that reshapes entire regional power grids." },
+  { term: "Power Draw", category: "Power & Energy",
+    definition: "The amount of electricity a facility consumes during normal operation.",
+    means: "Higher power draw generally means larger cooling systems, more diesel backup generators, more substation infrastructure nearby and greater strain on the local grid. All of these have direct environmental and noise implications for surrounding neighborhoods." },
+  { term: "PUE (Power Usage Effectiveness)", category: "Power & Energy",
+    definition: "A ratio measuring how efficiently a data center uses electricity. A PUE of 1.0 would be perfect efficiency. Most facilities operate between 1.2 and 1.5.",
+    means: "A facility with a PUE of 1.5 uses 50% more electricity than its servers actually need. The rest goes to cooling, lighting and other overhead. Less efficient facilities generate more waste heat and require more cooling water." },
+  { term: "Load Factor", category: "Power & Energy",
+    definition: "The ratio of a facility's average power consumption to its maximum capacity.",
+    means: "A high load factor means the facility is running near full capacity most of the time, which affects noise levels, cooling demand and grid strain in your area consistently rather than occasionally." },
+
+  // Infrastructure
+  { term: "Interconnection Queue", category: "Infrastructure",
+    definition: "A formal waiting list that companies must join before connecting large new power loads to the electric grid. Managed by regional grid operators like PJM (Mid-Atlantic) or MISO (Midwest).",
+    means: "When a company submits an interconnection request in your area, it is one of the earliest public signals that a large facility is being planned, often 12 to 36 months before construction begins. The interconnection queue is publicly available and is one of the primary sources HumZones uses to identify planned facilities before they appear in local news.",
+    example: "PJM's interconnection queue for the Mid-Atlantic region contains hundreds of gigawatts of pending requests, many of them data centers in Northern Virginia." },
+  { term: "Substation", category: "Infrastructure",
+    definition: "An electrical facility that transforms voltage levels to distribute power across the grid. Large data centers typically require dedicated substations or significant upgrades to existing ones.",
+    means: "New substations or substation upgrades near your home are often a sign that large-scale power infrastructure is being planned in your area. Substations produce a continuous low-frequency hum and require significant land." },
+  { term: "Transmission Upgrade", category: "Infrastructure",
+    definition: "Improvements to high-voltage power lines and related infrastructure to handle increased electricity demand.",
+    means: "When utility companies file for transmission upgrades in a specific corridor, it frequently signals that large power consumers like data centers are being planned in that area. These filings are public documents." },
+  { term: "Balancing Authority", category: "Infrastructure",
+    definition: "An organization responsible for matching electricity supply with demand in real time across a defined geographic area. Examples include PJM, ERCOT and MISO.",
+    means: "When data center clusters grow large enough, balancing authorities sometimes have to redesign entire regional grid segments to accommodate them. This can affect electricity reliability and rates for everyone in the region, not just people living near a specific facility." },
+  { term: "Diesel Generator (Emergency Backup)", category: "Infrastructure",
+    definition: "Large diesel-powered generators that data centers maintain to keep servers running during power outages. Facilities may have dozens of generators capable of running for days.",
+    means: "Diesel generators produce significant exhaust, noise and particulate emissions when tested or activated. Many large data centers test their generators monthly, often at night. Regular generator testing is one of the most common complaints among residents near large facilities." },
+  { term: "Cooling Tower", category: "Infrastructure",
+    definition: "Large evaporative cooling systems that remove heat from data center equipment by evaporating water into the atmosphere.",
+    means: "Cooling towers consume millions of gallons of water daily, produce visible water vapor plumes, and generate continuous operational noise. They are one of the primary sources of water consumption and noise in large data center campuses." },
+
+  // Environmental
+  { term: "WUE (Water Usage Effectiveness)", category: "Environmental",
+    definition: "An industry standard metric measuring how much water a data center uses per unit of computing work performed. Measured in liters per kilowatt-hour.",
+    means: "A large data center with a WUE of 1.5 and 100MW of power draw consumes approximately 1.3 million gallons of water per day. This water is primarily removed from the local hydrological cycle through evaporation, which can stress local water supplies in drought-prone areas." },
+  { term: "CO2 Equivalent Emissions", category: "Environmental",
+    definition: "A standardized measure of greenhouse gas emissions that converts different gases into their carbon dioxide equivalent for comparison purposes.",
+    means: "The modeled CO2 estimates in HumZones reports are calculated by applying EPA regional emissions factors to a facility's reported power draw. A 100MW data center in a coal-heavy grid region produces approximately the same annual emissions as 80,000 cars." },
+  { term: "Noise Floor", category: "Environmental",
+    definition: "The baseline ambient noise level in a given area, typically measured in decibels (dB).",
+    means: "Data center cooling systems operate 24 hours a day 7 days a week including overnight. Even a modest increase in the ambient noise floor (say from 45dB to 55dB) can significantly affect sleep quality for nearby residents, particularly because data center noise tends to be low-frequency and difficult to block with standard insulation." },
+  { term: "EMF (Electromagnetic Field)", category: "Environmental",
+    definition: "Invisible fields of energy associated with the use of electrical power and wireless technology. Measured in milliGauss (mG) near power infrastructure.",
+    means: "The EMF figures in HumZones reports are modeled estimates based on facility power draw and distance. They are not certified measurements. Research by WHO and IARC has examined potential associations between long-term EMF exposure and health outcomes. HumZones makes no health claims; we provide estimates so residents can ask informed questions." },
+
+  // Regulatory
+  { term: "FOIA (Freedom of Information Act)", category: "Regulatory",
+    definition: "A federal law that gives the public the right to request access to records from any federal agency.",
+    means: "Many of the documents HumZones relies on (interconnection applications, environmental assessments, utility filings) are obtained through FOIA requests or state-level public records laws. You can also request these documents yourself. HumZones can help you understand what to look for." },
+  { term: "Special Use Permit (SUP)", category: "Regulatory",
+    definition: "A local government approval required for certain land uses that are not automatically permitted under existing zoning, including data centers in some jurisdictions.",
+    means: "If a data center requires a Special Use Permit in your area, there will be a public hearing before it is approved. This is your opportunity to attend, speak and have your concerns entered into the public record." },
+  { term: "Zoning Classification", category: "Regulatory",
+    definition: "A local government designation that determines what types of buildings and activities are permitted on a given piece of land.",
+    means: "Data centers are typically classified as industrial or commercial uses. Many jurisdictions have updated their zoning codes to either encourage or restrict data center development. Checking the zoning classification of land near your home can give you early warning of potential development." },
+  { term: "Environmental Impact Assessment (EIA)", category: "Regulatory",
+    definition: "A study required for certain large projects that evaluates their potential environmental effects before approval.",
+    means: "Not all data centers require a full EIA, and requirements vary by jurisdiction and project size. When an EIA is required it is a public document that residents can review and comment on." },
+
+  // Data Centers
+  { term: "Hyperscale Data Center", category: "Data Centers",
+    definition: "A data center exceeding 100MW of power capacity, typically operated by a major cloud provider such as Amazon Web Services, Microsoft Azure, Google Cloud or Meta.",
+    means: "Hyperscale facilities are among the largest buildings on earth by power consumption. A single hyperscale campus can contain multiple buildings each drawing 100MW or more. Northern Virginia is home to the highest concentration of hyperscale infrastructure in the world." },
+  { term: "Colocation Facility (Colo)", category: "Data Centers",
+    definition: "A data center that rents space, power and cooling to multiple companies rather than being operated for a single user.",
+    means: "Colocation facilities like those operated by Equinix, Digital Realty and Iron Mountain may have dozens of tenants including financial institutions, government agencies and cloud providers. They are often located in dense urban or suburban areas." },
+  { term: "Edge Data Center", category: "Data Centers",
+    definition: "Smaller data centers located closer to end users to reduce latency, rather than in large centralized campuses.",
+    means: "As edge computing grows, smaller data centers are being built in more neighborhoods, including areas that previously had no such infrastructure. These facilities are often harder to identify through traditional means because they are smaller and attract less public attention." },
+  { term: "Data Center Campus", category: "Data Centers",
+    definition: "A collection of multiple data center buildings operated together on the same site or in close geographic proximity.",
+    means: "What may appear to be a single data center building often becomes a multi-building campus over time as operators expand capacity. Campus development means the initial footprint (noise, power, traffic, water) grows significantly after the first building opens." },
+  { term: "PUE Certification", category: "Data Centers",
+    definition: "Independent verification of a data center's Power Usage Effectiveness rating by a third party.",
+    means: "Unlike certified measurements, most environmental figures associated with data centers (including those in HumZones reports) are self-reported or modeled estimates. There is currently no mandatory independent certification regime for data center environmental impact in the United States." },
+];
+
+const GlossaryPage = ({ onNavigate }) => {
+  const [search, setSearch] = useState("");
+  const [activeCategory, setActiveCategory] = useState("All");
+  // Per-card open/close state for the "What this means for you" block so
+  // mobile viewers can collapse long cards and scan the list quickly.
+  // Desktop tends to leave them open by default via the inline media
+  // query on the toggle button.
+  const [openMeans, setOpenMeans] = useState({}); // term -> bool override
+  const [showBackToTop, setShowBackToTop] = useState(false);
+
+  // Page title + meta description for SEO.
+  useEffect(() => {
+    if (typeof document === "undefined") return;
+    document.title = "Data Center Infrastructure Glossary | Plain Language Guide | HumZones";
+    let meta = document.querySelector('meta[name="description"]');
+    if (!meta) {
+      meta = document.createElement("meta");
+      meta.setAttribute("name", "description");
+      document.head.appendChild(meta);
+    }
+    meta.setAttribute("content", "Translate data center jargon into plain language. HumZones explains interconnection queues, megawatts, balancing authorities and more for residents.");
+  }, []);
+
+  // Show the back-to-top button once the user has scrolled past roughly
+  // three rows of glossary cards.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const onScroll = () => setShowBackToTop(window.scrollY > 900);
+    window.addEventListener("scroll", onScroll, { passive: true });
+    onScroll();
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
+
+  const q = search.trim().toLowerCase();
+  const filtered = GLOSSARY_TERMS.filter(t => {
+    if (activeCategory !== "All" && t.category !== activeCategory) return false;
+    if (!q) return true;
+    return t.term.toLowerCase().includes(q) ||
+           t.definition.toLowerCase().includes(q) ||
+           (t.means || "").toLowerCase().includes(q);
+  });
+
+  return (
+    <div style={{minHeight:"100vh",background:"#f1f5f9",width:"100%",maxWidth:"100vw",overflowX:"hidden"}}>
+      {/* HERO */}
+      <section style={{background:"linear-gradient(150deg,#020c1b 0%,#0f172a 45%,#1e0535 100%)",padding:"56px 24px 60px"}}>
+        <div style={{maxWidth:820,margin:"0 auto",textAlign:"center"}}>
+          <div style={{display:"inline-block",fontSize:12,color:"#f97316",letterSpacing:".18em",textTransform:"uppercase",fontWeight:800,marginBottom:14,padding:"6px 14px",borderRadius:30,background:"rgba(249,115,22,.12)",border:"1px solid rgba(249,115,22,.3)"}}>Infrastructure Glossary</div>
+          <h1 style={{fontSize:"clamp(26px,4vw,34px)",fontWeight:900,letterSpacing:"-.02em",color:"#fff",lineHeight:1.2,marginBottom:14}}>
+            Understanding the Language of Data Center Infrastructure
+          </h1>
+          <div style={{width:60,height:3,background:"#f97316",borderRadius:2,margin:"0 auto 20px"}}/>
+          <p style={{fontSize:16,color:"rgba(255,255,255,.72)",lineHeight:1.65,maxWidth:680,margin:"0 auto"}}>
+            Data center development comes with a vocabulary most people were never meant to understand. We translate it.
+          </p>
+        </div>
+      </section>
+
+      {/* INTRO BOX */}
+      <section style={{maxWidth:880,margin:"0 auto",padding:"36px 24px 0"}}>
+        <div style={{background:"#f1f5f9",border:"1px solid #e2e8f0",borderRadius:12,padding:"22px 24px"}}>
+          <p style={{fontSize:15,color:"#475569",lineHeight:1.7,margin:0}}>
+            When a utility filing mentions a 500MW interconnection request near your neighborhood, what does that actually mean for the people who live there? HumZones exists to answer that question. Below are the most common terms you will encounter in planning documents, news articles and utility filings, explained in plain language.
+          </p>
+        </div>
+      </section>
+
+      {/* SEARCH + CATEGORY PILLS */}
+      <section style={{maxWidth:880,margin:"0 auto",padding:"24px 24px 0"}}>
+        <input
+          value={search}
+          onChange={e=>setSearch(e.target.value)}
+          placeholder="Search terms..."
+          style={{width:"100%",padding:"14px 16px",borderRadius:12,border:"1.5px solid #e2e8f0",fontSize:15,fontFamily:"inherit",color:"#0f172a",background:"#fff",outline:"none",boxSizing:"border-box",marginBottom:14}}
+        />
+        <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+          {["All", ...GLOSSARY_CATEGORIES].map(cat => {
+            const active = activeCategory === cat;
+            return (
+              <button
+                key={cat}
+                onClick={()=>setActiveCategory(cat)}
+                style={{padding:"8px 16px",borderRadius:999,border:`1.5px solid ${active?"#f97316":"#e2e8f0"}`,background:active?"#f97316":"#fff",color:active?"#fff":"#475569",fontFamily:"inherit",fontSize:13,fontWeight:800,letterSpacing:".02em",cursor:"pointer"}}
+              >
+                {cat}
+              </button>
+            );
+          })}
+        </div>
+      </section>
+
+      {/* GLOSSARY CARDS */}
+      <section style={{maxWidth:880,margin:"0 auto",padding:"22px 24px 16px"}}>
+        {filtered.length === 0 ? (
+          <div style={{background:"#fff",border:"1px solid #e2e8f0",borderRadius:14,padding:"30px 24px",textAlign:"center",color:"#64748b"}}>
+            No terms match that search. Try a different keyword or clear the category filter.
+          </div>
+        ) : (
+          <div className="glossary-grid" style={{display:"grid",gridTemplateColumns:"repeat(2, 1fr)",gap:14}}>
+            {filtered.map(t => {
+              const c = GLOSSARY_CATEGORY_COLOR[t.category] || { bg:"#f1f5f9", border:"#cbd5e1", text:"#475569" };
+              const isOpen = openMeans[t.term] !== false; // default open
+              return (
+                <article key={t.term} className="glossary-card" style={{background:"#fff",border:"1px solid #e2e8f0",borderRadius:14,padding:"20px 22px 18px",boxShadow:"0 2px 10px rgba(0,0,0,.04)",display:"flex",flexDirection:"column",gap:10}}>
+                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",gap:10,flexWrap:"wrap"}}>
+                    <h3 style={{fontSize:16,fontWeight:800,color:"#0f172a",letterSpacing:"-.01em",margin:0,lineHeight:1.3,flex:"1 1 auto"}}>{t.term}</h3>
+                    <span style={{display:"inline-block",fontSize:10,fontWeight:800,letterSpacing:".08em",textTransform:"uppercase",padding:"3px 9px",borderRadius:999,background:c.bg,border:`1px solid ${c.border}`,color:c.text,whiteSpace:"nowrap"}}>{t.category}</span>
+                  </div>
+                  <p style={{fontSize:14,color:"#475569",lineHeight:1.65,margin:0}}>{t.definition}</p>
+                  <button
+                    className="glossary-toggle"
+                    onClick={()=>setOpenMeans(p=>({...p,[t.term]: !(p[t.term] !== false)}))}
+                    style={{display:"none",alignSelf:"flex-start",padding:0,background:"transparent",border:"none",color:"#f97316",fontFamily:"inherit",fontSize:13,fontWeight:800,cursor:"pointer"}}
+                  >
+                    {isOpen ? "Hide what this means ▲" : "What this means for you ▼"}
+                  </button>
+                  {isOpen && (
+                    <div style={{background:"#fff7ed",borderLeft:"3px solid #f97316",borderRadius:8,padding:"12px 14px"}}>
+                      <div style={{fontSize:11,color:"#c2410c",letterSpacing:".10em",textTransform:"uppercase",fontWeight:800,marginBottom:6}}>What this means for you</div>
+                      <p style={{fontSize:13,color:"#7c2d12",lineHeight:1.65,margin:0}}>{t.means}</p>
+                    </div>
+                  )}
+                  {t.example && (
+                    <p style={{fontSize:12,color:"#94a3b8",fontStyle:"italic",lineHeight:1.55,margin:0}}>Example: {t.example}</p>
+                  )}
+                </article>
+              );
+            })}
+          </div>
+        )}
+      </section>
+
+      {/* CALLOUT TO /learn */}
+      <section style={{maxWidth:880,margin:"0 auto",padding:"22px 24px 56px"}}>
+        <div style={{background:"#fff7ed",border:"1px solid #fed7aa",borderLeft:"4px solid #f97316",borderRadius:12,padding:"18px 22px"}}>
+          <p style={{fontSize:15,color:"#7c2d12",lineHeight:1.65,margin:0}}>
+            Want to go deeper? Read our resident guides at{" "}
+            <a href="/learn" onClick={e=>{e.preventDefault();onNavigate("/learn");}} style={{color:"#c2410c",fontWeight:800,textDecoration:"none"}}>humzones.com/learn</a>.
+          </p>
+        </div>
+      </section>
+
+      {/* BACK TO TOP */}
+      {showBackToTop && (
+        <button
+          onClick={()=>{ if (typeof window !== "undefined") window.scrollTo({top:0,behavior:"smooth"}); }}
+          aria-label="Back to top"
+          style={{position:"fixed",bottom:24,right:24,zIndex:200,padding:"12px 18px",borderRadius:30,border:"none",background:"#0f172a",color:"#fff",fontFamily:"inherit",fontSize:13,fontWeight:800,letterSpacing:".02em",cursor:"pointer",boxShadow:"0 14px 32px rgba(0,0,0,.32)",display:"inline-flex",alignItems:"center",gap:8}}
+        >
+          &uarr; Back to top
+        </button>
+      )}
+
+      {/* Collapse to one column on mobile, and reveal the per-card
+          "What this means" toggle button only on narrow viewports. */}
+      <style>{`
+        @media(max-width:680px){
+          .glossary-grid{grid-template-columns:1fr!important}
+          .glossary-toggle{display:inline-block!important}
+        }
+      `}</style>
+
+      <Footer onNavigate={onNavigate}/>
+    </div>
+  );
+};
+
 // ─── /donate: DONATIONS PAGE ─────────────────────────────────────────────────
 // Stripe Payment Link URLs for one-time and recurring donations. Each link
 // must be configured in the Stripe dashboard to redirect on success to
@@ -8984,6 +9321,7 @@ const GH_MENU = {
       ]},
       { head: "LEARN", items: [
         { title: "Resident Guides",      desc: "Plain-language explainers for residents",  to: "/learn" },
+        { title: "Infrastructure Glossary", desc: "Data center terminology in plain language", to: "/glossary" },
         { title: "Methodology",          desc: "How we research and model data",           to: "/methodology" },
         { title: "FAQ",                  desc: "Common questions answered",                to: "/faq" },
         { title: "About HumZones",       desc: "Our mission and story",                    to: "/about" },
@@ -9892,6 +10230,8 @@ export default function App() {
         <DonatePage onNavigate={navigate} facilityCount={facs.length}/>
       ) : path === "/learn" ? (
         <LearnPage onNavigate={navigate}/>
+      ) : path === "/glossary" ? (
+        <GlossaryPage onNavigate={navigate}/>
       ) : path === "/donate-thank-you" ? (
         <DonateThankYouPage onNavigate={navigate}/>
       ) : (
@@ -10389,15 +10729,18 @@ export default function App() {
                 {dc.Opened && <div style={{fontSize:14,color:"#94a3b8",marginBottom:20}}>Status / Opened: {dc.Opened}</div>}
                 <div className="fac-stats" style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:14}}>
                   {[
-                    {icon:"power",label:"Reported Power Draw",   value:dc.Power_MW>=1000?`${(dc.Power_MW/1000).toFixed(1)} GW`:`${dc.Power_MW||"?"}MW`,color:rc},
-                    {icon:"noise",label:"Estimated Noise Level",  value:`${dc.Noise_DB||"?"} dB`,color:dc.Noise_DB>=70?"#ef4444":dc.Noise_DB>=60?"#f97316":"#3b82f6"},
-                    {icon:"emf",  label:"Modeled EMF Range at Fence", value:`${dc.EMF_Fence_High||"?"} mG`,color:dc.EMF_Fence_High>=4?"#ef4444":"#10b981"},
-                    {icon:"water",label:"Estimated Daily Water Draw",    value:dc.Water_Gal_Day>0?`${fmt(dc.Water_Gal_Day)} gal`:"Near zero",color:"#3b82f6"},
+                    {icon:"power",label:"Reported Power Draw",       value:dc.Power_MW>=1000?`${(dc.Power_MW/1000).toFixed(1)} GW`:`${dc.Power_MW||"?"}MW`,color:rc,                                                                tip:METRIC_TIP.power(dc.Power_MW)},
+                    {icon:"noise",label:"Estimated Noise Level",     value:`${dc.Noise_DB||"?"} dB`,                                                            color:dc.Noise_DB>=70?"#ef4444":dc.Noise_DB>=60?"#f97316":"#3b82f6", tip:METRIC_TIP.noise},
+                    {icon:"emf",  label:"Modeled EMF Range at Fence",value:`${dc.EMF_Fence_High||"?"} mG`,                                                       color:dc.EMF_Fence_High>=4?"#ef4444":"#10b981",                       tip:METRIC_TIP.emfFence},
+                    {icon:"water",label:"Estimated Daily Water Draw",value:dc.Water_Gal_Day>0?`${fmt(dc.Water_Gal_Day)} gal`:"Near zero",                        color:"#3b82f6",                                                      tip:METRIC_TIP.water},
                   ].map(s=>(
                     <div key={s.label} style={{background:"#f8fafc",border:"1px solid #e2e8f0",borderRadius:14,padding:"16px 18px",textAlign:"center"}}>
                       <div style={{display:"flex",justifyContent:"center",marginBottom:10}}><Icon name={s.icon} size={22} color={s.color}/></div>
                       <div style={{fontSize:22,fontWeight:900,color:s.color,marginBottom:4,letterSpacing:"-.02em"}}>{s.value}</div>
-                      <div style={{fontSize:12,color:"#94a3b8",textTransform:"uppercase",letterSpacing:".06em",fontWeight:700}}>{s.label}</div>
+                      <div style={{fontSize:12,color:"#94a3b8",textTransform:"uppercase",letterSpacing:".06em",fontWeight:700,display:"inline-flex",alignItems:"center",justifyContent:"center"}}>
+                        {s.label}
+                        <InfoTip label={"About " + s.label.toLowerCase()}>{s.tip}</InfoTip>
+                      </div>
                     </div>
                   ))}
                 </div>
