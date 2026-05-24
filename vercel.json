@@ -7,5 +7,9 @@
       "path": "/api/archive-old-reports",
       "schedule": "0 0 1 * *"
     }
-  ]
+  ],
+  "functions": {
+    "api/generate-newsletter.js": { "maxDuration": 60 },
+    "api/send-newsletter.js":     { "maxDuration": 60 }
+  }
 }
