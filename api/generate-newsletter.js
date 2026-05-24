@@ -240,7 +240,7 @@ module.exports = async (req, res) => {
       "an unsubscribe placeholder: [UNSUBSCRIBE_LINK]";
 
     const draftResp = await callAnthropic({
-      model: "claude-sonnet-4-20250514",
+      model: "claude-sonnet-4-5",
       max_tokens: 4000,
       tools: [{ type: "web_search_20250305", name: "web_search" }],
       system: systemPrompt,
@@ -260,7 +260,7 @@ module.exports = async (req, res) => {
 
     // STEP 3: Generate the issue title and subject line.
     const titleResp = await callAnthropic({
-      model: "claude-sonnet-4-20250514",
+      model: "claude-sonnet-4-5",
       max_tokens: 300,
       system: "You write compelling email subject lines and newsletter titles.",
       messages: [{
