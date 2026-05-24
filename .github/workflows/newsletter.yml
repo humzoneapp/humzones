@@ -56,5 +56,5 @@ jobs:
             -d '{"type":"send"}' \
             --verbose \
             --fail-with-body \
-            --max-time 60 \
+            --max-time 90 \
             -w "\nHTTP Status: %{http_code}\n"
