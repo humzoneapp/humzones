@@ -187,7 +187,10 @@ module.exports = async (req, res) => {
       "continuously.\n\n" +
       "IMPORTANT: If you cannot find enough real data center news this week to fill " +
       "a section, write fewer items rather than padding with off-topic content or " +
-      "invented stories. Quality over quantity.";
+      "invented stories. Quality over quantity.\n\n" +
+      "CRITICAL: Never use em dashes (--) or en dashes (-) anywhere in the " +
+      "output. Use a plain hyphen (-) or rewrite the sentence instead. " +
+      "This is a hard requirement.";
 
     const userPrompt =
       "Search the web for this week's data center infrastructure news. Use multiple " +
@@ -264,6 +267,14 @@ module.exports = async (req, res) => {
       throw new Error("Empty draft from Anthropic");
     }
 
+    const cleanHTML = draftHtml
+      .replace(/\u2014/g, '-')   // em dash to hyphen
+      .replace(/\u2013/g, '-')   // en dash to hyphen
+      .replace(/&mdash;/g, '-')  // HTML entity em dash
+      .replace(/&ndash;/g, '-')  // HTML entity en dash
+      .replace(/&#8212;/g, '-')  // numeric entity em dash
+      .replace(/&#8211;/g, '-'); // numeric entity en dash
+
     // STEP 3: Generate the issue title and subject line.
     const titleResp = await callAnthropic({
       model: "claude-sonnet-4-5",
@@ -301,6 +312,21 @@ module.exports = async (req, res) => {
       console.warn("[generate-newsletter] could not parse title JSON, using fallbacks:", e && e.message);
     }
 
+    issueTitle = issueTitle
+      .replace(/\u2014/g, '-')
+      .replace(/\u2013/g, '-')
+      .replace(/&mdash;/g, '-')
+      .replace(/&ndash;/g, '-')
+      .replace(/&#8212;/g, '-')
+      .replace(/&#8211;/g, '-');
+    subjectLine = subjectLine
+      .replace(/\u2014/g, '-')
+      .replace(/\u2013/g, '-')
+      .replace(/&mdash;/g, '-')
+      .replace(/&ndash;/g, '-')
+      .replace(/&#8212;/g, '-')
+      .replace(/&#8211;/g, '-');
+
     // STEP 5: Save as Draft. The send cron at 9am UTC picks up only
     // issues that an editor has flipped to Status=Ready in Airtable.
     console.log('[newsletter] saving to Airtable', new Date().toISOString());
@@ -309,7 +335,7 @@ module.exports = async (req, res) => {
       [F.Issue_Number]:   nextNumber,
       [F.Date_Published]: todayIso(),
       [F.Subject_Line]:   subjectLine,
-      [F.Content_HTML]:   draftHtml,
+      [F.Content_HTML]:   cleanHTML,
       [F.Status]:         "Draft",
     });
 
