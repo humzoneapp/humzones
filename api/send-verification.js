@@ -26,6 +26,8 @@ module.exports = async (req, res) => {
       country = "",
       symptoms = "",
       duration = "",
+      observations = "",
+      extraObservations = "",
     } = body;
 
     if (!email || !reportText) {
@@ -35,17 +37,36 @@ module.exports = async (req, res) => {
     const token = crypto.randomBytes(32).toString("hex");
     const verifyUrl =
       "https://humzones.com/verify-report" +
-      "?token="     + token +
-      "&email="     + encodeURIComponent(email) +
-      "&firstName=" + encodeURIComponent(firstName) +
-      "&lastName="  + encodeURIComponent(lastName) +
-      "&facility="  + encodeURIComponent(facilityName) +
-      "&report="    + encodeURIComponent(reportText) +
-      "&address="   + encodeURIComponent(address) +
-      "&city="      + encodeURIComponent(city) +
-      "&country="   + encodeURIComponent(country) +
-      "&symptoms="  + encodeURIComponent(symptoms) +
-      "&duration="  + encodeURIComponent(duration);
+      "?token="              + token +
+      "&email="              + encodeURIComponent(email) +
+      "&firstName="          + encodeURIComponent(firstName) +
+      "&lastName="           + encodeURIComponent(lastName) +
+      "&facility="           + encodeURIComponent(facilityName) +
+      "&report="             + encodeURIComponent(reportText) +
+      "&address="            + encodeURIComponent(address) +
+      "&city="               + encodeURIComponent(city) +
+      "&country="            + encodeURIComponent(country) +
+      "&symptoms="           + encodeURIComponent(symptoms) +
+      "&duration="           + encodeURIComponent(duration) +
+      "&observations="       + encodeURIComponent(observations) +
+      "&extraObservations="  + encodeURIComponent(extraObservations);
+
+    // Observations block rendered into the email body. Only shown if the
+    // reporter actually selected something or wrote a free-text note.
+    const obsTrimmed   = String(observations || "").trim();
+    const extraTrimmed = String(extraObservations || "").trim();
+    let observationsBlock = "";
+    if (obsTrimmed || extraTrimmed) {
+      observationsBlock =
+        '<div style="margin-top: 18px; padding: 14px 16px; background: #f8fafc; border-left: 3px solid #f97316; border-radius: 6px;">' +
+          (obsTrimmed
+            ? '<p style="color: #475569; font-size: 14px; margin: 0 0 ' + (extraTrimmed ? '6' : '0') + 'px;"><strong>Observations noted:</strong> ' + escapeHtml(obsTrimmed) + '</p>'
+            : "") +
+          (extraTrimmed
+            ? '<p style="color: #475569; font-size: 14px; margin: 0;"><strong>Additional observations:</strong> ' + escapeHtml(extraTrimmed) + '</p>'
+            : "") +
+        '</div>';
+    }
 
     const transporter = nodemailer.createTransport({
       host: process.env.EMAIL_HOST,
@@ -75,6 +96,7 @@ module.exports = async (req, res) => {
             '</p>' +
             '<p style="color: #475569;">To publish your report please click the button below to verify your email address. This confirms your report is from a real resident.</p>' +
             '<p style="color: #475569; font-size: 14px;">Your report will be published with your first name only. Your last name is kept private and never shared.</p>' +
+            observationsBlock +
             '<div style="text-align: center; margin: 32px 0;">' +
               '<a href="' + verifyUrl + '" style="background: #f97316; color: white; padding: 16px 32px; border-radius: 8px; text-decoration: none; font-weight: bold; font-size: 16px; display: inline-block;">Verify My Report</a>' +
             '</div>' +

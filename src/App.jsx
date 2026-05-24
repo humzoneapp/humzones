@@ -3760,14 +3760,25 @@ const VerifyReportPage = ({ onNavigate }) => {
         const cityParam    = params.get("city")      || "";
         const countryParam = params.get("country")   || "";
         const addressParam = params.get("address")   || "";
-        const symptoms     = params.get("symptoms")  || "";
-        const duration     = params.get("duration")  || "";
+        const symptoms          = params.get("symptoms")          || "";
+        const duration          = params.get("duration")          || "";
+        const observations      = params.get("observations")      || "";
+        const extraObservations = params.get("extraObservations") || "";
 
         console.log("[HumZones] /verify-report params:", {
           token, email, firstName, lastName, facilityName,
           reportText, address: addressParam, city: cityParam, country: countryParam,
-          symptoms, duration,
+          symptoms, duration, observations, extraObservations,
         });
+
+        // Compose the Airtable Observations cell from the structured list
+        // and the optional free-text addendum. The free-text line is
+        // prefixed with "Other: " so reviewers can distinguish it from
+        // the canonical checkbox values.
+        const obsParts = [];
+        if (observations.trim())      obsParts.push(observations.trim());
+        if (extraObservations.trim()) obsParts.push("Other: " + extraObservations.trim());
+        const observationsValue = obsParts.join("\n");
 
         if (!token || !email || !reportText) {
           throw new Error("This verification link is incomplete or has expired. Please resubmit your report.");
@@ -3794,6 +3805,13 @@ const VerifyReportPage = ({ onNavigate }) => {
           fldZHDl5rMXOTduyo: duration,
           fldBBHPerVbEJqWQz: false,
         };
+        // Only attach Observations when the reporter actually filled
+        // something in. Airtable accepts an absent key without complaint
+        // and a totally empty observations submission stays absent from
+        // the row rather than writing an empty string.
+        if (observationsValue) {
+          fields.fld5HXSnw6zBqHZpT = observationsValue;
+        }
 
         const r = await fetch(`${APIURL}/tblBBaQ4NFCdaS6Tk?returnFieldsByFieldId=true`, {
           method: "POST",
@@ -7189,6 +7207,12 @@ const SubmitReportPage = ({ onNavigate }) => {
   const [email, setEmail]         = useState("");
   const [duration, setDuration]   = useState("");
   const [symptoms, setSymptoms]   = useState([]);
+  // Environmental observations collected alongside the symptoms list. These
+  // are infrastructure-level observations (construction noise, generator
+  // activity, etc.) rather than health claims, and write through to the
+  // Reports.Observations column in Airtable.
+  const [observations, setObservations] = useState([]);
+  const [extraObservations, setExtraObservations] = useState("");
   const [reportText, setReportText] = useState("");
   const [declared, setDeclared]   = useState(false);
   const [human, setHuman]         = useState(false);
@@ -7214,6 +7238,7 @@ const SubmitReportPage = ({ onNavigate }) => {
     setFCountry(""); setFState(""); setFCity(""); setSelectedFacility(null);
     setFirstName(""); setLastName(""); setEmail("");
     setDuration(""); setSymptoms([]); setReportText("");
+    setObservations([]); setExtraObservations("");
     setDeclared(false); setHuman(false); setHp("");
     setSending(false); setSent(false); setSentEmail("");
     setChecking(false); setDuplicateInfo(null);
@@ -7267,11 +7292,18 @@ const SubmitReportPage = ({ onNavigate }) => {
     }
   };
   const MAX_REPORT_CHARS = 3000;
+  const MAX_EXTRA_OBS_CHARS = 500;
   const SYMPTOM_OPTIONS = [
     "Headaches","Sleep disruption","Dizziness or vertigo","Nausea",
     "Ear ringing (tinnitus)","Anxiety or panic","Diesel exhaust smell","Chest pressure or tightness",
   ];
-  const toggleSymptom = (s) => setSymptoms(prev => prev.includes(s) ? prev.filter(x => x !== s) : [...prev, s]);
+  const OBSERVATION_OPTIONS = [
+    "Construction noise","Generator activity","Traffic increases","Utility outages",
+    "Nighttime lighting","Expansion sightings","New fencing or barriers","Delivery truck activity",
+    "Vibration or ground rumble","Unusual odors","Increased security presence","Other infrastructure changes",
+  ];
+  const toggleSymptom     = (s) => setSymptoms(prev     => prev.includes(s) ? prev.filter(x => x !== s) : [...prev, s]);
+  const toggleObservation = (o) => setObservations(prev => prev.includes(o) ? prev.filter(x => x !== o) : [...prev, o]);
 
   useEffect(() => {
     let alive = true;
@@ -7355,16 +7387,18 @@ const SubmitReportPage = ({ onNavigate }) => {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          email:        email.trim(),
-          firstName:    firstName.trim(),
-          lastName:     lastName.trim(),
-          facilityName: facName,
+          email:             email.trim(),
+          firstName:         firstName.trim(),
+          lastName:          lastName.trim(),
+          facilityName:      facName,
           reportText,
-          address:      facAddress,
-          city:         facCity,
-          country:      facCountry,
-          symptoms:     symptoms.join(", "),
-          duration:     duration.trim(),
+          address:           facAddress,
+          city:              facCity,
+          country:           facCountry,
+          symptoms:          symptoms.join(", "),
+          duration:          duration.trim(),
+          observations:      observations.join(", "),
+          extraObservations: extraObservations.trim(),
         }),
       });
       if (!r.ok) {
@@ -7627,7 +7661,7 @@ const SubmitReportPage = ({ onNavigate }) => {
               {/* 6. Symptoms checkboxes */}
               <div style={{marginBottom:16}}>
                 <label style={{...lbl,marginBottom:8}}>Which of these have you experienced? <span style={{color:"#94a3b8",fontWeight:400}}>(select all that apply)</span></label>
-                <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
+                <div className="sym-grid" style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
                   {SYMPTOM_OPTIONS.map(s=>{
                     const checked = symptoms.includes(s);
                     return (
@@ -7639,6 +7673,36 @@ const SubmitReportPage = ({ onNavigate }) => {
                       </div>
                     );
                   })}
+                </div>
+              </div>
+
+              {/* 6b. Structured environmental observations. Same styling as
+                  the symptoms checkboxes; these record infrastructure-level
+                  observations rather than health claims. */}
+              <div style={{marginBottom:16}}>
+                <label style={{...lbl,marginBottom:4}}>What have you observed?</label>
+                <p style={{fontSize:12,color:"#94a3b8",lineHeight:1.55,margin:"0 0 8px"}}>Select all that apply. These are environmental observations, not health claims.</p>
+                <div className="sym-grid" style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
+                  {OBSERVATION_OPTIONS.map(o=>{
+                    const checked = observations.includes(o);
+                    return (
+                      <div key={o} onClick={()=>toggleObservation(o)} style={{display:"flex",alignItems:"center",gap:10,padding:"11px 14px",borderRadius:10,border:`1.5px solid ${checked?"#f97316":"#e2e8f0"}`,background:checked?"#fff7ed":"#f8fafc",cursor:"pointer",transition:"all .15s"}}>
+                        <div style={{width:18,height:18,borderRadius:4,border:`2px solid ${checked?"#f97316":"#cbd5e1"}`,background:checked?"#f97316":"transparent",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,transition:"all .15s"}}>
+                          {checked && <Icon name="check" size={11} color="#fff"/>}
+                        </div>
+                        <span style={{fontSize:13,fontWeight:checked?600:400,color:checked?"#c2410c":"#374151"}}>{o}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+                <div style={{marginTop:12}}>
+                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}}>
+                    <label style={{...lbl,marginBottom:0}}>Anything else you observed? <span style={{color:"#94a3b8",fontWeight:400}}>(optional)</span></label>
+                    <span style={{fontSize:12,fontWeight:600,color:extraObservations.length>MAX_EXTRA_OBS_CHARS*0.9?"#ef4444":"#94a3b8"}}>{extraObservations.length} / {MAX_EXTRA_OBS_CHARS}</span>
+                  </div>
+                  <textarea value={extraObservations} onChange={e=>{if(e.target.value.length<=MAX_EXTRA_OBS_CHARS)setExtraObservations(e.target.value);}} rows={3}
+                    placeholder="Describe any other observations not listed above..."
+                    style={{...inp(extraObservations),resize:"vertical",lineHeight:1.6}}/>
                 </div>
               </div>
 
