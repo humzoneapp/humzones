@@ -1,17 +1,23 @@
 // Standalone Node.js generator for Infrastructure Intelligence.
 //
 // Runs in GitHub Actions (not Vercel), so there is no 60-second function
-// timeout. Calls the Anthropic API with web search, drafts the next issue
-// HTML, and saves it to Airtable Newsletter_Issues with Status=Draft. A
-// human flips Status to Ready in Airtable, then the Monday 09:00 UTC send
-// step in the workflow POSTs to /api/newsletter with {"type":"send"} to
-// deliver it.
+// timeout. Asks Claude for a plain-text outline of the next issue,
+// parses it into structured sections, and builds the email HTML locally
+// with a fixed wrapper. Saves the result to Airtable Newsletter_Issues
+// with Status=Draft. A human flips Status to Ready in Airtable, then
+// the send step in the workflow POSTs to /api/newsletter with
+// {"type":"send"} to deliver it.
+//
+// Why plain-text in / HTML out:
+//   - The wrapper is fixed at ~5-15KB, so Gmail never clips the email
+//     regardless of model verbosity.
+//   - Removes an entire class of bugs around the model emitting preamble
+//     text or markdown fences before the HTML.
 //
 // Required env vars:
 //   ANTHROPIC_API_KEY
 //   AIRTABLE_KEY (falls back to VITE_AIRTABLE_KEY for parity with Vercel)
-//
-// Uses Node's built-in fetch (Node 18+). No external dependencies.
+//   NEWSLETTER_TYPE: 'filings' (default) or 'news'
 
 const AIRTABLE_BASE = "app2FUPqq8VQSwQ64";
 const ISSUES_TABLE  = "tbl3pKjNdgxJGYr0u";
@@ -32,36 +38,71 @@ const NEWSLETTER_TYPE = process.env.NEWSLETTER_TYPE || 'filings';
 
 const TYPE_CONFIG = {
   filings: {
-    titlePrefix: 'What Filed This Week',
-    searchQuery: 'data center interconnection queue utility permit planning board filing 2026',
-    systemFocus: 'Focus ONLY on interconnection queue filings, utility permit applications and planning board decisions. No general data center news.',
-    structureRules:
-      "- Editor's Note: 2 sentences maximum\n" +
-      "- What Filed This Week: maximum 2 items only, each item 3 sentences max\n" +
-      "- By the Numbers: exactly 3 one-line bullet points\n" +
-      "- What to Watch: exactly 2 bullet points, one line each\n",
-    sectionsBlock:
-      "EDITOR'S NOTE (2 sentences): Why this week's filings matter for residents. Personal and direct.\n\n" +
-      "WHAT FILED THIS WEEK: maximum 2 items from interconnection queues, utility permit filings or planning board applications found via web search. For each item: location, what was filed, what it means for nearby residents in plain language, and the source URL in parentheses.\n\n" +
-      "BY THE NUMBERS: Exactly 3 statistics from this week's filings, one line each. Format: '[Number in plain language], [what it means for a person].'\n\n" +
-      "WHAT TO WATCH: Exactly 2 specific items to monitor next week based on these filings, one line each. Name the company, county or filing.\n\n",
+    titlePrefix:       'What Filed This Week',
+    storiesLabel:      'What Filed This Week',
+    storiesHeader:     'WHAT FILED THIS WEEK',
+    includesNumbers:   true,
+    includesSpotlight: false,
+    searchQuery:       'data center interconnection queue utility permit planning board filing 2026',
+    systemFocus:       'Focus ONLY on interconnection queue filings, utility permit applications and planning board decisions. No general data center news.',
+    templateBody:
+      "EDITOR NOTE\n" +
+      "[2 sentences about why this week's filings matter for residents]\n\n" +
+      "WHAT FILED THIS WEEK\n" +
+      "[Story 1 headline]\n" +
+      "[2-3 sentences. Source: URL]\n\n" +
+      "[Story 2 headline]\n" +
+      "[2-3 sentences. Source: URL]\n\n" +
+      "BY THE NUMBERS\n" +
+      "- [stat 1 in plain language]\n" +
+      "- [stat 2 in plain language]\n" +
+      "- [stat 3 in plain language]\n\n" +
+      "WHAT TO WATCH\n" +
+      "- [item 1]\n" +
+      "- [item 2]\n",
   },
   news: {
-    titlePrefix: 'Facilities in the News',
-    searchQuery: 'data center announcement expansion community opposition residents news 2026',
-    systemFocus: 'Focus ONLY on data center facility announcements, expansions and community impact stories. No filing or regulatory content.',
-    structureRules:
-      "- Editor's Note: 2 sentences maximum\n" +
-      "- Facilities in the News: maximum 2 items only, each item 3 sentences max\n" +
-      "- Community Spotlight: 2 sentences only\n" +
-      "- What to Watch: exactly 2 bullet points, one line each\n",
-    sectionsBlock:
-      "EDITOR'S NOTE (2 sentences): Why this week's developments matter for residents. Personal and direct.\n\n" +
-      "FACILITIES IN THE NEWS: maximum 2 news items from the past 7 days. For each: company or facility name, what happened, community impact in plain language, and the source URL in parentheses.\n\n" +
-      "COMMUNITY SPOTLIGHT: 2 sentences about resident actions, community meetings, planning board hearings or awareness efforts related to data centers this week.\n\n" +
-      "WHAT TO WATCH: Exactly 2 specific items to monitor next week based on this week's news, one line each. Name the company, county or facility.\n\n",
+    titlePrefix:       'Facilities in the News',
+    storiesLabel:      'Facilities in the News',
+    storiesHeader:     'FACILITIES IN THE NEWS',
+    includesNumbers:   false,
+    includesSpotlight: true,
+    searchQuery:       'data center announcement expansion community opposition residents news 2026',
+    systemFocus:       'Focus ONLY on data center facility announcements, expansions and community impact stories. No filing or regulatory content.',
+    templateBody:
+      "EDITOR NOTE\n" +
+      "[2 sentences about why this week's developments matter for residents]\n\n" +
+      "FACILITIES IN THE NEWS\n" +
+      "[Story 1 headline]\n" +
+      "[2-3 sentences. Source: URL]\n\n" +
+      "[Story 2 headline]\n" +
+      "[2-3 sentences. Source: URL]\n\n" +
+      "COMMUNITY SPOTLIGHT\n" +
+      "[2 sentences about resident actions, community meetings, or awareness efforts]\n\n" +
+      "WHAT TO WATCH\n" +
+      "- [item 1]\n" +
+      "- [item 2]\n",
   },
 };
+
+function stripDashes(s) {
+  return String(s || "")
+    .replace(/\u2014/g, '-')        // em dash
+    .replace(/\u2013/g, '-')        // en dash
+    .replace(/&mdash;/g, '-')
+    .replace(/&ndash;/g, '-')
+    .replace(/&#8212;/g, '-')
+    .replace(/&#8211;/g, '-');
+}
+
+function escapeHtml(s) {
+  return String(s || "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
 
 async function airtableListAll(tableId, params) {
   const key = airtableKey();
@@ -115,26 +156,6 @@ function extractHeadlines(html) {
   return Array.from(new Set(out)).slice(0, 30);
 }
 
-async function callAnthropic(body) {
-  if (!process.env.ANTHROPIC_API_KEY) {
-    throw new Error("ANTHROPIC_API_KEY not set");
-  }
-  const r = await fetch("https://api.anthropic.com/v1/messages", {
-    method: "POST",
-    headers: {
-      "x-api-key":         process.env.ANTHROPIC_API_KEY,
-      "anthropic-version": "2023-06-01",
-      "content-type":      "application/json",
-    },
-    body: JSON.stringify(body),
-  });
-  if (!r.ok) {
-    const text = await r.text().catch(() => "");
-    throw new Error(`Anthropic API failed: ${r.status} ${text}`);
-  }
-  return r.json();
-}
-
 async function callWithRetry(payload) {
   for (let attempt = 1; attempt <= 2; attempt++) {
     const res = await fetch('https://api.anthropic.com/v1/messages', {
@@ -156,13 +177,152 @@ async function callWithRetry(payload) {
   }
 }
 
-function joinResponseText(resp) {
-  const parts = (resp && resp.content) || [];
-  return parts
-    .filter(p => p && p.type === "text" && typeof p.text === "string")
-    .map(p => p.text)
-    .join("\n")
-    .trim();
+// Parse Claude's plain-text outline into structured sections.
+function parseNewsletterText(text, cfg) {
+  const knownHeaders = new Set([
+    'EDITOR NOTE',
+    'WHAT FILED THIS WEEK',
+    'FACILITIES IN THE NEWS',
+    'BY THE NUMBERS',
+    'COMMUNITY SPOTLIGHT',
+    'WHAT TO WATCH',
+  ]);
+
+  const lines = text.split('\n');
+
+  // Pull SUBJECT: and TITLE: from anywhere in the text.
+  let subject = '';
+  let title = '';
+  for (const line of lines) {
+    const m1 = line.match(/^\s*SUBJECT:\s*(.+)$/i);
+    if (m1 && !subject) subject = m1[1].trim();
+    const m2 = line.match(/^\s*TITLE:\s*(.+)$/i);
+    if (m2 && !title) title = m2[1].trim();
+  }
+
+  // Walk the lines, splitting into sections at each known header.
+  const sections = {};
+  let currentHeader = null;
+  let buffer = [];
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (knownHeaders.has(trimmed)) {
+      if (currentHeader) sections[currentHeader] = buffer;
+      currentHeader = trimmed;
+      buffer = [];
+    } else if (currentHeader) {
+      buffer.push(line);
+    }
+  }
+  if (currentHeader) sections[currentHeader] = buffer;
+
+  function paragraph(ls) {
+    return (ls || []).map(l => l.trim()).filter(Boolean).join(' ');
+  }
+
+  function bullets(ls) {
+    const clean = (ls || []).map(l => l.trim()).filter(Boolean);
+    const bulleted = clean.filter(l => /^[-*•]\s+/.test(l));
+    const picked = bulleted.length ? bulleted : clean;
+    return picked.map(l => l.replace(/^[-*•]\s+/, ''));
+  }
+
+  function stories(ls) {
+    const blocks = [];
+    let block = [];
+    for (const line of (ls || [])) {
+      if (line.trim() === '') {
+        if (block.length) { blocks.push(block); block = []; }
+      } else {
+        block.push(line.trim());
+      }
+    }
+    if (block.length) blocks.push(block);
+    return blocks.map(b => {
+      const headline = b[0] || '';
+      const rest = b.slice(1).join(' ');
+      let body = rest;
+      let source = '';
+      const srcMatch = rest.match(/Source:\s*(.+?)\s*$/i);
+      if (srcMatch) {
+        source = srcMatch[1].trim();
+        body = rest.replace(/\s*Source:\s*.+?\s*$/i, '').trim();
+      }
+      return { headline, body, source };
+    });
+  }
+
+  return {
+    subject,
+    title,
+    editorNote:         paragraph(sections['EDITOR NOTE']),
+    stories:            stories(sections[cfg.storiesHeader]),
+    byTheNumbers:       bullets(sections['BY THE NUMBERS']),
+    communitySpotlight: paragraph(sections['COMMUNITY SPOTLIGHT']),
+    whatToWatch:        bullets(sections['WHAT TO WATCH']),
+  };
+}
+
+// Build the final HTML using a fixed wrapper. Inline styles apply only
+// on the wrapper elements, keeping the output ~5-15KB instead of the
+// variable model-emitted HTML we used to get.
+function buildNewsletterHTML(parsed, issueNumber, date, cfg) {
+  const labelStyle = 'color:#f97316;font-size:11px;font-weight:bold;text-transform:uppercase;letter-spacing:1px;';
+  const headStyle  = 'color:#1e293b;font-size:16px;margin:16px 0 8px;';
+  const bodyStyle  = 'color:#475569;font-size:15px;line-height:1.6;';
+  const srcStyle   = 'color:#94a3b8;font-size:12px;';
+  const ruleStyle  = 'border:none;border-top:1px solid #e2e8f0;margin:24px 0;';
+  const listStyle  = bodyStyle + 'padding-left:20px;';
+
+  const sectionLabel = (text) => `<div style="${labelStyle}">${escapeHtml(text)}</div>`;
+
+  const blocks = [];
+
+  if (parsed.editorNote) {
+    blocks.push(
+      sectionLabel("Editor's Note") +
+      `<p style="${bodyStyle}">${escapeHtml(parsed.editorNote)}</p>`
+    );
+  }
+
+  if (parsed.stories.length) {
+    const items = parsed.stories.map(s => {
+      const headline = `<h3 style="${headStyle}">${escapeHtml(s.headline)}</h3>`;
+      const body     = s.body   ? `<p style="${bodyStyle}">${escapeHtml(s.body)}</p>` : '';
+      const source   = s.source ? `<p style="${srcStyle}">Source: ${escapeHtml(s.source)}</p>` : '';
+      return headline + body + source;
+    }).join('');
+    blocks.push(sectionLabel(cfg.storiesLabel) + items);
+  }
+
+  if (cfg.includesNumbers && parsed.byTheNumbers.length) {
+    const items = parsed.byTheNumbers.map(n => `<li>${escapeHtml(n)}</li>`).join('');
+    blocks.push(sectionLabel("By the Numbers") + `<ul style="${listStyle}">${items}</ul>`);
+  }
+
+  if (cfg.includesSpotlight && parsed.communitySpotlight) {
+    blocks.push(
+      sectionLabel("Community Spotlight") +
+      `<p style="${bodyStyle}">${escapeHtml(parsed.communitySpotlight)}</p>`
+    );
+  }
+
+  if (parsed.whatToWatch.length) {
+    const items = parsed.whatToWatch.map(w => `<li>${escapeHtml(w)}</li>`).join('');
+    blocks.push(sectionLabel("What to Watch") + `<ul style="${listStyle}">${items}</ul>`);
+  }
+
+  const inner = blocks.join(`<hr style="${ruleStyle}">`);
+
+  return (
+    '<div style="max-width:600px;margin:0 auto;font-family:Arial,sans-serif;">' +
+      '<div style="background:#1e293b;padding:24px;text-align:center;">' +
+        '<div style="color:#ffffff;font-size:22px;font-weight:bold;">Infrastructure Intelligence</div>' +
+        `<div style="color:#f97316;font-size:13px;margin-top:4px;">Issue #${issueNumber} | ${escapeHtml(date)}</div>` +
+      '</div>' +
+      `<div style="padding:24px;">${inner}</div>` +
+    '</div>'
+  );
 }
 
 async function main() {
@@ -193,7 +353,7 @@ async function main() {
     ? headlines.join(" | ")
     : "No previous issues yet.";
 
-  // STEP 2: Draft the issue HTML with web search enabled.
+  // STEP 2: Draft the issue as a plain-text outline.
   const systemPrompt =
     "You are the editor of Infrastructure Intelligence, a weekly newsletter " +
     "published by HumZones (humzones.com) that translates data center and AI " +
@@ -226,42 +386,30 @@ async function main() {
     "a section, write fewer items rather than padding with off-topic content or " +
     "invented stories. Quality over quantity.\n\n" +
     "FOCUS: " + cfg.systemFocus + "\n\n" +
-    "STRUCTURE RULES, follow exactly:\n" +
-    cfg.structureRules +
-    "Write fewer items with full styling rather than more items with stripped " +
-    "styling. The HTML must be complete and well-formatted with all inline " +
-    "styles intact.\n\n" +
     "CRITICAL: Never use em dashes (--) or en dashes (-) anywhere in the " +
-    "output. Use a plain hyphen (-) or rewrite the sentence instead. " +
-    "This is a hard requirement.";
+    "output. Use a plain hyphen (-) or rewrite the sentence instead.\n\n" +
+    "OUTPUT FORMAT: Respond ONLY with the plain-text outline below. No HTML, " +
+    "no markdown code fences, no preamble, no thinking aloud. Start your " +
+    "response with the SUBJECT: line and end with the last bullet of WHAT TO " +
+    "WATCH. Do not include anything else.";
 
   const userPrompt =
     "Search the web using these terms: '" + cfg.searchQuery + "'. Find fresh " +
-    "stories from this week. Then write the complete Infrastructure Intelligence " +
-    "newsletter issue in the HTML format specified.\n\n" +
-    cfg.sectionsBlock +
-    "HTML formatting requirements:\n" +
-    "- Outer wrapper: max-width 600px, margin 0 auto, font-family Arial sans-serif\n" +
-    "- Top header: background-color #1e293b, padding 24px, text-align center\n" +
-    "  Header title: color #ffffff, font-size 22px, font-weight bold\n" +
-    "  Header subtitle 'Issue #" + nextNumber + " | " + todayIso() + "': " +
-    "color #f97316, font-size 13px\n" +
-    "- Section label above each section: color #f97316, font-size 11px, " +
-    "font-weight bold, text-transform uppercase, letter-spacing 1px\n" +
-    "- Section heading: color #1e293b, font-size 18px, font-weight bold\n" +
-    "- Body text: color #475569, font-size 15px, line-height 1.6\n" +
-    "- Horizontal rule between sections: border none, border-top 1px solid #e2e8f0\n" +
-    "- Story source links: color #94a3b8, font-size 12px\n" +
-    "- Each section in its own div with padding 24px 0\n\n" +
-    "End with a light grey footer containing 'Infrastructure Intelligence by " +
-    "HumZones | humzones.com' and an unsubscribe placeholder: [UNSUBSCRIBE_LINK]\n\n" +
-    "IMPORTANT: Generate complete valid HTML only. Do not include any " +
-    "markdown code fences, backticks, or explanatory text before or after " +
-    "the HTML. Start your response with < and end with the closing HTML tag.";
+    "stories from this week. Then write the next Infrastructure Intelligence " +
+    "issue in this EXACT plain-text format:\n\n" +
+    "SUBJECT: [subject line under 48 chars]\n" +
+    "TITLE: [6-8 word title]\n\n" +
+    cfg.templateBody +
+    "\nRules:\n" +
+    "- Replace each [bracketed placeholder] with real content.\n" +
+    "- Keep each story body to 2-3 sentences.\n" +
+    "- Include the source URL at the end of each story body as 'Source: <URL>'.\n" +
+    "- Output NOTHING before SUBJECT: and NOTHING after the last bullet line.";
 
-  console.log('[generate-newsletter] waiting 10s before API call to avoid rate limits...')
-  await new Promise(r => setTimeout(r, 10000))
+  console.log('[generate-newsletter] waiting 10s before API call to avoid rate limits...');
+  await new Promise(r => setTimeout(r, 10000));
   console.log('[generate-newsletter] calling Anthropic API', new Date().toISOString());
+
   const draftRes = await callWithRetry({
     model: "claude-sonnet-4-6",
     max_tokens: 1200,
@@ -273,83 +421,73 @@ async function main() {
     const text = await draftRes.text().catch(() => "");
     throw new Error(`Anthropic API failed: ${draftRes.status} ${text}`);
   }
-  const draftResp = await draftRes.json();
+  const data = await draftRes.json();
   console.log('[generate-newsletter] Anthropic response received', new Date().toISOString());
 
-  const draftHtmlRaw = joinResponseText(draftResp);
-  const draftHtml = draftHtmlRaw
-    .replace(/^```html\s*/i, "")
-    .replace(/^```\s*/i, "")
-    .replace(/```\s*$/i, "")
-    .trim();
+  // Concat every text block from the response, then strip any narration
+  // the model emitted before the actual outline. This is the plain-text
+  // analogue of the old "strip text before first <" HTML guard.
+  const allTextBlocks = (data.content || [])
+    .filter(b => b && b.type === 'text')
+    .map(b => b.text)
+    .join('');
 
-  if (!draftHtml) {
+  let outline = allTextBlocks;
+
+  // Strip markdown code fences if Claude wrapped the outline anyway.
+  const fenceMatch = outline.match(/```[a-zA-Z]*\n?([\s\S]*?)```/);
+  if (fenceMatch) {
+    outline = fenceMatch[1];
+  }
+
+  // Strip everything before the first SUBJECT: or EDITOR NOTE marker.
+  let firstMarker = outline.search(/SUBJECT:/i);
+  if (firstMarker < 0) firstMarker = outline.search(/EDITOR NOTE/i);
+  if (firstMarker > 0) {
+    const stripped = outline.substring(0, firstMarker).trim();
+    if (stripped) {
+      console.log('[generate-newsletter] Stripping', firstMarker,
+        'chars of pre-content text:', stripped.substring(0, 200));
+    }
+    outline = outline.substring(firstMarker);
+  }
+
+  outline = outline.trim();
+  if (!outline) {
     throw new Error("Empty draft from Anthropic");
   }
-
-  const cleanHTML = draftHtml
-    .replace(/\u2014/g, '-')   // em dash to hyphen
-    .replace(/\u2013/g, '-')   // en dash to hyphen
-    .replace(/&mdash;/g, '-')  // HTML entity em dash
-    .replace(/&ndash;/g, '-')  // HTML entity en dash
-    .replace(/&#8212;/g, '-')  // numeric entity em dash
-    .replace(/&#8211;/g, '-'); // numeric entity en dash
-
-  // STEP 3: Generate the issue title and subject line.
-  const titleResp = await callAnthropic({
-    model: "claude-sonnet-4-6",
-    max_tokens: 300,
-    system: "You write compelling email subject lines and newsletter titles.",
-    messages: [{
-      role: "user",
-      content:
-        "Based on this newsletter content, write:\n" +
-        "1. Issue_Title: A compelling 6 to 8 word title capturing the most important " +
-        "story this week. No clickbait. Factual and specific.\n" +
-        "2. Subject_Line: An email subject line under 48 characters that will get " +
-        "opened. Can reference a specific number or location from the issue.\n\n" +
-        "Return ONLY a JSON object with exactly two keys: title and subject.\n" +
-        "No markdown, no explanation, just the JSON.\n\n" +
-        "Newsletter content: " + cleanHTML.slice(0, 1000),
-    }],
-  });
-  const titleText = joinResponseText(titleResp);
-  let issueTitle  = "Infrastructure Intelligence Issue " + nextNumber;
-  let subjectLine = "This week in data center news";
-  try {
-    const jsonStart = titleText.indexOf("{");
-    const jsonEnd   = titleText.lastIndexOf("}");
-    if (jsonStart >= 0 && jsonEnd > jsonStart) {
-      const parsed = JSON.parse(titleText.slice(jsonStart, jsonEnd + 1));
-      if (parsed && typeof parsed.title === "string" && parsed.title.trim()) {
-        issueTitle = parsed.title.trim();
-      }
-      if (parsed && typeof parsed.subject === "string" && parsed.subject.trim()) {
-        subjectLine = parsed.subject.trim().slice(0, 100);
-      }
-    }
-  } catch (e) {
-    console.warn("[generate-newsletter] could not parse title JSON, using fallbacks:", e && e.message);
+  if (!/SUBJECT:|EDITOR NOTE/i.test(outline)) {
+    throw new Error("No valid newsletter outline found in response. Got: " +
+      outline.substring(0, 200));
   }
 
-  issueTitle = cfg.titlePrefix + " - " + issueTitle;
+  // STEP 3: Parse the outline and clean every text field.
+  const parsed = parseNewsletterText(outline, cfg);
+  const clean = {
+    subject:            stripDashes(parsed.subject),
+    title:              stripDashes(parsed.title),
+    editorNote:         stripDashes(parsed.editorNote),
+    stories:            parsed.stories.map(s => ({
+                          headline: stripDashes(s.headline),
+                          body:     stripDashes(s.body),
+                          source:   stripDashes(s.source),
+                        })),
+    byTheNumbers:       parsed.byTheNumbers.map(stripDashes),
+    communitySpotlight: stripDashes(parsed.communitySpotlight),
+    whatToWatch:        parsed.whatToWatch.map(stripDashes),
+  };
 
-  issueTitle = issueTitle
-    .replace(/\u2014/g, '-')
-    .replace(/\u2013/g, '-')
-    .replace(/&mdash;/g, '-')
-    .replace(/&ndash;/g, '-')
-    .replace(/&#8212;/g, '-')
-    .replace(/&#8211;/g, '-');
-  subjectLine = subjectLine
-    .replace(/\u2014/g, '-')
-    .replace(/\u2013/g, '-')
-    .replace(/&mdash;/g, '-')
-    .replace(/&ndash;/g, '-')
-    .replace(/&#8212;/g, '-')
-    .replace(/&#8211;/g, '-');
+  // STEP 4: Build the final HTML email using the fixed wrapper.
+  const cleanHTML = buildNewsletterHTML(clean, nextNumber, todayIso(), cfg);
 
-  // STEP 4: Save as Draft. The send step picks up only issues that an
+  // STEP 5: Title and subject come straight from the outline. Fall back
+  // to defaults if the model omitted them.
+  let issueTitle  = clean.title  || ("Infrastructure Intelligence Issue " + nextNumber);
+  let subjectLine = (clean.subject || "This week in data center news").slice(0, 100);
+  issueTitle  = stripDashes(cfg.titlePrefix + " - " + issueTitle);
+  subjectLine = stripDashes(subjectLine);
+
+  // STEP 6: Save as Draft. The send step picks up only issues that an
   // editor has flipped to Status=Ready in Airtable.
   console.log('[generate-newsletter] saving to Airtable', new Date().toISOString());
   const created = await airtableCreate(ISSUES_TABLE, {
@@ -367,6 +505,7 @@ async function main() {
     issueNumber: nextNumber,
     issueTitle,
     subjectLine,
+    htmlBytes: Buffer.byteLength(cleanHTML, 'utf8'),
   }));
 }
 
