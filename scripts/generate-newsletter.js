@@ -184,10 +184,16 @@ async function main() {
     "IMPORTANT: If you cannot find enough real data center news this week to fill " +
     "a section, write fewer items rather than padding with off-topic content or " +
     "invented stories. Quality over quantity.\n\n" +
-    "IMPORTANT: Be concise. Each story item should be 3-4 sentences maximum. " +
-    "The entire newsletter HTML must stay under 80KB total. Prioritize completeness " +
-    "over detail. It is better to have all 6 sections with shorter items than " +
-    "fewer sections with longer items.\n\n" +
+    "CRITICAL LENGTH REQUIREMENT: The entire newsletter must be SHORT.\n" +
+    "Each section maximum:\n" +
+    "- Editor's Note: 2 sentences only\n" +
+    "- What Filed This Week: 2 items maximum, 2 sentences each\n" +
+    "- Facilities in the News: 2 items maximum, 2 sentences each\n" +
+    "- By the Numbers: 3 bullet points, one line each\n" +
+    "- Community Spotlight: 2 sentences only\n" +
+    "- What to Watch: 2 bullet points, one line each\n" +
+    "Total newsletter must fit within 1200 tokens. Prioritize covering " +
+    "all 6 sections over depth in any single section.\n\n" +
     "CRITICAL: Never use em dashes (--) or en dashes (-) anywhere in the " +
     "output. Use a plain hyphen (-) or rewrite the sentence instead. " +
     "This is a hard requirement.";
@@ -243,7 +249,7 @@ async function main() {
   console.log('[generate-newsletter] calling Anthropic API', new Date().toISOString());
   const draftRes = await callWithRetry({
     model: "claude-sonnet-4-6",
-    max_tokens: 1800,
+    max_tokens: 1200,
     tools: [{ type: "web_search_20250305", name: "web_search", max_uses: 3 }],
     system: systemPrompt,
     messages: [{ role: "user", content: userPrompt }],
@@ -272,7 +278,12 @@ async function main() {
     .replace(/&mdash;/g, '-')  // HTML entity em dash
     .replace(/&ndash;/g, '-')  // HTML entity en dash
     .replace(/&#8212;/g, '-')  // numeric entity em dash
-    .replace(/&#8211;/g, '-'); // numeric entity en dash
+    .replace(/&#8211;/g, '-')  // numeric entity en dash
+    .replace(/padding:[^;'"]+;?/g, '')
+    .replace(/margin:[^;'"]+;?/g, '')
+    .replace(/line-height:[^;'"]+;?/g, '')
+    .replace(/letter-spacing:[^;'"]+;?/g, '')
+    .replace(/\s+style=""\s*/g, ' ');
 
   // STEP 3: Generate the issue title and subject line.
   const titleResp = await callAnthropic({

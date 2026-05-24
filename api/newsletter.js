@@ -237,18 +237,13 @@ function welcomeEmailHtml({ firstName, email }) {
 
 function wrapIssueForEmail(contentHtml, email) {
   const encoded = encodeURIComponent(email);
-  const unsub   = "https://humzones.com/unsubscribe?email=" + encoded;
-  const filled  = String(contentHtml || "").split("[UNSUBSCRIBE_LINK]").join(unsub);
-  const footer  =
-    '<div style="background:#f8fafc;padding:24px;text-align:center;font-family:Arial,sans-serif;">' +
-      '<p style="color:#94a3b8;font-size:12px;margin:0 0 8px 0;">You are receiving Infrastructure Intelligence because you subscribed at humzones.com.</p>' +
-      '<p style="color:#94a3b8;font-size:12px;margin:0;">' +
-        '<a href="' + unsub + '" style="color:#f97316;">Unsubscribe</a> | ' +
-        '<a href="https://humzones.com/newsletter" style="color:#f97316;">View online</a> | ' +
-        'humzones.com' +
-      '</p>' +
+  const unsubUrl = "https://humzones.com/unsubscribe?email=" + encoded;
+  const footer =
+    '<div style="text-align:center;padding:16px;font-size:12px;color:#94a3b8;">' +
+      'You subscribed at humzones.com. ' +
+      '<a href="' + unsubUrl + '" style="color:#f97316;">Unsubscribe</a>' +
     '</div>';
-  return filled + footer;
+  return String(contentHtml || "").replace('[UNSUBSCRIBE_LINK]', unsubUrl) + footer;
 }
 
 async function sendConfirmationEmail({ email, firstName, token }) {
