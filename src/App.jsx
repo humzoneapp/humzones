@@ -9071,6 +9071,36 @@ const GlossaryPage = ({ onNavigate }) => {
           "description": "A data center exceeding 100MW of power capacity typically operated by Amazon, Microsoft, Google or Meta.",
           "inDefinedTermSet": "https://humzones.com/glossary",
         },
+        {
+          "@type":      "DefinedTerm",
+          "name":        "Diesel Generator (Emergency Backup)",
+          "description": "Large diesel-powered generators that data centers maintain during power outages. May be tested monthly producing significant noise and exhaust emissions near residential areas.",
+          "inDefinedTermSet": "https://humzones.com/glossary",
+        },
+        {
+          "@type":      "DefinedTerm",
+          "name":        "Cooling Tower",
+          "description": "Large evaporative systems that remove heat by evaporating water. Can consume millions of gallons daily and produce continuous operational noise.",
+          "inDefinedTermSet": "https://humzones.com/glossary",
+        },
+        {
+          "@type":      "DefinedTerm",
+          "name":        "Colocation Facility",
+          "description": "A data center that rents space and power to multiple companies rather than a single operator. Often located in dense urban or suburban areas.",
+          "inDefinedTermSet": "https://humzones.com/glossary",
+        },
+        {
+          "@type":      "DefinedTerm",
+          "name":        "PUE (Power Usage Effectiveness)",
+          "description": "A ratio measuring how efficiently a data center uses electricity. A PUE of 1.5 means 50% more electricity is consumed than the servers actually need.",
+          "inDefinedTermSet": "https://humzones.com/glossary",
+        },
+        {
+          "@type":      "DefinedTerm",
+          "name":        "Special Use Permit",
+          "description": "A local government approval required for certain land uses including data centers in some jurisdictions. Typically requires a public hearing giving residents an opportunity to comment.",
+          "inDefinedTermSet": "https://humzones.com/glossary",
+        },
       ],
     };
     injectHeadEl("script", "glossary-jsonld", { type: "application/ld+json" }, JSON.stringify(definedTermSet));
