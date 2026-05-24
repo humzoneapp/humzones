@@ -349,7 +349,7 @@ async function handleSend(req, res) {
   const issues = await airtableListAll(ISSUES_TABLE, {});
   const ready = issues
     .filter(r => (r.fields || {})[ISSUE_F.Status] === "Ready")
-    .sort((a, b) => Number((b.fields || {})[ISSUE_F.Issue_Number] || 0) - Number((a.fields || {})[ISSUE_F.Issue_Number] || 0));
+    .sort((a, b) => Number((a.fields || {})[ISSUE_F.Issue_Number] || 0) - Number((b.fields || {})[ISSUE_F.Issue_Number] || 0));
   if (ready.length === 0) {
     return res.status(200).json({ sent: 0, message: "No ready issues" });
   }
