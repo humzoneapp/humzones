@@ -4949,6 +4949,13 @@ const BusinessGeneratePage = ({ onNavigate }) => {
   // credit-deduction PATCH fails. The PDF download itself still succeeds,
   // so this is informational rather than blocking.
   const [creditError, setCreditError] = useState(false);
+  // Confirmation modal triggered by the Download button. Forces the user
+  // to acknowledge the address and radius before a credit is spent.
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  // Post-download success card. Holds the remaining credit count and the
+  // monthly cap so the user sees their new balance plus a Return-to-Dashboard
+  // exit instead of an auto-dismissing toast.
+  const [downloadComplete, setDownloadComplete] = useState(null); // { remaining, monthly } | null
   const refreshedRef = useRef(false);
 
   // Redirect unauthenticated users + refresh the account from Airtable once
@@ -4993,6 +5000,8 @@ const BusinessGeneratePage = ({ onNavigate }) => {
     setSearching(true);
     setSearchErr("");
     setResults(null);
+    setDownloadComplete(null);
+    setCreditError(false);
     try {
       // Geocode via Nominatim. Public endpoint, no key required; their usage
       // policy asks for a descriptive UA, which Vite-bundled fetch sends by
@@ -5042,6 +5051,7 @@ const BusinessGeneratePage = ({ onNavigate }) => {
     }
     setDownloading(true);
     setCreditError(false);
+    setDownloadComplete(null);
     try {
       const highRiskCount = results.facilities.filter(f => String(f.Risk_Level || "").toUpperCase() === "HIGH").length;
 
@@ -5163,7 +5173,7 @@ const BusinessGeneratePage = ({ onNavigate }) => {
       writeBusinessAccount(next);
       setAccount(next);
 
-      showToast(`Report downloaded. ${newRemaining} of ${liveMonthly} credits remaining.`);
+      setDownloadComplete({ remaining: newRemaining, monthly: liveMonthly });
     } catch (e) {
       console.error("Business report download failed:", e);
       window.alert("Something went wrong generating your report. Please try again.");
@@ -5257,7 +5267,7 @@ const BusinessGeneratePage = ({ onNavigate }) => {
 
       {results && results.facilities.length > 0 && (
         <div style={{position:"fixed",bottom:0,left:0,right:0,padding:"14px 18px",background:"rgba(2,12,27,.92)",borderTop:"1px solid rgba(249,115,22,.4)",backdropFilter:"blur(12px)",zIndex:50,display:"flex",flexDirection:"column",alignItems:"center",gap:10}}>
-          <button onClick={download} disabled={downloading} style={{maxWidth:560,width:"100%",padding:"16px 22px",borderRadius:12,border:"none",cursor:downloading?"not-allowed":"pointer",fontFamily:"inherit",fontSize:16,fontWeight:900,letterSpacing:".04em",background:"linear-gradient(135deg,#ef4444,#f97316)",color:"#fff",boxShadow:"0 14px 32px rgba(249,115,22,.42)"}}>
+          <button onClick={()=>{ if(!downloading) setConfirmOpen(true); }} disabled={downloading} style={{maxWidth:560,width:"100%",padding:"16px 22px",borderRadius:12,border:"none",cursor:downloading?"not-allowed":"pointer",fontFamily:"inherit",fontSize:16,fontWeight:900,letterSpacing:".04em",background:"linear-gradient(135deg,#ef4444,#f97316)",color:"#fff",boxShadow:"0 14px 32px rgba(249,115,22,.42)"}}>
             {downloading ? "Generating PDF..." : `Download Report (${ctaCreditsLabel})`}
           </button>
           {creditError && (
@@ -5276,6 +5286,44 @@ const BusinessGeneratePage = ({ onNavigate }) => {
       {toast && (
         <div role="status" style={{position:"fixed",top:24,left:"50%",transform:"translateX(-50%)",padding:"12px 22px",borderRadius:30,background:"#0f172a",border:"1px solid rgba(249,115,22,.5)",color:"#fff",fontWeight:700,fontSize:14,zIndex:100,boxShadow:"0 18px 50px rgba(0,0,0,.45)"}}>
           {toast}
+        </div>
+      )}
+
+      {/* Pre-download confirmation modal. Forces the user to acknowledge
+          the radius and address before a credit is spent. */}
+      {confirmOpen && results && (
+        <div role="dialog" aria-modal="true" style={{position:"fixed",inset:0,background:"rgba(2,12,27,.78)",backdropFilter:"blur(6px)",zIndex:200,display:"flex",alignItems:"center",justifyContent:"center",padding:"20px"}}>
+          <div style={{maxWidth:480,width:"100%",background:"#0f172a",border:"1px solid rgba(249,115,22,.4)",borderRadius:16,padding:"26px 26px 22px",boxShadow:"0 30px 80px rgba(0,0,0,.55)"}}>
+            <h3 style={{fontSize:20,fontWeight:900,color:"#fff",margin:"0 0 12px"}}>Confirm your report</h3>
+            <p style={{fontSize:14,color:"rgba(255,255,255,.78)",lineHeight:1.55,margin:"0 0 18px"}}>
+              Generate a report for <span style={{color:"#fff",fontWeight:800}}>{results.address}</span> with a <span style={{color:"#f97316",fontWeight:800}}>{radius} km radius</span>? This will use 1 credit. If the radius is not what you want, cancel and select a different one before downloading.
+            </p>
+            <div style={{display:"flex",gap:10,flexWrap:"wrap"}}>
+              <button onClick={()=>setConfirmOpen(false)} style={{flex:"1 1 140px",padding:"13px 18px",borderRadius:10,border:"1px solid rgba(255,255,255,.25)",background:"transparent",color:"#fff",fontWeight:800,fontSize:14,cursor:"pointer",fontFamily:"inherit"}}>
+                Cancel
+              </button>
+              <button onClick={()=>{ setConfirmOpen(false); download(); }} style={{flex:"1 1 200px",padding:"13px 18px",borderRadius:10,border:"none",background:"linear-gradient(135deg,#ef4444,#f97316)",color:"#fff",fontWeight:900,fontSize:14,cursor:"pointer",fontFamily:"inherit",boxShadow:"0 10px 28px rgba(249,115,22,.4)"}}>
+                Confirm &amp; Download
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Persistent post-download success card with a Return-to-Dashboard
+          exit. Replaces the old auto-dismissing toast so the user has a
+          clear next step instead of being stranded on the generate page. */}
+      {downloadComplete && (
+        <div role="status" style={{position:"fixed",top:24,left:"50%",transform:"translateX(-50%)",maxWidth:520,width:"calc(100% - 32px)",padding:"16px 18px",borderRadius:14,background:"#0f172a",border:"1px solid rgba(34,197,94,.55)",color:"#fff",zIndex:100,boxShadow:"0 18px 50px rgba(0,0,0,.5)",display:"flex",alignItems:"center",gap:12,flexWrap:"wrap"}}>
+          <div style={{flex:"1 1 200px",fontSize:14,fontWeight:700,lineHeight:1.45}}>
+            Report downloaded. {downloadComplete.remaining} of {downloadComplete.monthly} credits remaining.
+          </div>
+          <div style={{display:"flex",gap:8,alignItems:"center"}}>
+            <button onClick={()=>onNavigate("/business-dashboard")} style={{padding:"10px 16px",borderRadius:10,border:"none",background:"linear-gradient(135deg,#ef4444,#f97316)",color:"#fff",fontWeight:900,fontSize:13,cursor:"pointer",fontFamily:"inherit",boxShadow:"0 8px 20px rgba(249,115,22,.38)"}}>
+              Return to Dashboard
+            </button>
+            <button onClick={()=>setDownloadComplete(null)} aria-label="Dismiss" style={{background:"transparent",border:"none",color:"rgba(255,255,255,.7)",fontSize:20,fontWeight:900,cursor:"pointer",lineHeight:1,padding:"0 6px",fontFamily:"inherit"}}>&times;</button>
+          </div>
         </div>
       )}
     </div>
