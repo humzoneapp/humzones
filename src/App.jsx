@@ -4383,6 +4383,7 @@ const Footer = ({ onNavigate, facilities = [] }) => {
               <a href="/#near-me" onClick={e=>{e.preventDefault();goNearMe();}} className="hz-foot-link" style={linkBase}>Find Data Centers Near Me</a>
               {navLink("Community Reports","/submit-report")}
               {navLink("Submit Your Report","/submit-report")}
+              {navLink("Resident Guides","/learn")}
               {navLink("Methodology","/methodology")}
               {navLink("FAQ","/faq")}
             </div>
@@ -8152,6 +8153,459 @@ const DisclaimerPage = ({ onNavigate }) => (
   </div>
 );
 
+// ─── /learn: RESIDENT EXPLAINER ARTICLES ─────────────────────────────────────
+// Narrative explainer articles for residents living near data center
+// infrastructure. Distinct from the future /glossary page, which would
+// focus on short term definitions. Articles are stored inline as block
+// arrays so the page renders without any markdown parser. Clicking a
+// card expands its full body inline; the URL hash is kept in sync so
+// /learn#<slug> deep-links to a specific article.
+
+const LEARN_CATEGORIES = ["Infrastructure", "Regulatory", "Data Centers", "Community"];
+
+const LEARN_CATEGORY_COLOR = {
+  "Infrastructure": { bg: "rgba(59,130,246,.12)",  border: "#3b82f6", text: "#1d4ed8" },
+  "Regulatory":     { bg: "rgba(139,92,246,.12)",  border: "#8b5cf6", text: "#6d28d9" },
+  "Data Centers":   { bg: "rgba(249,115,22,.12)",  border: "#f97316", text: "#c2410c" },
+  "Community":      { bg: "rgba(34,197,94,.12)",   border: "#22c55e", text: "#15803d" },
+};
+
+const LEARN_ARTICLES = [
+  {
+    slug: "interconnection-queue",
+    category: "Infrastructure",
+    title: "What an Interconnection Queue Means for Your Neighborhood",
+    readTime: "6 min read",
+    preview: "When a company files to connect a massive new power load to the electric grid, that request joins a public waiting list. Here is how to find it and what it tells you about what is coming.",
+    body: [
+      { type: "p", text: "If you have noticed new construction near your home and wondered what is being built, one of the best early warning systems available to residents is something most people have never heard of: the interconnection queue." },
+      { type: "h", text: "What is an interconnection queue?" },
+      { type: "p", text: "When a company wants to connect a large new electrical load to the power grid, such as a data center, a factory, or a cryptocurrency mining operation, they cannot simply plug in. They have to submit a formal request to the regional grid operator and join a waiting list. That waiting list is called the interconnection queue." },
+      { type: "p", text: "In the United States, the grid is managed by regional operators called ISOs and RTOs. The most relevant for the Mid-Atlantic region, which includes Northern Virginia and the highest concentration of data centers in the world, is PJM Interconnection. PJM's interconnection queue is a public document updated regularly and freely available online." },
+      { type: "h", text: "Why does this matter for residents?" },
+      { type: "p", text: "Here is the key insight: companies typically submit interconnection requests 12 to 36 months before construction begins. This means the queue is one of the earliest public signals that a large facility is being planned in your area, often years before it appears in local news or planning documents." },
+      { type: "p", text: "A single interconnection request for 100MW or more in your county is a strong signal that a data center or similar facility is being planned. Multiple requests clustered in the same area suggest a development corridor is forming." },
+      { type: "h", text: "How to read an interconnection queue entry" },
+      { type: "p", text: "Each entry in PJM's queue includes:" },
+      { type: "ul", items: [
+        "The project name (often a code name that does not reveal the company)",
+        "The requested capacity in megawatts",
+        "The county or utility service territory",
+        "The type of generation or load",
+        "The current status of the request",
+      ]},
+      { type: "h", text: "What to look for near you" },
+      { type: "p", text: "Search the PJM queue for your county name or the name of your local utility. Look for large load requests. Anything above 50MW is significant. A 500MW request is equivalent to the power demand of a small city." },
+      { type: "p", text: "Remember that not every queue entry becomes a real project. Some are withdrawn. But clusters of large requests in a specific area are a reliable signal of developer interest and planned infrastructure growth." },
+      { type: "h", text: "What you can do" },
+      { type: "p", text: "Once you identify relevant queue entries, you can request more information through your state's public utilities commission, contact your local planning board, or file a public records request for associated permit applications. HumZones tracks planned facilities from interconnection data so you can stay informed without having to monitor the queue yourself." },
+    ],
+  },
+  {
+    slug: "utility-filing",
+    category: "Regulatory",
+    title: "How to Read a Utility Filing",
+    readTime: "8 min read",
+    preview: "Utility companies file public documents every time major new infrastructure is planned. Most residents do not know these documents exist. Here is what to look for and how to find them.",
+    body: [
+      { type: "p", text: "Every time a utility company plans to build a new substation, upgrade a transmission line, or connect a major new power customer, they are required to file public documents with their state's public utilities commission. These documents contain detailed information about what is being built, where, and why, but they are written in technical language that most residents find impenetrable." },
+      { type: "p", text: "This guide explains how to find these filings and what they actually mean." },
+      { type: "h", text: "Where to find utility filings" },
+      { type: "p", text: "Each state has a public utilities commission (sometimes called a public service commission) that maintains a database of all filings. In Virginia, this is the Virginia State Corporation Commission. In Maryland, it is the Maryland Public Service Commission. Most state commissions have online dockets that are searchable by utility name, project type, or geographic area." },
+      { type: "p", text: "You can also find relevant filings on the websites of the major utilities themselves. Dominion Energy in Virginia publishes its integrated resource plans and major project filings publicly." },
+      { type: "h", text: "Key documents to look for" },
+      { type: "kv", k: "Integrated Resource Plan (IRP)", v: "A long-term plan that utilities file regularly showing how they expect to meet future electricity demand. These plans often include projections of large new loads, including data centers, years in advance." },
+      { type: "kv", k: "Certificate of Public Convenience and Necessity (CPCN)", v: "Required for major new infrastructure like substations and transmission lines. If a utility is building a new substation near your home, there will be a CPCN filing. These documents include maps, environmental assessments, and descriptions of the planned infrastructure." },
+      { type: "kv", k: "Large Load Interconnection Agreement", v: "When a major new power customer like a data center connects to the grid, the interconnection agreement between the utility and the customer is often a public document. These agreements specify the location, the capacity, and sometimes the identity of the customer." },
+      { type: "h", text: "How to interpret the technical language" },
+      { type: "kv", k: "Megawatt (MW)", v: "One megawatt powers approximately 750 average homes continuously. A filing mentioning a 200MW new load means enough electricity for 150,000 homes is being redirected to a single new customer." },
+      { type: "kv", k: "Substation upgrade", v: "When a filing mentions upgrading an existing substation to a higher voltage or capacity, it typically means a large new power customer is being connected in that area." },
+      { type: "kv", k: "Transmission line upgrade", v: "High-voltage transmission lines carry power across long distances. Upgrades to lines in your area often signal that the existing grid cannot handle the planned new demand without reinforcement." },
+      { type: "h", text: "Filing for comment" },
+      { type: "p", text: "Most utility filings have a public comment period. During this window, residents can submit written comments that become part of the official record. These comments are read by regulators and can influence project approvals." },
+      { type: "p", text: "To submit a comment, find the docket number for the filing you are interested in and contact your state's public utilities commission for instructions. The process is simpler than it sounds. A clear, factual letter explaining your concerns is sufficient." },
+    ],
+  },
+  {
+    slug: "why-data-centers-cluster",
+    category: "Infrastructure",
+    title: "Why Data Centers Cluster and What Comes Next",
+    readTime: "5 min read",
+    preview: "Northern Virginia has more data center capacity than anywhere else on earth. This did not happen by accident. Understanding why data centers cluster helps predict where they will expand next.",
+    body: [
+      { type: "p", text: "If you live in Northern Virginia, you may have noticed that data centers seem to be everywhere, and new ones keep appearing. This is not random. Data centers cluster for specific reasons, and understanding those reasons can help you anticipate where development is likely to spread." },
+      { type: "h", text: "Why data centers concentrate in specific locations" },
+      { type: "kv", k: "Power availability", v: "Data centers require enormous amounts of electricity delivered reliably. They locate where the grid has sufficient capacity and where utilities are willing to provide the power at competitive rates. Northern Virginia has historically had both." },
+      { type: "kv", k: "Fiber infrastructure", v: "Data centers need to connect to each other and to the internet backbone. They cluster along existing fiber routes because building new long-distance fiber is expensive. Ashburn, Virginia sits at one of the most significant internet exchange points in the world, a legacy of early internet infrastructure decisions in the 1990s." },
+      { type: "kv", k: "Zoning and incentives", v: "Virginia offered significant tax incentives for data center development for many years, making it financially attractive to build there. Local zoning that permits industrial use without requiring special approval also reduces development friction." },
+      { type: "kv", k: "Labor market", v: "A concentration of data center facilities creates a local workforce with the specialized skills to operate them. This makes additional facilities more attractive to build in the same area." },
+      { type: "h", text: "The cluster effect" },
+      { type: "p", text: "Once a cluster forms, it becomes self-reinforcing. Each new facility makes the area more attractive for the next one. This is why Northern Virginia now has more data center capacity than any other region in the world, and why new facilities continue to be built there even as available land becomes scarce and power becomes constrained." },
+      { type: "h", text: "Where expansion happens next" },
+      { type: "p", text: "When a primary cluster runs out of land or power capacity, expansion moves outward in predictable patterns. Look for:" },
+      { type: "ul", items: [
+        "Locations within 50 to 100 miles of the primary cluster that have available land zoned for industrial use",
+        "Areas where utilities are upgrading transmission infrastructure",
+        "Counties that are actively marketing themselves to data center developers",
+        "Areas along existing fiber routes",
+      ]},
+      { type: "p", text: "In the Mid-Atlantic region, expansion from the Northern Virginia core has been moving toward Prince William County, the Gainesville area, Richmond, and parts of Maryland and Pennsylvania." },
+      { type: "h", text: "What this means for residents in emerging areas" },
+      { type: "p", text: "If your community is near a primary data center cluster, or if you have noticed utility upgrades, large land purchases by unfamiliar companies, or rezoning applications for industrial use, your area may be in the path of expansion. The time to engage with local planning processes is before projects are approved, not after construction begins." },
+    ],
+  },
+  {
+    slug: "facility-status-explained",
+    category: "Data Centers",
+    title: "The Difference Between a Proposed, Approved and Operating Facility",
+    readTime: "4 min read",
+    preview: "Not every data center that is announced gets built. Understanding the stages of development helps you know how seriously to take a project and when to engage with the process.",
+    body: [
+      { type: "p", text: "When HumZones lists a facility as Proposed, Approved, Building, or Operating, these labels represent meaningfully different stages of development, with different implications for residents and different opportunities to influence the outcome." },
+      { type: "h", text: "Proposed" },
+      { type: "p", text: "A proposed facility is one that has been publicly announced or identified through public records but has not yet received the necessary approvals to begin construction. This stage typically involves:" },
+      { type: "ul", items: [
+        "Interconnection queue applications with the regional grid operator",
+        "Pre-application meetings with local planning departments",
+        "Land purchase or option agreements",
+        "Zoning applications or requests for special use permits",
+      ]},
+      { type: "p", text: "Proposed facilities are the earliest stage at which residents can engage. Public comment periods, planning board meetings, and direct communication with elected officials are most effective at this stage. Once a project moves beyond this phase, the practical options for residents narrow significantly." },
+      { type: "h", text: "Approved" },
+      { type: "p", text: "An approved facility has received the necessary governmental and regulatory approvals to proceed but has not yet begun construction. This typically means:" },
+      { type: "ul", items: [
+        "The local planning board or board of supervisors has granted any required permits",
+        "The utility interconnection agreement has been signed",
+        "Environmental reviews have been completed",
+      ]},
+      { type: "p", text: "Approved projects are still in a stage where construction has not begun. However, overturning an approval is significantly harder than preventing one from being granted. Legal challenges are possible but expensive and uncertain." },
+      { type: "h", text: "Building" },
+      { type: "p", text: "A facility marked as Building is actively under construction. At this point, the project has cleared all major approvals and physical construction has begun. The primary options for residents at this stage relate to construction impacts (noise, traffic, dust) rather than the existence of the project itself." },
+      { type: "p", text: "Construction timelines for large data centers typically run 18 to 36 months from groundbreaking to the first servers going online." },
+      { type: "h", text: "Operating" },
+      { type: "p", text: "An Operating facility is actively running and consuming power. These facilities are the most certain in terms of their impact on surrounding communities. The noise, the power consumption, the traffic patterns, and the visual presence are all present and ongoing." },
+      { type: "p", text: "For operating facilities, resident options focus on monitoring and documentation: recording noise levels, tracking generator testing schedules, reporting concerns to local authorities, and contributing to the HumZones community report database so other residents can benefit from your experience." },
+      { type: "h", text: "Why status matters for engagement" },
+      { type: "p", text: "The practical lesson from understanding facility status is this: the earlier you engage in the process, the more options you have. A proposed facility that has not yet received planning approval can still be stopped, modified, or conditioned on community protections. An operating facility is a permanent part of your neighborhood's infrastructure." },
+      { type: "p", text: "HumZones tracks facility status in real time so residents can know not just what is there, but what is coming." },
+    ],
+  },
+  {
+    slug: "what-residents-can-do",
+    category: "Community",
+    title: "What Residents Can Actually Do About Data Center Development",
+    readTime: "7 min read",
+    preview: "Feeling powerless when large infrastructure appears near your home is understandable. But residents have more tools available than most realize. Here is a practical guide.",
+    body: [
+      { type: "p", text: "When a data center appears near your home, it is easy to feel like the decision was made without you and cannot be changed. Sometimes that is true. But residents have more tools available than most realize, and using the right tool at the right time makes all the difference." },
+      { type: "h", text: "Step 1: Know what is there" },
+      { type: "p", text: "Before you can act, you need accurate information. HumZones provides modeled estimates of the infrastructure near your address including power draw, noise levels and water consumption. This gives you a factual baseline for any conversations with officials or neighbors." },
+      { type: "h", text: "Step 2: Understand the status" },
+      { type: "p", text: "Is the facility proposed, approved, under construction, or operating? Your options are very different depending on the answer. See our guide on facility status for a full explanation. For proposed facilities, the public process is open. For operating facilities, the focus shifts to monitoring and documentation." },
+      { type: "h", text: "Step 3: Engage the local planning process" },
+      { type: "p", text: "If a facility is in the proposed or approval stage, the most effective action is direct engagement with your local planning board or board of supervisors. Attend public hearings. Submit written comments for the record. Bring neighbors. Local elected officials respond to constituent engagement, particularly when it is organized and fact-based." },
+      { type: "p", text: "When engaging the planning process:" },
+      { type: "ul", items: [
+        "Stick to factual, documented concerns",
+        "Reference specific infrastructure impacts: power draw, noise, traffic, water",
+        "Avoid health claims that are not supported by certified measurements",
+        "Ask specific questions: What noise mitigation is required? How will water consumption be managed? What are the generator testing protocols?",
+      ]},
+      { type: "h", text: "Step 4: File public records requests" },
+      { type: "p", text: "Much of the documentation around data center development is publicly available but not proactively disclosed. File FOIA requests for interconnection agreements, environmental assessments, special use permit applications, and any conditions attached to approvals." },
+      { type: "h", text: "Step 5: Connect with neighbors" },
+      { type: "p", text: "Individual voices matter. Organized voices matter more. Find neighbors who share your concerns and coordinate your engagement. Local community groups, neighborhood associations, and environmental organizations can amplify your efforts." },
+      { type: "h", text: "Step 6: Document your experience" },
+      { type: "p", text: "If you are already living near an operating facility, document your experience. Note the dates and times of generator testing. Record noise levels using a free decibel meter app on your phone. Document any changes you observe over time. This documentation serves two purposes: it supports any future regulatory or legal action, and it contributes to the public record that HumZones maintains on behalf of communities everywhere." },
+      { type: "p", text: "Submit your verified experience to HumZones at humzones.com/submit-report. Your report becomes part of the public registry and helps other residents in your area understand what to expect." },
+      { type: "h", text: "Step 7: Know your limits" },
+      { type: "p", text: "Some battles cannot be won after a certain point in the process. If a facility is fully approved and funded, stopping it entirely may not be realistic. In those cases, focusing on conditions (noise barriers, generator testing restrictions, landscaping requirements, community benefit agreements) may be more productive than opposing the project outright." },
+      { type: "p", text: "The residents who are most effective are those who engage early, stay fact-based, and build coalitions. HumZones exists to give you the information you need to do all three." },
+    ],
+  },
+];
+
+// Renders a single body block into the right semantic markup. Kept local
+// to the page so styling decisions stay co-located with the article shell.
+const LearnBlock = ({ block }) => {
+  if (block.type === "h") {
+    return <h3 style={{fontSize:20,fontWeight:900,color:"#0f172a",letterSpacing:"-.01em",margin:"28px 0 10px"}}>{block.text}</h3>;
+  }
+  if (block.type === "p") {
+    return <p style={{fontSize:16,color:"#334155",lineHeight:1.75,margin:"0 0 14px"}}>{block.text}</p>;
+  }
+  if (block.type === "ul") {
+    return (
+      <ul style={{margin:"0 0 16px",paddingLeft:22,color:"#334155",fontSize:16,lineHeight:1.7}}>
+        {block.items.map((it, j) => <li key={j} style={{marginBottom:6}}>{it}</li>)}
+      </ul>
+    );
+  }
+  if (block.type === "kv") {
+    return (
+      <p style={{fontSize:16,color:"#334155",lineHeight:1.75,margin:"0 0 14px"}}>
+        <strong style={{color:"#0f172a"}}>{block.k}:</strong> {block.v}
+      </p>
+    );
+  }
+  return null;
+};
+
+const LearnPage = ({ onNavigate }) => {
+  const [search, setSearch] = useState("");
+  const [activeCategory, setActiveCategory] = useState("All");
+  const [expandedSlug, setExpandedSlug] = useState("");
+  const [helpful, setHelpful] = useState({}); // slug -> "up" | "down"
+  const [copiedSlug, setCopiedSlug] = useState("");
+
+  // Read the URL hash on mount and auto-expand the matching article. Also
+  // listen for hashchange so back/forward navigation works inside the
+  // expanded view.
+  useEffect(() => {
+    const sync = () => {
+      const h = (typeof window !== "undefined" && window.location.hash) || "";
+      const slug = h.replace(/^#/, "").toLowerCase();
+      if (slug && LEARN_ARTICLES.some(a => a.slug === slug)) {
+        setExpandedSlug(slug);
+      }
+    };
+    sync();
+    if (typeof window !== "undefined") {
+      window.addEventListener("hashchange", sync);
+      return () => window.removeEventListener("hashchange", sync);
+    }
+    return undefined;
+  }, []);
+
+  // Drive the document title and meta description from the expanded
+  // article when one is open, otherwise from the page defaults.
+  useEffect(() => {
+    if (typeof document === "undefined") return;
+    const expanded = LEARN_ARTICLES.find(a => a.slug === expandedSlug);
+    const title = expanded
+      ? `${expanded.title} | HumZones Learn`
+      : "Resident Guides | Understanding Data Center Infrastructure | HumZones";
+    document.title = title;
+    let metaDesc = document.querySelector('meta[name="description"]');
+    if (!metaDesc) {
+      metaDesc = document.createElement("meta");
+      metaDesc.setAttribute("name", "description");
+      document.head.appendChild(metaDesc);
+    }
+    metaDesc.setAttribute("content",
+      expanded
+        ? expanded.preview
+        : "Plain-language guides for residents living near data center infrastructure. Learn about interconnection queues, utility filings, facility status and what you can do."
+    );
+  }, [expandedSlug]);
+
+  const expandArticle = (slug) => {
+    setExpandedSlug(slug);
+    if (typeof window !== "undefined") {
+      window.history.replaceState(null, "", `/learn#${slug}`);
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+  };
+
+  const collapseArticle = () => {
+    setExpandedSlug("");
+    if (typeof window !== "undefined") {
+      window.history.replaceState(null, "", "/learn");
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+  };
+
+  const copyShareLink = (slug) => {
+    const url = `https://humzones.com/learn#${slug}`;
+    if (typeof navigator !== "undefined" && navigator.clipboard) {
+      navigator.clipboard.writeText(url).then(() => {
+        setCopiedSlug(slug);
+        setTimeout(() => setCopiedSlug(""), 2200);
+      }).catch(() => {
+        window.prompt("Copy this link:", url);
+      });
+    } else {
+      window.prompt("Copy this link:", url);
+    }
+  };
+
+  const q = search.trim().toLowerCase();
+  const filtered = LEARN_ARTICLES.filter(a => {
+    if (activeCategory !== "All" && a.category !== activeCategory) return false;
+    if (!q) return true;
+    return a.title.toLowerCase().includes(q) || a.preview.toLowerCase().includes(q);
+  });
+
+  const expanded = LEARN_ARTICLES.find(a => a.slug === expandedSlug) || null;
+  const related = expanded
+    ? LEARN_ARTICLES.filter(a => a.category === expanded.category && a.slug !== expanded.slug).slice(0, 2)
+    : [];
+
+  return (
+    <div style={{minHeight:"100vh",background:"#f1f5f9",width:"100%",maxWidth:"100vw",overflowX:"hidden"}}>
+      {/* HERO */}
+      <section style={{background:"linear-gradient(150deg,#020c1b 0%,#0f172a 45%,#1e0535 100%)",padding:"56px 24px 64px"}}>
+        <div style={{maxWidth:820,margin:"0 auto",textAlign:"center"}}>
+          <div style={{display:"inline-block",fontSize:12,color:"#f97316",letterSpacing:".18em",textTransform:"uppercase",fontWeight:800,marginBottom:14,padding:"6px 14px",borderRadius:30,background:"rgba(249,115,22,.12)",border:"1px solid rgba(249,115,22,.3)"}}>Resident Guides</div>
+          <h1 style={{fontSize:"clamp(30px,5vw,46px)",fontWeight:900,letterSpacing:"-.02em",color:"#fff",lineHeight:1.15,marginBottom:14}}>
+            Understanding the Infrastructure Being Built Near Your Home
+          </h1>
+          <div style={{width:60,height:3,background:"#f97316",borderRadius:2,margin:"0 auto 22px"}}/>
+          <p style={{fontSize:17,color:"rgba(255,255,255,.72)",lineHeight:1.65,maxWidth:680,margin:"0 auto"}}>
+            Plain-language guides for residents, homeowners and community advocates. No engineering degree required.
+          </p>
+        </div>
+      </section>
+
+      {/* INTRO PARAGRAPH */}
+      <section style={{maxWidth:880,margin:"0 auto",padding:"36px 24px 0"}}>
+        <div style={{background:"#f1f5f9",border:"1px solid #e2e8f0",borderRadius:14,padding:"20px 22px"}}>
+          <p style={{fontSize:16,color:"#475569",lineHeight:1.7,margin:0}}>
+            Data center development is reshaping communities across the country. These guides explain what is happening, why it matters, and what you can do about it, in language anyone can understand.
+          </p>
+        </div>
+      </section>
+
+      {/* SEARCH + CATEGORY FILTERS (only when no article is expanded) */}
+      {!expanded && (
+        <section style={{maxWidth:880,margin:"0 auto",padding:"28px 24px 0"}}>
+          <input
+            value={search}
+            onChange={e=>setSearch(e.target.value)}
+            placeholder="Search guides by title or preview..."
+            style={{width:"100%",padding:"14px 16px",borderRadius:12,border:"1.5px solid #e2e8f0",fontSize:15,fontFamily:"inherit",color:"#0f172a",background:"#fff",outline:"none",boxSizing:"border-box",marginBottom:14}}
+          />
+          <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+            {["All", ...LEARN_CATEGORIES].map(cat => {
+              const active = activeCategory === cat;
+              return (
+                <button
+                  key={cat}
+                  onClick={()=>setActiveCategory(cat)}
+                  style={{padding:"8px 16px",borderRadius:999,border:`1.5px solid ${active?"#f97316":"#e2e8f0"}`,background:active?"#f97316":"#fff",color:active?"#fff":"#475569",fontFamily:"inherit",fontSize:13,fontWeight:800,letterSpacing:".02em",cursor:"pointer"}}
+                >
+                  {cat}
+                </button>
+              );
+            })}
+          </div>
+        </section>
+      )}
+
+      {/* ARTICLE GRID (collapsed view) or EXPANDED ARTICLE */}
+      <section style={{maxWidth:880,margin:"0 auto",padding:"24px 24px 48px"}}>
+        {!expanded ? (
+          <>
+            {filtered.length === 0 ? (
+              <div style={{background:"#fff",border:"1px solid #e2e8f0",borderRadius:14,padding:"30px 24px",textAlign:"center",color:"#64748b"}}>
+                No guides match that search. Try a different keyword or clear the category filter.
+              </div>
+            ) : (
+              <div className="learn-grid" style={{display:"grid",gridTemplateColumns:"repeat(2, 1fr)",gap:16}}>
+                {filtered.map(a => {
+                  const c = LEARN_CATEGORY_COLOR[a.category] || { bg:"#f1f5f9", border:"#cbd5e1", text:"#475569" };
+                  return (
+                    <article key={a.slug} className="learn-card" style={{background:"#fff",border:"1px solid #e2e8f0",borderRadius:14,padding:"22px 22px 18px",boxShadow:"0 2px 12px rgba(0,0,0,.04)",display:"flex",flexDirection:"column",gap:10,transition:"box-shadow .2s, transform .2s"}}>
+                      <div>
+                        <span style={{display:"inline-block",fontSize:11,fontWeight:800,letterSpacing:".08em",textTransform:"uppercase",padding:"4px 10px",borderRadius:999,background:c.bg,border:`1px solid ${c.border}`,color:c.text}}>{a.category}</span>
+                      </div>
+                      <h2 style={{fontSize:18,fontWeight:800,color:"#0f172a",letterSpacing:"-.01em",lineHeight:1.35,margin:0}}>{a.title}</h2>
+                      <p style={{fontSize:14,color:"#64748b",lineHeight:1.65,margin:0}}>{a.preview}</p>
+                      <div style={{fontSize:12,color:"#94a3b8",fontWeight:700}}>{a.readTime}</div>
+                      <button onClick={()=>expandArticle(a.slug)} style={{alignSelf:"flex-start",marginTop:6,padding:0,background:"transparent",border:"none",color:"#f97316",fontFamily:"inherit",fontSize:14,fontWeight:800,cursor:"pointer"}}>
+                        Read Article &rarr;
+                      </button>
+                    </article>
+                  );
+                })}
+              </div>
+            )}
+          </>
+        ) : (
+          <article className="fade-in" style={{background:"#fff",border:"1px solid #e2e8f0",borderRadius:16,padding:"28px 28px 26px",boxShadow:"0 4px 22px rgba(0,0,0,.06)"}}>
+            <button onClick={collapseArticle} style={{padding:0,background:"transparent",border:"none",color:"#64748b",fontFamily:"inherit",fontSize:13,fontWeight:700,cursor:"pointer",marginBottom:14}}>
+              &larr; Back to all articles
+            </button>
+            {(() => {
+              const c = LEARN_CATEGORY_COLOR[expanded.category] || { bg:"#f1f5f9", border:"#cbd5e1", text:"#475569" };
+              return (
+                <span style={{display:"inline-block",fontSize:11,fontWeight:800,letterSpacing:".08em",textTransform:"uppercase",padding:"4px 10px",borderRadius:999,background:c.bg,border:`1px solid ${c.border}`,color:c.text,marginBottom:12}}>{expanded.category}</span>
+              );
+            })()}
+            <h2 style={{fontSize:"clamp(22px,3.4vw,32px)",fontWeight:900,color:"#0f172a",letterSpacing:"-.02em",lineHeight:1.2,margin:"0 0 10px"}}>{expanded.title}</h2>
+            <div style={{fontSize:13,color:"#94a3b8",fontWeight:700,marginBottom:22}}>{expanded.readTime}</div>
+            <div>
+              {expanded.body.map((b, i) => <LearnBlock key={i} block={b}/>)}
+            </div>
+
+            {/* Share + helpful row */}
+            <div style={{marginTop:28,padding:"18px 0 0",borderTop:"1px solid #e2e8f0",display:"flex",justifyContent:"space-between",alignItems:"center",gap:14,flexWrap:"wrap"}}>
+              <button onClick={()=>copyShareLink(expanded.slug)} style={{padding:"10px 16px",borderRadius:10,border:"1.5px solid #e2e8f0",background:"#fff",color:"#475569",fontFamily:"inherit",fontSize:13,fontWeight:800,cursor:"pointer"}}>
+                {copiedSlug === expanded.slug ? "Link copied!" : "Share this article"}
+              </button>
+              <div style={{display:"flex",alignItems:"center",gap:10,flexWrap:"wrap"}}>
+                <span style={{fontSize:13,color:"#64748b",fontWeight:700}}>Was this helpful?</span>
+                <button
+                  onClick={()=>setHelpful(p=>({...p,[expanded.slug]:"up"}))}
+                  aria-label="Helpful"
+                  style={{padding:"8px 12px",borderRadius:10,border:`1.5px solid ${helpful[expanded.slug]==="up"?"#22c55e":"#e2e8f0"}`,background:helpful[expanded.slug]==="up"?"rgba(34,197,94,.12)":"#fff",color:helpful[expanded.slug]==="up"?"#15803d":"#475569",fontFamily:"inherit",fontSize:14,fontWeight:800,cursor:"pointer"}}
+                >
+                  &#x1F44D;
+                </button>
+                <button
+                  onClick={()=>setHelpful(p=>({...p,[expanded.slug]:"down"}))}
+                  aria-label="Not helpful"
+                  style={{padding:"8px 12px",borderRadius:10,border:`1.5px solid ${helpful[expanded.slug]==="down"?"#ef4444":"#e2e8f0"}`,background:helpful[expanded.slug]==="down"?"rgba(239,68,68,.12)":"#fff",color:helpful[expanded.slug]==="down"?"#b91c1c":"#475569",fontFamily:"inherit",fontSize:14,fontWeight:800,cursor:"pointer"}}
+                >
+                  &#x1F44E;
+                </button>
+              </div>
+            </div>
+            {helpful[expanded.slug] && (
+              <div style={{marginTop:10,fontSize:13,color:"#64748b"}}>Thanks for the feedback.</div>
+            )}
+
+            {/* Related articles */}
+            {related.length > 0 && (
+              <div style={{marginTop:30,paddingTop:22,borderTop:"1px solid #e2e8f0"}}>
+                <div style={{fontSize:12,color:"#94a3b8",letterSpacing:".14em",textTransform:"uppercase",fontWeight:800,marginBottom:12}}>Related articles</div>
+                <div className="learn-grid" style={{display:"grid",gridTemplateColumns:"repeat(2, 1fr)",gap:14}}>
+                  {related.map(r => {
+                    const rc = LEARN_CATEGORY_COLOR[r.category] || { bg:"#f1f5f9", border:"#cbd5e1", text:"#475569" };
+                    return (
+                      <button key={r.slug} onClick={()=>expandArticle(r.slug)} style={{textAlign:"left",background:"#f8fafc",border:"1px solid #e2e8f0",borderRadius:12,padding:"16px 16px 14px",cursor:"pointer",fontFamily:"inherit",display:"flex",flexDirection:"column",gap:8}}>
+                        <span style={{display:"inline-block",alignSelf:"flex-start",fontSize:10,fontWeight:800,letterSpacing:".08em",textTransform:"uppercase",padding:"3px 9px",borderRadius:999,background:rc.bg,border:`1px solid ${rc.border}`,color:rc.text}}>{r.category}</span>
+                        <span style={{fontSize:15,fontWeight:800,color:"#0f172a",lineHeight:1.35}}>{r.title}</span>
+                        <span style={{fontSize:12,color:"#94a3b8",fontWeight:700}}>{r.readTime}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+          </article>
+        )}
+      </section>
+
+      {/* GLOSSARY CALLOUT */}
+      <section style={{maxWidth:880,margin:"0 auto",padding:"0 24px 56px"}}>
+        <div style={{background:"#fff7ed",border:"1px solid #fed7aa",borderLeft:"4px solid #f97316",borderRadius:12,padding:"18px 22px"}}>
+          <p style={{fontSize:15,color:"#7c2d12",lineHeight:1.65,margin:0}}>
+            Looking for quick definitions? Visit our Infrastructure Glossary at{" "}
+            <a href="/glossary" onClick={e=>{e.preventDefault();onNavigate("/glossary");}} style={{color:"#c2410c",fontWeight:800,textDecoration:"none"}}>humzones.com/glossary</a>.
+          </p>
+        </div>
+      </section>
+
+      {/* Inline media-query: collapse the grid to a single column on
+          narrow viewports. */}
+      <style>{`@media(max-width:680px){.learn-grid{grid-template-columns:1fr!important}}`}</style>
+
+      <Footer onNavigate={onNavigate}/>
+    </div>
+  );
+};
+
 // ─── /donate: DONATIONS PAGE ─────────────────────────────────────────────────
 // Stripe Payment Link URLs for one-time and recurring donations. Each link
 // must be configured in the Stripe dashboard to redirect on success to
@@ -8529,6 +8983,7 @@ const GH_MENU = {
         { title: "Live Registry Status", desc: "Operating, building and proposed",         action: "registry" },
       ]},
       { head: "LEARN", items: [
+        { title: "Resident Guides",      desc: "Plain-language explainers for residents",  to: "/learn" },
         { title: "Methodology",          desc: "How we research and model data",           to: "/methodology" },
         { title: "FAQ",                  desc: "Common questions answered",                to: "/faq" },
         { title: "About HumZones",       desc: "Our mission and story",                    to: "/about" },
@@ -9435,6 +9890,8 @@ export default function App() {
         <DisclaimerPage onNavigate={navigate}/>
       ) : path === "/donate" ? (
         <DonatePage onNavigate={navigate} facilityCount={facs.length}/>
+      ) : path === "/learn" ? (
+        <LearnPage onNavigate={navigate}/>
       ) : path === "/donate-thank-you" ? (
         <DonateThankYouPage onNavigate={navigate}/>
       ) : (
