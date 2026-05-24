@@ -1849,7 +1849,10 @@ const GetReportPage = ({ onNavigate }) => {
         <div style={{flex:1,minWidth:0}}>
           <div style={{fontSize:17,fontWeight:800,color:"#0f172a",marginBottom:4,lineHeight:1.3}}>{f.Name}</div>
           <div style={{fontSize:13,color:"#64748b",fontWeight:600}}>{f.Company} &middot; {[f.City,f.State_Region,f.Country].filter(Boolean).join(", ")}</div>
-          <div style={{fontSize:13,color:"#64748b",fontWeight:600,marginTop:2}}>{f.Power_MW>=1000?`${(f.Power_MW/1000).toFixed(1)} GW`:`${f.Power_MW||"?"}MW`}</div>
+          <div style={{fontSize:13,color:"#64748b",fontWeight:600,marginTop:2,display:"inline-flex",alignItems:"center"}}>
+            {f.Power_MW>=1000?`${(f.Power_MW/1000).toFixed(1)} GW`:`${f.Power_MW||"?"}MW`}
+            <InfoTip label="About power draw">{METRIC_TIP.power(f.Power_MW)}</InfoTip>
+          </div>
         </div>
         <div className="near-right" style={{display:"flex",flexDirection:"column",gap:8,alignItems:"flex-end",flexShrink:0,marginLeft:"auto"}}>
           <div style={{padding:"6px 12px",borderRadius:999,background:dclr,color:"#fff",fontWeight:800,fontSize:13,letterSpacing:".02em",boxShadow:`0 4px 14px ${dclr}55`}}>
@@ -10566,7 +10569,10 @@ export default function App() {
                   <div style={{flex:1,minWidth:0}}>
                     <div style={{fontSize:17,fontWeight:800,color:"#0f172a",marginBottom:4,lineHeight:1.3}}>{f.Name}</div>
                     <div style={{fontSize:13,color:"#64748b",fontWeight:600}}>{f.Company} &middot; {[f.City,f.State_Region,f.Country].filter(Boolean).join(", ")}</div>
-                    <div style={{fontSize:13,color:"#64748b",fontWeight:600,marginTop:2}}>{f.Power_MW>=1000?`${(f.Power_MW/1000).toFixed(1)} GW`:`${f.Power_MW||"?"}MW`}</div>
+                    <div style={{fontSize:13,color:"#64748b",fontWeight:600,marginTop:2,display:"inline-flex",alignItems:"center"}}>
+                      {f.Power_MW>=1000?`${(f.Power_MW/1000).toFixed(1)} GW`:`${f.Power_MW||"?"}MW`}
+                      {!locked && <InfoTip label="About power draw">{METRIC_TIP.power(f.Power_MW)}</InfoTip>}
+                    </div>
                   </div>
                   <div className="near-right" style={{display:"flex",flexDirection:"column",gap:8,alignItems:"flex-end",flexShrink:0,marginLeft:"auto"}}>
                     <div style={{padding:"6px 12px",borderRadius:999,background:dclr,color:"#fff",fontWeight:800,fontSize:13,letterSpacing:".02em",boxShadow:`0 4px 14px ${dclr}55`}}>
