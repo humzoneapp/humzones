@@ -4723,6 +4723,18 @@ const BusinessPlansPage = ({ onNavigate, facilityCount, facs = [] }) => {
 
 // ─── /business-success: ACCOUNT FORM + AIRTABLE CREATE ───────────────────────
 const BusinessSuccessPage = ({ onNavigate }) => {
+  // Reinstatement case: a logged-in business user landed here from the
+  // dashboard's Reinstate flow. The Airtable row already exists and the
+  // webhook is patching plan/credits/Status in the background — no form
+  // to fill, just send them back to the dashboard.
+  useEffect(() => {
+    const existing = readBusinessAccount();
+    if (existing && existing.email) {
+      onNavigate("/business-dashboard");
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const params = new URLSearchParams(window.location.search);
   const planKey = (params.get("plan") || (typeof localStorage!=="undefined"?localStorage.getItem("hz_pending_plan"):"") || "starter").toLowerCase();
   const planInfo = PLAN_INFO[planKey] || PLAN_INFO.starter;
@@ -5665,6 +5677,10 @@ const BusinessDashboardPage = ({ onNavigate }) => {
   const [page, setPage]             = useState(1);
   const [downloadingId, setDownloadingId] = useState(null);
   const [toast, setToast]           = useState("");
+  // Reinstatement modal — opened from the Cancelled-state banner so a
+  // returning customer can pick a plan and check out without leaving
+  // the dashboard context.
+  const [reinstateOpen, setReinstateOpen] = useState(false);
   const PER_PAGE = 20;
 
   useEffect(() => {
@@ -5729,10 +5745,28 @@ const BusinessDashboardPage = ({ onNavigate }) => {
     ? ENTERPRISE_MONTHLY
     : account.creditsRemaining;
   const creditsLabel = String(remainingDisplay);
+  // The webhook flips Status to "Cancelled" when the Stripe subscription
+  // ends. In that state the report-generate flow is gated; the rest of
+  // the dashboard (profile, history, re-downloads) stays accessible.
+  const isCancelled = String(account.status || "").toLowerCase() === "cancelled";
 
   const signOut = () => {
     clearBusinessAccount();
     onNavigate("/business-login");
+  };
+
+  // Send the user to the Stripe Payment Link for a given plan, tagging
+  // the session with client_reference_id="plan:<key>" so the webhook
+  // can grant the right number of credits when they come back. Email
+  // is prefilled so they don't retype it.
+  const startReinstateCheckout = (planKey) => {
+    const url = PLAN_LINKS[planKey];
+    if (!url) return;
+    const params = new URLSearchParams({
+      client_reference_id: "plan:" + planKey,
+      prefilled_email:     account.email || "",
+    });
+    window.location.href = url + (url.includes("?") ? "&" : "?") + params.toString();
   };
 
   const showToast = (msg) => {
@@ -5825,30 +5859,44 @@ const BusinessDashboardPage = ({ onNavigate }) => {
           <button onClick={signOut} style={{padding:"8px 16px",borderRadius:10,border:"1px solid rgba(255,255,255,.18)",background:"rgba(255,255,255,.06)",color:"rgba(255,255,255,.85)",cursor:"pointer",fontFamily:"inherit",fontSize:13,fontWeight:700}}>Sign Out</button>
         </div>
 
-        <div style={{background:"linear-gradient(160deg,rgba(249,115,22,.16),rgba(15,23,42,.6))",border:"1.5px solid rgba(249,115,22,.4)",borderRadius:18,padding:"30px",marginBottom:24,boxShadow:"0 20px 50px rgba(249,115,22,.18)"}}>
-          <div style={{fontSize:13,color:"#f97316",letterSpacing:".18em",textTransform:"uppercase",fontWeight:800,marginBottom:10}}>Credits</div>
-          <div style={{display:"flex",alignItems:"baseline",gap:14,marginBottom:8}}>
-            <span style={{fontSize:72,fontWeight:900,letterSpacing:"-.02em",color:"#f97316",lineHeight:1,textShadow:"0 0 28px rgba(249,115,22,.45)"}}>{creditsLabel}</span>
-            <span style={{fontSize:17,color:"rgba(255,255,255,.7)",fontWeight:600}}>of {monthlyCap} Reports Remaining</span>
-          </div>
-          <div style={{fontSize:14,color:"rgba(255,255,255,.65)",marginBottom:20}}>
-            {account.plan ? `${account.plan} plan` : "Active plan"}
-            {account.renewalDate ? ` - Renews ${account.renewalDate}` : ""}
-            {loading ? " - refreshing..." : ""}
-          </div>
-          <div style={{display:"flex",gap:12,flexWrap:"wrap"}}>
-            <button onClick={()=>onNavigate("/business-generate")} style={{padding:"14px 26px",borderRadius:12,border:"none",cursor:"pointer",fontFamily:"inherit",fontSize:15,fontWeight:900,background:"linear-gradient(135deg,#ef4444,#f97316)",color:"#fff",boxShadow:"0 10px 28px rgba(249,115,22,.4)"}}>Generate Report</button>
-            <a href="/business" onClick={e=>{e.preventDefault();onNavigate("/business");}} style={{padding:"14px 22px",borderRadius:12,border:"1px solid rgba(255,255,255,.22)",fontFamily:"inherit",fontSize:14,fontWeight:800,background:"rgba(255,255,255,.06)",color:"#fff",textDecoration:"none",display:"inline-flex",alignItems:"center"}}>Need more reports?</a>
-          </div>
-          <div style={{display:"flex",alignItems:"flex-start",gap:8,padding:"10px 14px",borderRadius:8,background:"#eff6ff",borderLeft:"3px solid #3b82f6",marginTop:16}}>
-            <span aria-hidden="true" style={{flexShrink:0,display:"inline-flex",alignItems:"center",justifyContent:"center",width:16,height:16,borderRadius:"50%",background:"#3b82f6",color:"#fff",fontSize:10,fontWeight:800,marginTop:2,lineHeight:1}}>i</span>
-            <p style={{fontSize:13,color:"#1e3a8a",lineHeight:1.55,margin:0}}>
-              Your business name from your profile will appear on the cover of every report you generate. Visit{" "}
-              <a href="/business-profile" onClick={e=>{e.preventDefault();onNavigate("/business-profile");}} style={{color:"#f97316",fontWeight:700,textDecoration:"none"}}>My Profile</a>
-              {" "}to ensure your company name is correct before generating reports.
+        {isCancelled ? (
+          <div style={{background:"linear-gradient(160deg,rgba(234,179,8,.14),rgba(15,23,42,.6))",border:"1.5px solid rgba(234,179,8,.45)",borderRadius:18,padding:"30px",marginBottom:24,boxShadow:"0 20px 50px rgba(234,179,8,.14)"}}>
+            <div style={{fontSize:13,color:"#facc15",letterSpacing:".18em",textTransform:"uppercase",fontWeight:800,marginBottom:10}}>Subscription Cancelled</div>
+            <h2 style={{fontSize:24,fontWeight:900,letterSpacing:"-.01em",margin:"0 0 10px",color:"#fff"}}>Your subscription is no longer active</h2>
+            <p style={{fontSize:14,color:"rgba(255,255,255,.78)",lineHeight:1.65,margin:"0 0 18px"}}>
+              You can still view and re-download your past reports below. To generate new reports, reinstate your subscription and pick the plan that fits your team.
             </p>
+            <div style={{display:"flex",gap:12,flexWrap:"wrap"}}>
+              <button onClick={()=>setReinstateOpen(true)} style={{padding:"14px 26px",borderRadius:12,border:"none",cursor:"pointer",fontFamily:"inherit",fontSize:15,fontWeight:900,background:"linear-gradient(135deg,#ef4444,#f97316)",color:"#fff",boxShadow:"0 10px 28px rgba(249,115,22,.4)"}}>Reinstate Subscription</button>
+              <a href="/business" onClick={e=>{e.preventDefault();onNavigate("/business");}} style={{padding:"14px 22px",borderRadius:12,border:"1px solid rgba(255,255,255,.22)",fontFamily:"inherit",fontSize:14,fontWeight:800,background:"rgba(255,255,255,.06)",color:"#fff",textDecoration:"none",display:"inline-flex",alignItems:"center"}}>Compare plans</a>
+            </div>
           </div>
-        </div>
+        ) : (
+          <div style={{background:"linear-gradient(160deg,rgba(249,115,22,.16),rgba(15,23,42,.6))",border:"1.5px solid rgba(249,115,22,.4)",borderRadius:18,padding:"30px",marginBottom:24,boxShadow:"0 20px 50px rgba(249,115,22,.18)"}}>
+            <div style={{fontSize:13,color:"#f97316",letterSpacing:".18em",textTransform:"uppercase",fontWeight:800,marginBottom:10}}>Credits</div>
+            <div style={{display:"flex",alignItems:"baseline",gap:14,marginBottom:8}}>
+              <span style={{fontSize:72,fontWeight:900,letterSpacing:"-.02em",color:"#f97316",lineHeight:1,textShadow:"0 0 28px rgba(249,115,22,.45)"}}>{creditsLabel}</span>
+              <span style={{fontSize:17,color:"rgba(255,255,255,.7)",fontWeight:600}}>of {monthlyCap} Reports Remaining</span>
+            </div>
+            <div style={{fontSize:14,color:"rgba(255,255,255,.65)",marginBottom:20}}>
+              {account.plan ? `${account.plan} plan` : "Active plan"}
+              {account.renewalDate ? ` - Renews ${account.renewalDate}` : ""}
+              {loading ? " - refreshing..." : ""}
+            </div>
+            <div style={{display:"flex",gap:12,flexWrap:"wrap"}}>
+              <button onClick={()=>onNavigate("/business-generate")} style={{padding:"14px 26px",borderRadius:12,border:"none",cursor:"pointer",fontFamily:"inherit",fontSize:15,fontWeight:900,background:"linear-gradient(135deg,#ef4444,#f97316)",color:"#fff",boxShadow:"0 10px 28px rgba(249,115,22,.4)"}}>Generate Report</button>
+              <a href="/business" onClick={e=>{e.preventDefault();onNavigate("/business");}} style={{padding:"14px 22px",borderRadius:12,border:"1px solid rgba(255,255,255,.22)",fontFamily:"inherit",fontSize:14,fontWeight:800,background:"rgba(255,255,255,.06)",color:"#fff",textDecoration:"none",display:"inline-flex",alignItems:"center"}}>Need more reports?</a>
+            </div>
+            <div style={{display:"flex",alignItems:"flex-start",gap:8,padding:"10px 14px",borderRadius:8,background:"#eff6ff",borderLeft:"3px solid #3b82f6",marginTop:16}}>
+              <span aria-hidden="true" style={{flexShrink:0,display:"inline-flex",alignItems:"center",justifyContent:"center",width:16,height:16,borderRadius:"50%",background:"#3b82f6",color:"#fff",fontSize:10,fontWeight:800,marginTop:2,lineHeight:1}}>i</span>
+              <p style={{fontSize:13,color:"#1e3a8a",lineHeight:1.55,margin:0}}>
+                Your business name from your profile will appear on the cover of every report you generate. Visit{" "}
+                <a href="/business-profile" onClick={e=>{e.preventDefault();onNavigate("/business-profile");}} style={{color:"#f97316",fontWeight:700,textDecoration:"none"}}>My Profile</a>
+                {" "}to ensure your company name is correct before generating reports.
+              </p>
+            </div>
+          </div>
+        )}
 
         <div style={{background:"rgba(15,23,42,.55)",border:"1px solid rgba(255,255,255,.1)",borderRadius:16,padding:"24px"}}>
           {(() => {
@@ -5949,6 +5997,44 @@ const BusinessDashboardPage = ({ onNavigate }) => {
       {toast && (
         <div role="status" style={{position:"fixed",top:24,left:"50%",transform:"translateX(-50%)",padding:"12px 22px",borderRadius:30,background:"#0f172a",border:"1px solid rgba(249,115,22,.5)",color:"#fff",fontWeight:700,fontSize:14,zIndex:100,boxShadow:"0 18px 50px rgba(0,0,0,.45)"}}>
           {toast}
+        </div>
+      )}
+
+      {/* Reinstatement modal. Triggered from the Cancelled banner above.
+          Each option redirects to the matching Stripe Payment Link with
+          client_reference_id="plan:<key>" so the webhook knows which
+          plan to grant on return. */}
+      {reinstateOpen && (
+        <div role="dialog" aria-modal="true" style={{position:"fixed",inset:0,background:"rgba(2,12,27,.78)",backdropFilter:"blur(6px)",zIndex:200,display:"flex",alignItems:"center",justifyContent:"center",padding:"20px",overflowY:"auto"}}>
+          <div style={{maxWidth:720,width:"100%",background:"#0f172a",border:"1px solid rgba(249,115,22,.4)",borderRadius:18,padding:"26px 26px 22px",boxShadow:"0 30px 80px rgba(0,0,0,.55)"}}>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",gap:14,marginBottom:14}}>
+              <div>
+                <h3 style={{fontSize:22,fontWeight:900,color:"#fff",margin:"0 0 6px"}}>Reinstate your subscription</h3>
+                <p style={{fontSize:13,color:"rgba(255,255,255,.7)",lineHeight:1.55,margin:0}}>Pick the plan that fits your team. You will be sent to Stripe to complete payment, then returned to your dashboard.</p>
+              </div>
+              <button onClick={()=>setReinstateOpen(false)} aria-label="Close" style={{background:"transparent",border:"none",color:"rgba(255,255,255,.7)",fontSize:22,fontWeight:900,cursor:"pointer",lineHeight:1,padding:"0 4px",fontFamily:"inherit"}}>&times;</button>
+            </div>
+            <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(180px,1fr))",gap:12}}>
+              {Object.entries(PLAN_INFO).map(([key, info]) => {
+                const isAnnual = key.endsWith("-annual");
+                return (
+                  <button key={key} onClick={()=>startReinstateCheckout(key)} style={{textAlign:"left",padding:"16px 16px 14px",borderRadius:12,border:"1px solid rgba(255,255,255,.16)",background:"rgba(255,255,255,.04)",cursor:"pointer",fontFamily:"inherit",color:"#fff",transition:"border-color .15s, background .15s"}}>
+                    <div style={{fontSize:11,letterSpacing:".14em",textTransform:"uppercase",fontWeight:800,color:isAnnual ? "#f97316" : "rgba(255,255,255,.55)",marginBottom:6}}>
+                      {isAnnual ? "Annual" : "Monthly"}
+                    </div>
+                    <div style={{fontSize:17,fontWeight:900,marginBottom:4}}>{info.label}</div>
+                    <div style={{fontSize:13,color:"rgba(255,255,255,.7)",marginBottom:10}}>
+                      {info.credits >= LEGACY_UNLIMITED_CAP ? ENTERPRISE_MONTHLY : info.credits} reports / month
+                    </div>
+                    <div style={{fontSize:12,color:"#f97316",fontWeight:800}}>{info.pricePer} per report &rarr;</div>
+                  </button>
+                );
+              })}
+            </div>
+            <p style={{fontSize:12,color:"rgba(255,255,255,.5)",lineHeight:1.55,marginTop:14}}>
+              Already paid? Subscriptions take a moment to update after checkout. If you do not see credits within a minute, refresh this page.
+            </p>
+          </div>
         </div>
       )}
     </div>
