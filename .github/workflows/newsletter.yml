@@ -50,9 +50,10 @@ jobs:
       - name: Send newsletter
         if: steps.action.outputs.action == 'send'
         run: |
-          curl -X POST https://humzones.com/api/send-newsletter \
+          curl -X POST https://humzones.com/api/newsletter \
             -H "X-Cron-Secret: ${{ secrets.CRON_SECRET }}" \
             -H "Content-Type: application/json" \
+            -d '{"type":"send"}' \
             --verbose \
             --fail-with-body \
             --max-time 60 \
