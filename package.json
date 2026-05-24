@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "generate-newsletter": "node scripts/generate-newsletter.js"
   },
   "dependencies": {
     "@stripe/stripe-js": "^9.6.0",
