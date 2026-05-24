@@ -28,6 +28,41 @@ const airtableKey  = () => process.env.AIRTABLE_KEY || process.env.VITE_AIRTABLE
 const AIRTABLE_API = `https://api.airtable.com/v0/${AIRTABLE_BASE}`;
 const todayIso     = () => new Date().toISOString().slice(0, 10);
 
+const NEWSLETTER_TYPE = process.env.NEWSLETTER_TYPE || 'filings';
+
+const TYPE_CONFIG = {
+  filings: {
+    titlePrefix: 'What Filed This Week',
+    searchQuery: 'data center interconnection queue utility permit planning board filing 2026',
+    systemFocus: 'Focus ONLY on interconnection queue filings, utility permit applications and planning board decisions. No general data center news.',
+    structureRules:
+      "- Editor's Note: 2 sentences maximum\n" +
+      "- What Filed This Week: maximum 2 items only, each item 3 sentences max\n" +
+      "- By the Numbers: exactly 3 one-line bullet points\n" +
+      "- What to Watch: exactly 2 bullet points, one line each\n",
+    sectionsBlock:
+      "EDITOR'S NOTE (2 sentences): Why this week's filings matter for residents. Personal and direct.\n\n" +
+      "WHAT FILED THIS WEEK: maximum 2 items from interconnection queues, utility permit filings or planning board applications found via web search. For each item: location, what was filed, what it means for nearby residents in plain language, and the source URL in parentheses.\n\n" +
+      "BY THE NUMBERS: Exactly 3 statistics from this week's filings, one line each. Format: '[Number in plain language], [what it means for a person].'\n\n" +
+      "WHAT TO WATCH: Exactly 2 specific items to monitor next week based on these filings, one line each. Name the company, county or filing.\n\n",
+  },
+  news: {
+    titlePrefix: 'Facilities in the News',
+    searchQuery: 'data center announcement expansion community opposition residents news 2026',
+    systemFocus: 'Focus ONLY on data center facility announcements, expansions and community impact stories. No filing or regulatory content.',
+    structureRules:
+      "- Editor's Note: 2 sentences maximum\n" +
+      "- Facilities in the News: maximum 2 items only, each item 3 sentences max\n" +
+      "- Community Spotlight: 2 sentences only\n" +
+      "- What to Watch: exactly 2 bullet points, one line each\n",
+    sectionsBlock:
+      "EDITOR'S NOTE (2 sentences): Why this week's developments matter for residents. Personal and direct.\n\n" +
+      "FACILITIES IN THE NEWS: maximum 2 news items from the past 7 days. For each: company or facility name, what happened, community impact in plain language, and the source URL in parentheses.\n\n" +
+      "COMMUNITY SPOTLIGHT: 2 sentences about resident actions, community meetings, planning board hearings or awareness efforts related to data centers this week.\n\n" +
+      "WHAT TO WATCH: Exactly 2 specific items to monitor next week based on this week's news, one line each. Name the company, county or facility.\n\n",
+  },
+};
+
 async function airtableListAll(tableId, params) {
   const key = airtableKey();
   let all = [], offset = null;
@@ -134,7 +169,13 @@ async function main() {
   if (!airtableKey()) throw new Error("AIRTABLE_KEY (or VITE_AIRTABLE_KEY) not set");
   if (!process.env.ANTHROPIC_API_KEY) throw new Error("ANTHROPIC_API_KEY not set");
 
+  const cfg = TYPE_CONFIG[NEWSLETTER_TYPE];
+  if (!cfg) {
+    throw new Error("Unknown NEWSLETTER_TYPE: " + NEWSLETTER_TYPE + ". Expected 'filings' or 'news'.");
+  }
+
   console.log('[generate-newsletter] start', new Date().toISOString());
+  console.log('[generate-newsletter] type:', NEWSLETTER_TYPE);
 
   // STEP 1: Pull previous issue headlines to seed the dedup hint.
   const existing = await airtableListAll(ISSUES_TABLE, {});
@@ -184,13 +225,9 @@ async function main() {
     "IMPORTANT: If you cannot find enough real data center news this week to fill " +
     "a section, write fewer items rather than padding with off-topic content or " +
     "invented stories. Quality over quantity.\n\n" +
+    "FOCUS: " + cfg.systemFocus + "\n\n" +
     "STRUCTURE RULES, follow exactly:\n" +
-    "- Editor's Note: 2 sentences maximum\n" +
-    "- What Filed This Week: maximum 2 items only, each item 3 sentences max\n" +
-    "- Facilities in the News: maximum 2 items only, each item 3 sentences max\n" +
-    "- By the Numbers: exactly 3 one-line bullet points\n" +
-    "- Community Spotlight: 2 sentences only\n" +
-    "- What to Watch: exactly 2 bullet points, one line each\n" +
+    cfg.structureRules +
     "Write fewer items with full styling rather than more items with stripped " +
     "styling. The HTML must be complete and well-formatted with all inline " +
     "styles intact.\n\n" +
@@ -199,32 +236,10 @@ async function main() {
     "This is a hard requirement.";
 
   const userPrompt =
-    "Search for the latest data center infrastructure news from this week " +
-    "including interconnection queue filings, hyperscale announcements, " +
-    "planning board decisions, and community impact stories. Then write " +
-    "the complete Infrastructure Intelligence newsletter issue in the HTML " +
-    "format specified.\n\n" +
-    "EDITOR'S NOTE (2 to 3 sentences): Why this week's developments matter for " +
-    "residents. Personal and direct.\n\n" +
-    "WHAT FILED THIS WEEK: 2 to 4 items from interconnection queues, utility permit " +
-    "filings or planning board applications found via web search. For each item: " +
-    "location, what was filed, what it means for nearby residents in plain " +
-    "language, and the source URL in parentheses. If fewer than 2 real filings " +
-    "were found this week write only what you found. Do not pad.\n\n" +
-    "FACILITIES IN THE NEWS: 2 to 4 news items from the past 7 days. For each: " +
-    "company or facility name, what happened, community impact in plain language, " +
-    "source URL in parentheses. Data center topics only. No general AI news.\n\n" +
-    "BY THE NUMBERS: Exactly 3 statistics from this week's news. Format: " +
-    "'[Number in plain language], [what it means for a person].' Example: " +
-    "'500MW, enough electricity to continuously power 375,000 average homes, " +
-    "directed to a single new facility in Loudoun County.'\n\n" +
-    "COMMUNITY SPOTLIGHT: 2 to 3 sentences about resident actions, community " +
-    "meetings, planning board hearings or awareness efforts related to data center " +
-    "development this week. If no specific news was found write a brief note about " +
-    "the growing resident awareness movement with a link to " +
-    "humzones.com/submit-report.\n\n" +
-    "WHAT TO WATCH: 2 to 3 specific things to monitor next week based on this week's " +
-    "developments. Be specific. Name the company, county or filing if possible.\n\n" +
+    "Search the web using these terms: '" + cfg.searchQuery + "'. Find fresh " +
+    "stories from this week. Then write the complete Infrastructure Intelligence " +
+    "newsletter issue in the HTML format specified.\n\n" +
+    cfg.sectionsBlock +
     "HTML formatting requirements:\n" +
     "- Outer wrapper: max-width 600px, margin 0 auto, font-family Arial sans-serif\n" +
     "- Top header: background-color #1e293b, padding 24px, text-align center\n" +
@@ -250,7 +265,7 @@ async function main() {
   const draftRes = await callWithRetry({
     model: "claude-sonnet-4-6",
     max_tokens: 1200,
-    tools: [{ type: "web_search_20250305", name: "web_search", max_uses: 2 }],
+    tools: [{ type: "web_search_20250305", name: "web_search", max_uses: 1 }],
     system: systemPrompt,
     messages: [{ role: "user", content: userPrompt }],
   });
@@ -316,6 +331,8 @@ async function main() {
   } catch (e) {
     console.warn("[generate-newsletter] could not parse title JSON, using fallbacks:", e && e.message);
   }
+
+  issueTitle = cfg.titlePrefix + " - " + issueTitle;
 
   issueTitle = issueTitle
     .replace(/\u2014/g, '-')
