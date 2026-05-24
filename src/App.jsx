@@ -9634,7 +9634,7 @@ const DonateThankYouPage = ({ onNavigate }) => {
 
 // ─── /newsletter: INFRASTRUCTURE INTELLIGENCE NEWSLETTER ─────────────────────
 // Public landing page that explains the weekly briefing, captures signups
-// (double opt-in via /api/newsletter-subscribe), and lists the three most
+// (double opt-in via /api/newsletter with type=subscribe), and lists the three most
 // recent Sent issues from Airtable. The full /newsletter/:n viewer below
 // hangs off this same routing branch.
 
@@ -9659,8 +9659,8 @@ const formatLongDate = (iso) => {
 
 // Shared signup form. Three layouts so we can drop it on the dark hero
 // (variant="dark"), inside a light panel (variant="light"), or inside the
-// compact footer column (variant="footer"). Returns the same /api/newsletter-subscribe
-// call regardless. Sets localStorage humzones_nl_subscribed on success so
+// compact footer column (variant="footer"). Returns the same /api/newsletter
+// (type=subscribe) call regardless. Sets localStorage humzones_nl_subscribed on success so
 // other in-page prompts can hide themselves.
 const NewsletterSignupForm = ({ source, variant = "dark", showFirstName = true, compact = false }) => {
   const [email, setEmail]         = useState("");
@@ -9683,10 +9683,10 @@ const NewsletterSignupForm = ({ source, variant = "dark", showFirstName = true, 
     setStatus("submitting");
     setErrMsg("");
     try {
-      const r = await fetch("/api/newsletter-subscribe", {
+      const r = await fetch("/api/newsletter", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: e, firstName: firstName.trim(), source }),
+        body: JSON.stringify({ type: "subscribe", email: e, firstName: firstName.trim(), source }),
       });
       const data = await r.json().catch(() => ({}));
       if (!r.ok) throw new Error(data.error || "Subscription failed");
@@ -9696,7 +9696,7 @@ const NewsletterSignupForm = ({ source, variant = "dark", showFirstName = true, 
       } catch {}
       setStatus("success");
     } catch (err) {
-      console.error("newsletter-subscribe failed:", err);
+      console.error("newsletter subscribe failed:", err);
       setStatus("error");
       setErrMsg("Something went wrong. Please try again or email hello@humzones.com");
     }
@@ -9995,10 +9995,10 @@ const NewsletterConfirmPage = ({ onNavigate }) => {
     const token = params.get("token") || "";
     const email = params.get("email") || "";
     if (!token || !email) { setStatus("invalid"); return; }
-    fetch("/api/newsletter-confirm", {
+    fetch("/api/newsletter", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ token, email }),
+      body: JSON.stringify({ type: "confirm", token, email }),
     })
       .then(r => r.json())
       .then(d => {
@@ -10006,7 +10006,7 @@ const NewsletterConfirmPage = ({ onNavigate }) => {
         else if (d && d.status === "already_confirmed") { setStatus("already"); try { localStorage.setItem("humzones_nl_subscribed","1"); } catch {} }
         else                                       { setStatus("invalid"); }
       })
-      .catch(e => { console.error("newsletter-confirm error:", e); setStatus("invalid"); });
+      .catch(e => { console.error("newsletter confirm error:", e); setStatus("invalid"); });
   }, []);
 
   return (

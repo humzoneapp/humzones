@@ -10,6 +10,6 @@
   ],
   "functions": {
     "api/generate-newsletter.js": { "maxDuration": 60 },
-    "api/send-newsletter.js":     { "maxDuration": 60 }
+    "api/newsletter.js":          { "maxDuration": 60 }
   }
 }
