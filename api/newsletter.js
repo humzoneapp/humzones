@@ -377,12 +377,29 @@ async function handleSend(req, res) {
   const transporter = buildTransporter();
   let sent = 0;
   const from = fromAddress();
+
+  // Gmail clips messages over ~102KB. Sample one wrapped HTML and warn if
+  // we are at risk. Per-recipient size only varies by encoded email length.
+  const finalHTML = wrapIssueForEmail(contentHtml, "subscriber@example.com");
+  const htmlBytes = Buffer.byteLength(finalHTML, 'utf8');
+  console.log('[send-newsletter] HTML size:', htmlBytes, 'bytes');
+  if (htmlBytes > 95000) {
+    console.warn('[send-newsletter] WARNING: Email may be clipped by Gmail (over 95KB)');
+  }
+
+  // Plain-text fallback (improves deliverability and serves text-only clients).
+  const textVersion = String(contentHtml || "")
+    .replace(/<[^>]+>/g, '')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .substring(0, 5000);
+
   for (const rec of recipients) {
     const email = String((rec.fields || {})[SUB_F.Email] || "").trim();
     if (!email) continue;
     const html = wrapIssueForEmail(contentHtml, email);
     try {
-      await transporter.sendMail({ from, to: email, subject: subjectLine, html });
+      await transporter.sendMail({ from, to: email, subject: subjectLine, html, text: textVersion });
       sent += 1;
       console.log("Sent to:", email, "Issue:", issueNumber);
     } catch (e) {

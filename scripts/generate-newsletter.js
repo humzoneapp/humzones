@@ -184,6 +184,10 @@ async function main() {
     "IMPORTANT: If you cannot find enough real data center news this week to fill " +
     "a section, write fewer items rather than padding with off-topic content or " +
     "invented stories. Quality over quantity.\n\n" +
+    "IMPORTANT: Be concise. Each story item should be 3-4 sentences maximum. " +
+    "The entire newsletter HTML must stay under 80KB total. Prioritize completeness " +
+    "over detail. It is better to have all 6 sections with shorter items than " +
+    "fewer sections with longer items.\n\n" +
     "CRITICAL: Never use em dashes (--) or en dashes (-) anywhere in the " +
     "output. Use a plain hyphen (-) or rewrite the sentence instead. " +
     "This is a hard requirement.";
@@ -239,7 +243,7 @@ async function main() {
   console.log('[generate-newsletter] calling Anthropic API', new Date().toISOString());
   const draftRes = await callWithRetry({
     model: "claude-sonnet-4-6",
-    max_tokens: 2500,
+    max_tokens: 1800,
     tools: [{ type: "web_search_20250305", name: "web_search", max_uses: 3 }],
     system: systemPrompt,
     messages: [{ role: "user", content: userPrompt }],
