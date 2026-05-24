@@ -7745,6 +7745,13 @@ const SubmitReportPage = ({ onNavigate }) => {
         </div>
       </section>
 
+      {/* SHARE STRIP: same card the home page uses, so visitors can
+          pass the submit-report link to neighbors who should also share
+          what they have observed. */}
+      <div style={{maxWidth:760,margin:"0 auto",padding:"0 24px 56px"}}>
+        <ShareSection/>
+      </div>
+
       {/* FOOTER (shared with the business pages, on a dark backdrop) */}
       <div style={{background:"#0a0f1e"}}>
         <Footer onNavigate={onNavigate} facilities={facs}/>
@@ -9504,6 +9511,18 @@ export default function App() {
             </button>
           )}
 
+          {/* Secondary path for residents. Sits under the country/region/city
+              search so a visitor who is not here to look up a facility but to
+              report on one has a clear and equally visible entry point. */}
+          <div style={{marginTop:28,display:"flex",alignItems:"center",gap:14,flexWrap:"wrap",justifyContent:"center",position:"relative",zIndex:1}}>
+            <span style={{fontSize:14,color:"rgba(255,255,255,.68)",fontWeight:600,letterSpacing:".01em"}}>
+              Lived or worked near a data center?
+            </span>
+            <a href="/submit-report" onClick={e=>{e.preventDefault();navigate("/submit-report");}} style={{display:"inline-flex",alignItems:"center",gap:8,padding:"12px 22px",borderRadius:30,border:"1.5px solid rgba(249,115,22,.55)",background:"rgba(249,115,22,.12)",color:"#fed7aa",fontSize:14,fontWeight:800,letterSpacing:".02em",textDecoration:"none",fontFamily:"inherit",transition:"background .15s, border-color .15s"}}>
+              Submit Your Resident Report &rarr;
+            </a>
+          </div>
+
           <p style={{marginTop:24,fontSize:13,color:"rgba(255,255,255,.55)",fontWeight:500,letterSpacing:".02em",textAlign:"center",position:"relative",zIndex:1,margin:"24px 0 0"}}>
             Independently operated.{" "}
             <a href="/donate" onClick={e=>{e.preventDefault();navigate("/donate");}} style={{color:"#f97316",fontWeight:700,textDecoration:"none"}}>Support our mission</a>
@@ -9584,6 +9603,25 @@ export default function App() {
             ))}
           </div>
         </div>
+
+        {/* RESIDENT REPORT BAND: a full-width call-out between the stats
+            strip and the main content so visitors who scroll past the
+            hero search are reminded that submitting their experience is
+            an equally important reason this site exists. */}
+        <section aria-labelledby="resident-report-band-title" style={{background:"linear-gradient(135deg,#0a1628 0%,#0f172a 45%,#1e0535 100%)",borderBottom:"1px solid rgba(249,115,22,.18)",padding:"52px 24px"}}>
+          <div style={{maxWidth:880,margin:"0 auto",textAlign:"center"}}>
+            <div style={{display:"inline-block",fontSize:12,color:"#f97316",letterSpacing:".18em",textTransform:"uppercase",fontWeight:800,marginBottom:14,padding:"6px 14px",borderRadius:30,background:"rgba(249,115,22,.12)",border:"1px solid rgba(249,115,22,.3)"}}>Resident Voice</div>
+            <h2 id="resident-report-band-title" style={{fontSize:"clamp(26px,4vw,36px)",fontWeight:900,color:"#fff",lineHeight:1.2,letterSpacing:"-.015em",margin:"0 0 12px"}}>
+              Lived or worked near one of these facilities?
+            </h2>
+            <p style={{fontSize:16,color:"rgba(255,255,255,.72)",lineHeight:1.65,maxWidth:640,margin:"0 auto 24px"}}>
+              Your firsthand experience helps regulators, researchers, and other residents understand the real-world impact of data center infrastructure. Reports are verified by email and reviewed before publication.
+            </p>
+            <a href="/submit-report" onClick={e=>{e.preventDefault();navigate("/submit-report");}} style={{display:"inline-flex",alignItems:"center",gap:8,padding:"15px 30px",borderRadius:14,border:"none",background:"linear-gradient(135deg,#ef4444,#f97316)",color:"#fff",fontSize:16,fontWeight:900,letterSpacing:".02em",textDecoration:"none",fontFamily:"inherit",boxShadow:"0 12px 32px rgba(249,115,22,.4)"}}>
+              Submit Your Resident Report &rarr;
+            </a>
+          </div>
+        </section>
 
         {/* MAIN */}
         <main className="main" ref={topRef} style={{maxWidth:1040,margin:"0 auto",padding:"36px 24px 32px",width:"100%",boxSizing:"border-box",overflowX:"hidden"}}>
