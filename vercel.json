@@ -6,14 +6,6 @@
     {
       "path": "/api/archive-old-reports",
       "schedule": "0 0 1 * *"
-    },
-    {
-      "path": "/api/generate-newsletter",
-      "schedule": "0 6 * * 1"
-    },
-    {
-      "path": "/api/send-newsletter",
-      "schedule": "0 9 * * 1"
     }
   ]
 }
