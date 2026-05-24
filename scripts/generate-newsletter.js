@@ -113,8 +113,8 @@ async function callWithRetry(payload) {
       body: JSON.stringify(payload)
     })
     if (res.status === 429 && attempt === 1) {
-      console.log('[generate-newsletter] Rate limited, waiting 60s before retry...')
-      await new Promise(r => setTimeout(r, 60000))
+      console.log('[generate-newsletter] Rate limited, waiting 90s before retry...')
+      await new Promise(r => setTimeout(r, 90000))
       continue
     }
     return res
@@ -244,11 +244,13 @@ async function main() {
     "markdown code fences, backticks, or explanatory text before or after " +
     "the HTML. Start your response with < and end with the closing HTML tag.";
 
+  console.log('[generate-newsletter] waiting 10s before API call to avoid rate limits...')
+  await new Promise(r => setTimeout(r, 10000))
   console.log('[generate-newsletter] calling Anthropic API', new Date().toISOString());
   const draftRes = await callWithRetry({
     model: "claude-sonnet-4-6",
     max_tokens: 1200,
-    tools: [{ type: "web_search_20250305", name: "web_search", max_uses: 3 }],
+    tools: [{ type: "web_search_20250305", name: "web_search", max_uses: 2 }],
     system: systemPrompt,
     messages: [{ role: "user", content: userPrompt }],
   });
