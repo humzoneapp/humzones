@@ -10859,7 +10859,7 @@ const GH_MENU = {
       { head: "PARTICIPATE", items: [
         { title: "📰 Newsletter",        desc: "Free weekly Infrastructure Intelligence",  to: "/newsletter" },
         { title: "Submit Your Report",   desc: "Share your experience",                    to: "/submit-report" },
-        { title: "Community Reports",    desc: "Read verified resident reports",           to: "/" },
+        { title: "Community Reports",    desc: "Browse facilities and resident reports",   to: "/submit-report" },
         { title: "Contact Us",           desc: "Get in touch with our team",               to: "/contact" },
         { title: "Donate",               desc: "Support the registry",                     to: "/donate", accent: "heart" },
       ]},
