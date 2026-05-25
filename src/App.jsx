@@ -6395,275 +6395,243 @@ const CookieConsent = ({ onNavigate }) => {
   );
 };
 
-// ─── AI CHAT WIDGET ──────────────────────────────────────────────────────────
-// Floating assistant powered by the Claude API. The browser only ever calls
-// the same-origin /api/chat serverless function, which holds the Anthropic
-// key server-side. History persists in localStorage for 24 hours.
-const CHAT_HISTORY_KEY = "humzones_chat_history";
-const CHAT_SEEN_KEY    = "humzones_chat_seen";
-const CHAT_HISTORY_TTL = 24 * 60 * 60 * 1000;
-const CHAT_WELCOME = "Hi there! I am the HumZones Assistant. I can help you understand data centers near your home, explain what our infrastructure data means, or guide you to the right report for your needs. What would you like to know?";
-// Idle nudges: the first fires 45s after the last assistant reply, the
-// goodbye fires 30s after that. Both stop as soon as the visitor replies.
-const CHAT_IDLE_PROMPT  = "Is there anything else I can help you with? You can also search for data centers near your address at humzones.com/get-report or contact us at hello@humzones.com if you have a specific question.";
-const CHAT_IDLE_GOODBYE = "Thank you for visiting HumZones! I am always here if you have questions. Have a great day!";
-const CHAT_IDLE_DELAY_1 = 45000;
-const CHAT_IDLE_DELAY_2 = 30000;
+// ─── FAQ HELP WIDGET ────────────────────────────────────────────────────────
+// Zero-token floating help widget. User questions are matched against a
+// local FAQ database with simple keyword scoring. No network calls, no
+// API costs. The component is still exported as ChatWidget so the render
+// site does not need to change.
 
-// Contextual follow-up chips shown under each assistant reply. The first
-// keyword group that matches the reply text wins; otherwise the defaults
-// are used. The welcome message always shows the defaults.
-const CHAT_FOLLOWUPS_DEFAULT = [
-  "Find data centers near me",
-  "What do impact categories mean?",
-  "How do I get a full report?",
-];
-const CHAT_FOLLOWUP_RULES = [
-  { test:/report|get-report/, chips:[
-    "What is included in the report?",
-    "Can I retrieve it later?",
-    "Tell me about business plans",
-  ]},
-  { test:/exposure|emf|noise/, chips:[
-    "How are these figures calculated?",
-    "What do the impact categories mean?",
-    "Where can I read the methodology?",
-  ]},
-  { test:/business|plans|subscription|credits/, chips:[
-    "How do credits work?",
-    "Can I try before subscribing?",
-    "What is included in each report?",
-  ]},
-  { test:/submit|community|resident/, chips:[
-    "How is my report verified?",
-    "Will my name be shown?",
-    "How long does review take?",
-  ]},
-  { test:/methodology|estimates|modeled/, chips:[
-    "Where can I read the full methodology?",
-    "Are these certified measurements?",
-    "How accurate are the figures?",
-  ]},
-];
-const chatFollowUps = (text) => {
-  const t = String(text || "").toLowerCase();
-  const rule = CHAT_FOLLOWUP_RULES.find(r => r.test.test(t));
-  return rule ? rule.chips : CHAT_FOLLOWUPS_DEFAULT;
-};
+const FAQ_WELCOME =
+  "Hi! Ask me anything about HumZones, data center metrics or how to use " +
+  "your report. For general questions try Google or visit our Glossary.";
 
-// Turns an assistant message into React nodes: **bold**, *italic*, and
-// humzones.com/page links that navigate in the same tab via the app router.
-const CHAT_RICH_TOKEN = /(\*\*[^*]+\*\*|\*[^*\n]+\*|humzones\.com\/[A-Za-z0-9-]+)/i;
-const renderRichText = (text, onNavigate) =>
-  String(text || "").split(CHAT_RICH_TOKEN).map((part, i) => {
-    if (!part) return null;
-    if (part.startsWith("**") && part.endsWith("**")) {
-      return <strong key={i}>{renderRichText(part.slice(2, -2), onNavigate)}</strong>;
+const FAQ_FALLBACK =
+  "I did not find a specific answer to that. You can:\n" +
+  "- Browse our Glossary at humzones.com/glossary\n" +
+  "- Read our Resident Guides at humzones.com/learn\n" +
+  "- Email us at hello@humzones.com";
+
+const FAQ_STOPWORDS = new Set([
+  "what","is","how","does","do","i","the","a","an","of","to","for","in","on",
+  "with","my","me","can","are","it","that","this","any","about","some","and",
+  "or","if","at","by","be","as","from","was","were","will","would","you","your"
+]);
+
+const FAQS = [
+  {
+    keywords: ["impact","category","high","moderate","low","exposure","rating","mean"],
+    q: "What do the impact categories mean?",
+    a: "Infrastructure impact categories (HIGH, MODERATE, LOW) are relative indicators based on modeled estimates of facility power draw and proximity to residential areas. HIGH indicates the largest estimated local footprint. These are not scientific measurements or health determinations."
+  },
+  {
+    keywords: ["report","cost","price","much","pay","14.99","buy","purchase"],
+    q: "How much does a report cost?",
+    a: "A personalized area report costs $14.99 and covers all tracked data center facilities within your chosen radius. Business reports start at $14.99 per report depending on your plan. Reports include power, noise, EMF and water estimates for every facility."
+  },
+  {
+    keywords: ["emf","electromagnetic","field","radiation","milligauss","mg","measured"],
+    q: "How are EMF figures calculated?",
+    a: "EMF figures are modeled estimates based on facility power draw and distance. They are NOT certified field measurements. HumZones makes no health claims. The figures are provided so residents can ask informed questions of local officials."
+  },
+  {
+    keywords: ["power","mw","megawatt","electricity","draw","consumption","energy"],
+    q: "What does the power draw figure mean?",
+    a: "Power draw is the reported electricity consumption of a facility in megawatts (MW). One megawatt powers approximately 750 average American homes continuously. A 100MW facility draws as much electricity as 75,000 homes running 24 hours a day."
+  },
+  {
+    keywords: ["noise","db","decibel","sound","loud","quiet","measured","level"],
+    q: "What does the noise estimate mean?",
+    a: "Noise figures are modeled estimates of perimeter sound levels based on facility power class and cooling type. They are not certified acoustic measurements. For context, 65dB is comparable to heavy traffic, and data center cooling systems run 24 hours a day including overnight."
+  },
+  {
+    keywords: ["water","gallon","consumption","cooling","daily","use","evaporative"],
+    q: "How much water do data centers use?",
+    a: "Water consumption estimates are based on facility power draw and cooling type using WUE ratios from ASHRAE and the Green Grid. Evaporative cooling systems can use millions of gallons per day. Chilled water systems use less. These are modeled estimates not certified measurements."
+  },
+  {
+    keywords: ["submit","report","experience","community","share","symptoms","observations"],
+    q: "How do I submit my experience?",
+    a: "Visit humzones.com/submit-report to add your verified experience to the public registry. It is free. You can report symptoms, observations like noise or generator activity, and anything else you have noticed near a facility. Reports are email-verified."
+  },
+  {
+    keywords: ["interconnection","queue","filing","grid","connect","utility","pjm","ferc"],
+    q: "What is an interconnection queue?",
+    a: "An interconnection queue is the official waiting list a company must join before connecting a large new electrical load to the power grid. Each entry is a public signal that a large facility may be planned nearby, often 12 to 36 months before construction begins."
+  },
+  {
+    keywords: ["proposed","approved","building","operating","status","planned","construction"],
+    q: "What do the facility status labels mean?",
+    a: "Proposed means announced but not yet approved. Approved means permits granted but construction not started. Building means actively under construction. Operating means the facility is live and consuming power. Engaging with the planning process is most effective when a facility is still Proposed."
+  },
+  {
+    keywords: ["business","plan","professional","commercial","credits","monthly","subscription"],
+    q: "What are the business plans?",
+    a: "HumZones offers professional business plans for real estate, legal and research firms. Plans include monthly report credits, detailed facility data and licensed commercial use. Visit the Business section or contact hello@humzones.com for plan details."
+  },
+  {
+    keywords: ["accurate","data","source","where","information","come","from","verified"],
+    q: "Where does the data come from?",
+    a: "Facility data is compiled from publicly available sources including municipal planning filings, utility interconnection applications, operator press releases and permitting databases. All power, noise, EMF, CO2 and water figures are modeled estimates not certified measurements."
+  },
+  {
+    keywords: ["newsletter","subscribe","email","weekly","infrastructure","intelligence"],
+    q: "What is Infrastructure Intelligence?",
+    a: "Infrastructure Intelligence is a free weekly newsletter published by HumZones every Monday and Thursday. It translates data center interconnection filings, utility permits and facility news into plain language for residents. Subscribe free at humzones.com/newsletter."
+  },
+  {
+    keywords: ["glossary","term","definition","meaning","explain","understand","jargon"],
+    q: "Where can I learn more about technical terms?",
+    a: "Visit humzones.com/glossary for plain-language definitions of data center infrastructure terms including interconnection queues, megawatts, balancing authorities, WUE and more. Or read our resident guides at humzones.com/learn."
+  },
+  {
+    keywords: ["foia","public","record","request","document","filing","access","obtain"],
+    q: "How do I get public records about a facility?",
+    a: "Most data center approvals involve public documents you can request. Contact your local planning department for permit records. File FOIA requests with your state utility commission for interconnection filings. Visit humzones.com/learn for step-by-step guides on reading these documents."
+  },
+  {
+    keywords: ["planning","board","council","official","oppose","attend","hearing","comment"],
+    q: "How can I engage with local officials about a data center?",
+    a: "Attend public planning hearings and submit written comments before deadlines. Contact your board of supervisors or county council directly. Reference specific factual concerns like power draw, noise and water estimates. Organized neighborhood groups are more effective than individual voices. Read our full guide at humzones.com/learn."
+  },
+  {
+    keywords: ["unsubscribe","cancel","stop","email","opt","out","remove"],
+    q: "How do I unsubscribe?",
+    a: "Click the Unsubscribe link at the bottom of any email from HumZones, or visit humzones.com/unsubscribe and enter your email address. You will be removed from all HumZones email lists immediately."
+  },
+  {
+    keywords: ["contact","help","support","question","email","hello","reach"],
+    q: "How do I contact HumZones?",
+    a: "Email us at hello@humzones.com. We read every message. For report corrections, data questions or media inquiries we typically respond within 1-2 business days."
+  },
+  {
+    keywords: ["co2","carbon","emissions","greenhouse","climate","environment","annual"],
+    q: "How are CO2 estimates calculated?",
+    a: "CO2 estimates are calculated by applying EPA eGRID regional emissions factors to each facility's reported power draw. These are annual estimates. For context, a 100MW data center in a typical Mid-Atlantic grid produces roughly the same CO2 as 80,000 cars driven for a year. All figures are modeled estimates."
+  },
+  {
+    keywords: ["cooling","chilled","evaporative","tower","system","type","difference"],
+    q: "What is the difference between cooling types?",
+    a: "Chilled water cooling circulates cooled water through servers. Lower water consumption but energy intensive. Evaporative cooling removes heat through water evaporation and is very water intensive but more energy efficient in dry climates. Evaporative facilities can consume millions of gallons of water daily."
+  },
+  {
+    keywords: ["hyperscale","amazon","google","microsoft","meta","aws","cloud","large"],
+    q: "What is a hyperscale data center?",
+    a: "A hyperscale data center exceeds 100MW of power capacity and is typically operated by a major cloud provider such as Amazon Web Services, Google, Microsoft Azure or Meta. Northern Virginia has the highest concentration of hyperscale infrastructure in the world."
+  }
+];
+
+function faqTokenize(s) {
+  return String(s || "")
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]/g, " ")
+    .split(/\s+/)
+    .filter(Boolean)
+    .filter(w => !FAQ_STOPWORDS.has(w));
+}
+
+function faqMatch(question) {
+  const tokens = faqTokenize(question);
+  if (tokens.length === 0) return null;
+  let best = null;
+  let bestScore = 0;
+  for (const entry of FAQS) {
+    const keywordSet = new Set(entry.keywords.map(k => k.toLowerCase()));
+    const haystack = (entry.keywords.join(" ") + " " + entry.q + " " + entry.a).toLowerCase();
+    let score = 0;
+    for (const t of tokens) {
+      if (keywordSet.has(t)) score += 2;        // exact keyword hit
+      else if (haystack.includes(t)) score += 1; // soft match anywhere in the entry
     }
-    if (part.startsWith("*") && part.endsWith("*")) {
-      return <em key={i}>{renderRichText(part.slice(1, -1), onNavigate)}</em>;
-    }
-    if (part.toLowerCase().startsWith("humzones.com/")) {
-      const path = part.slice("humzones.com".length);
-      return (
-        <a
-          key={i}
-          href={path}
-          onClick={e=>{ e.preventDefault(); if (onNavigate) onNavigate(path); }}
-          style={{color:"#ea580c",fontWeight:700,textDecoration:"underline",cursor:"pointer"}}
-        >{part}</a>
-      );
-    }
-    return part;
-  });
+    if (score > bestScore) { bestScore = score; best = entry; }
+  }
+  return bestScore > 0 ? best : null;
+}
 
 const ChatWidget = ({ onNavigate }) => {
-  const [open, setOpen] = useState(false);
-  const [messages, setMessages] = useState(() => {
-    if (typeof window === "undefined") return [];
-    try {
-      const raw = localStorage.getItem(CHAT_HISTORY_KEY);
-      if (raw) {
-        const parsed = JSON.parse(raw);
-        if (parsed && Array.isArray(parsed.messages) && Date.now() - parsed.ts < CHAT_HISTORY_TTL) {
-          return parsed.messages;
-        }
-        localStorage.removeItem(CHAT_HISTORY_KEY);
-      }
-    } catch {}
-    return [];
-  });
-  const [input, setInput]     = useState("");
-  const [loading, setLoading] = useState(false);
-  const [notif, setNotif]     = useState(() => {
-    if (typeof window === "undefined") return false;
-    try { return !localStorage.getItem(CHAT_SEEN_KEY); } catch { return false; }
-  });
-  const [bannerOffset, setBannerOffset] = useState(0);
-  const [isMobile, setIsMobile] = useState(() => typeof window !== "undefined" && window.innerWidth <= 600);
+  const [open, setOpen]         = useState(false);
+  const [messages, setMessages] = useState([
+    { role: "assistant", content: FAQ_WELCOME, ts: Date.now() }
+  ]);
+  const [input, setInput]       = useState("");
+  const [isMobile, setIsMobile] = useState(() =>
+    typeof window !== "undefined" && window.innerWidth <= 600
+  );
 
   const bodyRef    = useRef(null);
   const taRef      = useRef(null);
-  const lastMsgRef = useRef(null);   // wrapper div of the newest message
+  const lastMsgRef = useRef(null);
 
-  // Idle nudge state: idleTimer refs hold the pending timeouts, idleStageRef
-  // tracks how many idle messages have shown (0, 1 or 2) since the visitor
-  // last spoke, so the nudges never loop.
-  const idleTimer1Ref = useRef(null);
-  const idleTimer2Ref = useRef(null);
-  const idleStageRef  = useRef(0);
-
-  // Persist the conversation so it survives page navigation.
-  useEffect(() => {
-    try {
-      if (messages.length) localStorage.setItem(CHAT_HISTORY_KEY, JSON.stringify({ ts: Date.now(), messages }));
-    } catch {}
-  }, [messages]);
-
+  // Resize listener so the panel switches between desktop and mobile layouts.
   useEffect(() => {
     const onResize = () => setIsMobile(window.innerWidth <= 600);
     window.addEventListener("resize", onResize);
     return () => window.removeEventListener("resize", onResize);
   }, []);
 
-  // Watch the cookie banner. While humzones_cookie_consent is unset the banner
-  // is showing, so lift the bubble and window above it by the banner height
-  // plus 16px. Same-tab localStorage writes do not fire the storage event, so
-  // poll until consent is recorded, then stop.
+  // Scroll the latest message into view when messages change or the panel opens.
   useEffect(() => {
-    const measure = () => {
-      const el = document.getElementById("hz-cookie-banner");
-      setBannerOffset(el ? el.offsetHeight + 16 : 0);
-    };
-    measure();
-    window.addEventListener("resize", measure);
-    let iv = null;
-    try {
-      if (!localStorage.getItem(COOKIE_CONSENT_KEY)) {
-        iv = setInterval(() => {
-          measure();
-          try {
-            if (localStorage.getItem(COOKIE_CONSENT_KEY)) { measure(); clearInterval(iv); iv = null; }
-          } catch {}
-        }, 400);
-      }
-    } catch {}
-    return () => { window.removeEventListener("resize", measure); if (iv) clearInterval(iv); };
-  }, []);
-
-  // Scroll on new content. A new assistant reply scrolls so the TOP of its
-  // bubble is visible, so long answers are not cut off at the start. The
-  // visitor's own message and the typing indicator keep the view pinned to
-  // the bottom instead.
-  useEffect(() => {
-    if (!open) return;
-    const last = messages[messages.length - 1];
-    if (last && last.role === "assistant" && lastMsgRef.current) {
-      lastMsgRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
-    } else if (bodyRef.current) {
-      bodyRef.current.scrollTop = bodyRef.current.scrollHeight;
+    if (open && lastMsgRef.current) {
+      lastMsgRef.current.scrollIntoView({ behavior: "smooth", block: "end" });
     }
-  }, [messages, loading, open]);
+  }, [messages, open]);
 
-  // Idle nudges. When the newest message is an assistant reply and the chat
-  // is open and idle, schedule the next nudge: the prompt after 45s, then the
-  // goodbye 30s later. Any change to messages (the visitor replying), closing
-  // the chat, or a pending request clears the timers via this effect's
-  // cleanup, so the nudges never fire at the wrong time or loop.
+  // Focus the input when the panel opens.
   useEffect(() => {
-    clearTimeout(idleTimer1Ref.current);
-    clearTimeout(idleTimer2Ref.current);
-    if (!open || loading || messages.length === 0) return;
-    const last = messages[messages.length - 1];
-    if (last.role !== "assistant") return;
-    if (idleStageRef.current === 0) {
-      idleTimer1Ref.current = setTimeout(() => {
-        idleStageRef.current = 1;
-        setMessages(m => [...m, { role:"assistant", content:CHAT_IDLE_PROMPT, ts:Date.now() }]);
-      }, CHAT_IDLE_DELAY_1);
-    } else if (idleStageRef.current === 1) {
-      idleTimer2Ref.current = setTimeout(() => {
-        idleStageRef.current = 2;
-        setMessages(m => [...m, { role:"assistant", content:CHAT_IDLE_GOODBYE, ts:Date.now() }]);
-      }, CHAT_IDLE_DELAY_2);
+    if (open) {
+      const t = setTimeout(() => { if (taRef.current) taRef.current.focus(); }, 0);
+      return () => clearTimeout(t);
     }
-    return () => {
-      clearTimeout(idleTimer1Ref.current);
-      clearTimeout(idleTimer2Ref.current);
-    };
-  }, [messages, open, loading]);
+  }, [open]);
 
-  const openChat = () => {
-    setOpen(true);
-    setNotif(false);
-    try { localStorage.setItem(CHAT_SEEN_KEY, "1"); } catch {}
-    setMessages(prev => prev.length ? prev : [{ role:"assistant", content:CHAT_WELCOME, ts:Date.now(), welcome:true }]);
+  const fmtTime = (ts) => {
+    const d = new Date(ts);
+    let h = d.getHours();
+    const m = d.getMinutes();
+    const ampm = h >= 12 ? "PM" : "AM";
+    h = h % 12; if (h === 0) h = 12;
+    return h + ":" + String(m).padStart(2, "0") + " " + ampm;
   };
 
-  const send = async (text) => {
-    const content = (text || "").trim();
-    if (!content || loading) return;
-    // The visitor is active again: stop and reset the idle nudge sequence.
-    clearTimeout(idleTimer1Ref.current);
-    clearTimeout(idleTimer2Ref.current);
-    idleStageRef.current = 0;
-    const next = [...messages, { role:"user", content, ts:Date.now() }];
-    setMessages(next);
+  const ask = (q) => {
+    const trimmed = String(q || "").trim();
+    if (!trimmed) return;
+    const userMsg = { role: "user", content: trimmed, ts: Date.now() };
+    const match   = faqMatch(trimmed);
+    const answer  = match ? match.a : FAQ_FALLBACK;
+    const botMsg  = { role: "assistant", content: answer, ts: Date.now() + 1 };
+    setMessages(prev => [...prev, userMsg, botMsg]);
     setInput("");
     if (taRef.current) taRef.current.style.height = "auto";
-    setLoading(true);
-    try {
-      // Drop the UI-only welcome message, keep the last 10 turns, and make
-      // sure the history sent to the API begins with a user message.
-      let payload = next.filter(m => !m.welcome).map(m => ({ role:m.role, content:m.content })).slice(-10);
-      while (payload.length && payload[0].role !== "user") payload = payload.slice(1);
-      const r = await fetch("/api/chat", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ messages: payload }),
-      });
-      const data = await r.json().catch(() => ({}));
-      if (!r.ok || !data.reply) throw new Error(data.error || "No response");
-      setMessages(m => [...m, { role:"assistant", content:data.reply, ts:Date.now() }]);
-    } catch (e) {
-      console.error("Chat send failed:", e);
-      setMessages(m => [...m, { role:"assistant", content:"Sorry, I could not respond just now. Please try again in a moment, or contact hello@humzones.com.", ts:Date.now() }]);
-    } finally {
-      setLoading(false);
-    }
   };
 
   const onKey = (e) => {
-    if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(input); }
-  };
-  const fmtTime = (ts) => {
-    try { return new Date(ts).toLocaleTimeString([], { hour:"numeric", minute:"2-digit" }); } catch { return ""; }
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      ask(input);
+    }
   };
 
   const windowStyle = isMobile
-    ? { position:"fixed", left:0, right:0, bottom:bannerOffset, width:"100vw", height:"60vh", borderRadius:"16px 16px 0 0" }
-    : { position:"fixed", right:24, bottom:90 + bannerOffset, width:360, height:500, borderRadius:16 };
+    ? { position:"fixed", left:0, right:0, bottom:0, width:"100vw", height:"60vh", borderRadius:"16px 16px 0 0" }
+    : { position:"fixed", right:24, bottom:90, width:360, height:500, borderRadius:16 };
 
   return (
     <>
       {!open && (
         <button
           className="hz-chat-fab"
-          onClick={openChat}
-          aria-label="Open the HumZones Assistant chat"
-          style={{position:"fixed",right:24,bottom:24 + bannerOffset,zIndex:9998,width:56,height:56,borderRadius:"50%",border:"none",cursor:"pointer",boxShadow:"0 8px 24px rgba(249,115,22,.45)",display:"flex",alignItems:"center",justifyContent:"center"}}
+          onClick={() => setOpen(true)}
+          aria-label="Open the HumZones help widget"
+          style={{position:"fixed",right:24,bottom:24,zIndex:9998,width:56,height:56,borderRadius:"50%",border:"none",cursor:"pointer",boxShadow:"0 8px 24px rgba(249,115,22,.45)",display:"flex",alignItems:"center",justifyContent:"center",background:"#f97316"}}
         >
           <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
             <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
           </svg>
-          {notif && (
-            <span style={{position:"absolute",top:-3,right:-3,minWidth:20,height:20,borderRadius:10,background:"#ef4444",color:"#fff",fontSize:11,fontWeight:800,display:"flex",alignItems:"center",justifyContent:"center",border:"2px solid #fff",padding:"0 4px",boxSizing:"border-box"}}>1</span>
-          )}
         </button>
       )}
 
       {open && (
-        <div className="hz-chat-window" style={{...windowStyle,background:"#fff",boxShadow:"0 20px 60px rgba(0,0,0,0.2)",zIndex:9999,display:"flex",flexDirection:"column",overflow:"hidden",transition:"bottom .3s ease"}}>
+        <div className="hz-chat-window" style={{...windowStyle,background:"#fff",boxShadow:"0 20px 60px rgba(0,0,0,0.2)",zIndex:9999,display:"flex",flexDirection:"column",overflow:"hidden"}}>
           {/* HEADER */}
           <div style={{flexShrink:0,background:"#1e293b",borderRadius:"16px 16px 0 0",padding:"13px 14px",display:"flex",alignItems:"center",justifyContent:"space-between",gap:10}}>
             <div style={{display:"flex",alignItems:"center",gap:10,minWidth:0}}>
@@ -6674,54 +6642,27 @@ const ChatWidget = ({ onNavigate }) => {
               </div>
               <div style={{minWidth:0}}>
                 <div style={{display:"flex",alignItems:"center",gap:6}}>
-                  <span style={{fontSize:14,fontWeight:800,color:"#fff"}}>HumZones Assistant</span>
+                  <span style={{fontSize:14,fontWeight:800,color:"#fff"}}>HumZones Help</span>
                   <span style={{width:8,height:8,borderRadius:"50%",background:"#22c55e",boxShadow:"0 0 6px rgba(34,197,94,.9)",flexShrink:0}}/>
                 </div>
-                <div style={{fontSize:11,color:"#94a3b8",marginTop:1}}>Powered by AI. Ask me anything.</div>
+                <div style={{fontSize:11,color:"#94a3b8",marginTop:1}}>Common questions answered instantly.</div>
               </div>
             </div>
-            <button onClick={()=>setOpen(false)} aria-label="Close chat" style={{background:"none",border:"none",color:"rgba(255,255,255,.7)",cursor:"pointer",padding:4,display:"flex",flexShrink:0}}>
+            <button onClick={() => setOpen(false)} aria-label="Close help" style={{background:"none",border:"none",color:"rgba(255,255,255,.7)",cursor:"pointer",padding:4,display:"flex",flexShrink:0}}>
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M18 6L6 18M6 6l12 12"/></svg>
             </button>
           </div>
 
-          {/* BODY: flex:1 within the fixed-height window, minHeight:0 so it
-             keeps a bounded height and scrolls instead of growing. */}
+          {/* BODY */}
           <div ref={bodyRef} style={{flex:1,minHeight:0,overflowY:"auto",background:"#fff",padding:"16px 14px",display:"flex",flexDirection:"column",gap:12}}>
-            {messages.map((m,i)=>{
-              const isAssistant = m.role === "assistant";
-              // Follow-up chips sit under the newest assistant reply only.
-              const showChips = isAssistant && i === messages.length - 1 && !loading;
-              const chips = showChips ? (m.welcome ? CHAT_FOLLOWUPS_DEFAULT : chatFollowUps(m.content)) : [];
-              return (
-                <div key={i} ref={i === messages.length - 1 ? lastMsgRef : null} style={{display:"flex",flexDirection:"column",alignItems:m.role==="user"?"flex-end":"flex-start"}}>
-                  <div style={{maxWidth:"84%",padding:"10px 13px",borderRadius:14,fontSize:14,lineHeight:1.55,whiteSpace:"pre-wrap",wordBreak:"break-word",background:m.role==="user"?"#f97316":"#f1f5f9",color:m.role==="user"?"#fff":"#1e293b",borderBottomRightRadius:m.role==="user"?4:14,borderBottomLeftRadius:m.role==="user"?14:4}}>
-                    {isAssistant ? renderRichText(m.content, onNavigate) : m.content}
-                  </div>
-                  <div style={{fontSize:10,color:"#94a3b8",marginTop:3,padding:"0 4px"}}>{fmtTime(m.ts)}</div>
-                  {chips.length > 0 && (
-                    <div style={{display:"flex",flexWrap:"wrap",gap:7,marginTop:6,maxWidth:"92%"}}>
-                      {chips.map(c=>(
-                        <button
-                          key={c}
-                          className="hz-chat-chip"
-                          onClick={()=>send(c)}
-                          disabled={loading}
-                          style={{padding:"7px 12px",borderRadius:30,border:"1px solid #e2e8f0",background:"#f1f5f9",color:"#1e293b",fontSize:12.5,fontWeight:700,cursor:loading?"default":"pointer",fontFamily:"inherit"}}
-                        >{c}</button>
-                      ))}
-                    </div>
-                  )}
+            {messages.map((m, i) => (
+              <div key={i} ref={i === messages.length - 1 ? lastMsgRef : null} style={{display:"flex",flexDirection:"column",alignItems:m.role==="user"?"flex-end":"flex-start"}}>
+                <div style={{maxWidth:"84%",padding:"10px 13px",borderRadius:14,fontSize:14,lineHeight:1.55,whiteSpace:"pre-wrap",wordBreak:"break-word",background:m.role==="user"?"#f97316":"#f1f5f9",color:m.role==="user"?"#fff":"#1e293b",borderBottomRightRadius:m.role==="user"?4:14,borderBottomLeftRadius:m.role==="user"?14:4}}>
+                  {m.content}
                 </div>
-              );
-            })}
-            {loading && (
-              <div style={{display:"flex",justifyContent:"flex-start"}}>
-                <div className="hz-typing" style={{background:"#f1f5f9",borderRadius:14,borderBottomLeftRadius:4,padding:"13px 14px",display:"flex",alignItems:"center"}}>
-                  <span/><span/><span/>
-                </div>
+                <div style={{fontSize:10,color:"#94a3b8",marginTop:3,padding:"0 4px"}}>{fmtTime(m.ts)}</div>
               </div>
-            )}
+            ))}
           </div>
 
           {/* INPUT */}
@@ -6729,13 +6670,13 @@ const ChatWidget = ({ onNavigate }) => {
             <textarea
               ref={taRef}
               value={input}
-              onChange={e=>{ setInput(e.target.value); const t=e.target; t.style.height="auto"; t.style.height=Math.min(t.scrollHeight,100)+"px"; }}
+              onChange={e => { setInput(e.target.value); const t=e.target; t.style.height="auto"; t.style.height=Math.min(t.scrollHeight,100)+"px"; }}
               onKeyDown={onKey}
               rows={1}
               placeholder="Ask me anything about data centers..."
               style={{flex:1,resize:"none",border:"1px solid #e2e8f0",borderRadius:12,padding:"10px 12px",fontSize:14,fontFamily:"inherit",outline:"none",maxHeight:100,lineHeight:1.4,color:"#1e293b",boxSizing:"border-box"}}
             />
-            <button onClick={()=>send(input)} disabled={!input.trim()||loading} aria-label="Send message" style={{flexShrink:0,width:40,height:40,borderRadius:12,border:"none",cursor:(!input.trim()||loading)?"default":"pointer",background:(!input.trim()||loading)?"#fdba74":"#f97316",display:"flex",alignItems:"center",justifyContent:"center"}}>
+            <button onClick={() => ask(input)} disabled={!input.trim()} aria-label="Send question" style={{flexShrink:0,width:40,height:40,borderRadius:12,border:"none",cursor:input.trim()?"pointer":"default",background:input.trim()?"#f97316":"#fdba74",display:"flex",alignItems:"center",justifyContent:"center"}}>
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"/></svg>
             </button>
           </div>
