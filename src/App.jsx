@@ -4544,6 +4544,7 @@ const Footer = ({ onNavigate, facilities = [] }) => {
               {navLink("Newsletter","/newsletter")}
               {navLink("Community Reports","/submit-report")}
               {navLink("Submit Your Report","/submit-report")}
+              {navLink("Why It Matters","/why-it-matters")}
               {navLink("Resident Guides","/learn")}
               {navLink("Infrastructure Glossary","/glossary")}
               {navLink("Methodology","/methodology")}
@@ -8234,6 +8235,325 @@ const AboutPage = ({ onNavigate, facilityCount }) => {
   );
 };
 
+// ─── /why-it-matters: LEGITIMACY / WHY THIS MATTERS PAGE ─────────────────────
+// Calm, factual, authoritative explainer of why data center infrastructure
+// transparency matters. No fear-mongering, no advocacy. Six content blocks
+// covering power, water, grid, land, transparency and planning windows, plus
+// an FAQ accordion. Mirrors the visual language of /learn and /glossary.
+
+const WHY_FAQ = [
+  { q: "Does HumZones take a position on data center development?",
+    a: "No. HumZones does not advocate for or against data center development. We believe communities deserve access to the same infrastructure information that developers and utilities already have. What communities do with that information is entirely their decision. Our role is to make the information accessible, not to tell people what to think about it." },
+  { q: "Are the figures on this page certified measurements?",
+    a: "No. The statistics and estimates referenced on this page are derived from publicly available sources including utility filings, grid operator reports, academic research and industry publications. Individual facility figures in the HumZones registry are modeled estimates, not certified measurements. We cite sources so you can verify everything we say." },
+  { q: "How fast is the data center industry growing?",
+    a: "Growth varies by region and by metric but the overall trajectory is consistent across every measure of data center activity. Power requests in utility interconnection queues, facility announcements, land purchases and construction permits all show significant and accelerating growth in data center infrastructure across the United States and globally." },
+  { q: "What can residents do if they are concerned about a facility near them?",
+    a: "The most effective action depends on where the facility is in its development process. For proposed or pending facilities, engagement with the local planning process is most effective. For operating facilities, documentation and ongoing monitoring matter most. Our resident guides at humzones.com/learn cover both in detail." },
+  { q: "Is this information available without using HumZones?",
+    a: "Yes. All of the underlying information that HumZones compiles is publicly available from government agencies, grid operators and planning departments. HumZones aggregates, translates and makes that information searchable in one place. If you prefer to access it directly, our guides at humzones.com/learn explain exactly where to look and how to read what you find." },
+  { q: "Why does HumZones focus specifically on data centers?",
+    a: "Data centers represent one of the fastest growing and least publicly understood categories of infrastructure development near residential areas. Other forms of industrial development have established public awareness and regulatory frameworks. Data center development has outpaced both. We focus here because the gap between developer knowledge and community knowledge is widest in this sector." },
+];
+
+const WHY_SECTIONS = [
+  {
+    id: "growth",
+    iconName: "power",
+    iconColor: "#f97316",
+    iconBg: "rgba(249,115,22,.12)",
+    heading: "The Fastest Growing Power Consumer in America",
+    body: [
+      "Data centers have become the fastest growing category of electricity consumption in the United States. What began as a back-office technology need has transformed into one of the most power-intensive industries on earth, driven by the explosive growth of artificial intelligence, cloud computing and streaming services.",
+      "Virginia offers the clearest picture of what this growth looks like at scale. The state is home to more data center capacity than any other region in the world. Data centers there now consume more than 20 percent of all electricity generated in the state. The regional grid operator currently has tens of gigawatts of data center power requests waiting in its interconnection queue, with more arriving every month.",
+      "This growth is not slowing. It is accelerating. Understanding where that growth is headed and what it means for your community is not a matter of fear. It is a matter of informed planning.",
+    ],
+    stat: {
+      bg: "#0f172a",
+      borderColor: "#f97316",
+      headingColor: "#f97316",
+      textColor: "#fff",
+      label: "AT SCALE",
+      text: "20%+ of Virginia's total electricity generation is consumed by data centers, a figure that continues to grow as new facilities come online.",
+    },
+  },
+  {
+    id: "water",
+    iconName: "water",
+    iconColor: "#2563eb",
+    iconBg: "rgba(37,99,235,.12)",
+    heading: "The Water Nobody Talks About",
+    body: [
+      "The electricity demand of data centers gets significant attention. The water demand gets almost none.",
+      "Data centers that use evaporative cooling, one of the most common and energy-efficient cooling methods, remove heat by evaporating large quantities of water into the atmosphere. Unlike water that is returned to a river or aquifer after use, evaporated water is effectively removed from the local water cycle.",
+      "A single large data center campus using evaporative cooling can consume several million gallons of water per day. In a region with multiple large campuses this adds up to a significant ongoing draw on municipal water supplies, particularly during summer months when cooling demands are highest and water supplies are often most stressed.",
+      "This is not a theoretical concern. Utilities in Virginia and other high-density data center regions have begun factoring data center water demand into their long-term infrastructure planning.",
+    ],
+    stat: {
+      bg: "#dbeafe",
+      borderColor: "#2563eb",
+      headingColor: "#1d4ed8",
+      textColor: "#0f172a",
+      label: "DAILY DRAW",
+      text: "A large evaporative cooling data center can consume the equivalent daily water use of tens of thousands of households, continuously, every day of the year.",
+    },
+  },
+  {
+    id: "grid",
+    iconName: "satellite",
+    iconColor: "#f97316",
+    iconBg: "rgba(249,115,22,.12)",
+    heading: "What Happens to Your Power Grid",
+    body: [
+      "When a data center connects to the regional power grid, it joins as a new permanent load, a constant, large draw on shared infrastructure that all electricity customers in the region depend on.",
+      "The interconnection queue, the official waiting list for large new power connections, has become one of the most closely watched indicators of where data center development is headed. Grid operators that once processed a handful of large load requests per year are now receiving hundreds. The queue in the Mid-Atlantic region alone contains enough pending requests to more than double regional power demand if all of them were built.",
+      "Most will not be built. But the scale of speculation in the queue creates real challenges for grid operators, utilities and ultimately ratepayers. Utilities must plan and build transmission infrastructure for loads that may never materialize, and those costs flow through to electricity bills for every customer on the system.",
+      "The interconnection queue is a public document. It is one of the earliest available signals that large new infrastructure is being planned near your community.",
+    ],
+    stat: {
+      bg: "#0f172a",
+      borderColor: "#f97316",
+      headingColor: "#f97316",
+      textColor: "#fff",
+      label: "EARLY SIGNAL",
+      text: "Interconnection requests often appear 12 to 36 months before construction begins, making them the earliest public warning signal available to communities.",
+    },
+  },
+  {
+    id: "land",
+    iconName: "pin",
+    iconColor: "#16a34a",
+    iconBg: "rgba(22,163,74,.12)",
+    heading: "Land That Does Not Come Back",
+    body: [
+      "A modern data center campus requires significant land. A single building might occupy 10 to 20 acres. A multi-building campus can cover 50 to 200 acres or more. Once that land is developed for industrial data center use, the economic and practical barriers to converting it back to other uses are extremely high.",
+      "Data center development tends to cluster, and it tends to expand. What begins as a single facility on the edge of a community often becomes a campus, then a corridor. The communities that hosted the first wave of data center construction in Northern Virginia in the early 2000s now host dozens of facilities on thousands of acres of land that was previously agricultural or undeveloped.",
+      "Land use decisions are made through local planning processes. Zoning changes, special use permits and site plan approvals all happen at the local government level and all have public comment periods. These are the points in the process where community voices can be heard, but only if residents know the process is happening.",
+    ],
+    stat: {
+      bg: "#dcfce7",
+      borderColor: "#16a34a",
+      headingColor: "#15803d",
+      textColor: "#0f172a",
+      label: "FOOTPRINT",
+      text: "A multi-building data center campus can occupy 50 to 200 or more acres of land permanently converted to industrial use.",
+    },
+  },
+  {
+    id: "transparency",
+    iconName: "search",
+    iconColor: "#f97316",
+    iconBg: "rgba(249,115,22,.12)",
+    heading: "The Information Asymmetry",
+    body: [
+      "Every significant data center project generates a trail of public documents before a single piece of equipment is installed. Interconnection applications filed with grid operators. Permit applications filed with local planning departments. Environmental assessments submitted to state agencies. Utility filings describing the infrastructure needed to serve the new load.",
+      "These documents are public. But they are written in technical language, distributed across multiple agencies and jurisdictions, and require specialized knowledge to interpret. A resident who wants to understand what is being planned near their home would need to know which agencies to contact, what documents to request, and how to read utility filings that were written for engineers and regulators, not neighbors.",
+      "Data center developers have teams of people who do exactly this work. Residents have nothing equivalent. That is the information asymmetry that HumZones exists to address. We track the public documents, translate the technical language and make the information accessible to anyone.",
+    ],
+    stat: {
+      bg: "#fff7ed",
+      borderColor: "#f97316",
+      headingColor: "#c2410c",
+      textColor: "#0f172a",
+      label: "WHAT THIS MEANS",
+      text: "The same public documents that developers monitor daily are available to any resident. They are just written in a language that assumes you already know what you are looking at.",
+    },
+  },
+  {
+    id: "window",
+    iconName: "shield",
+    iconColor: "#1e293b",
+    iconBg: "rgba(30,41,59,.1)",
+    heading: "The Window That Closes",
+    body: [
+      "Community engagement in infrastructure decisions is most effective before those decisions are made. This sounds obvious but has a specific and important meaning when it comes to data center development.",
+      "Once a facility receives its local planning approvals, the practical options for community influence narrow dramatically. Legal challenges to approved projects are expensive, time-consuming and uncertain. Advocacy after approval is largely focused on mitigation, noise barriers, landscaping, operating restrictions, rather than the fundamental question of whether the project should exist.",
+      "The window for meaningful community engagement is the period between when a project is first proposed and when it receives final approval. For data center projects this window typically spans 12 to 36 months. Within that window, communities have real influence. They can attend public hearings, submit comments that become part of the official record, engage with elected officials and advocate for specific conditions and protections.",
+      "After that window closes, the facility gets built regardless of how residents feel about it.",
+      "Knowing what is being planned, and knowing it early, is the prerequisite for effective community participation.",
+    ],
+    stat: {
+      bg: "#f1f5f9",
+      borderColor: "#1e293b",
+      headingColor: "#0f172a",
+      textColor: "#0f172a",
+      label: "TIMING",
+      text: "The window for meaningful community engagement on a data center project typically spans 12 to 36 months. After final approval, that window closes.",
+    },
+  },
+];
+
+const WhyItMattersPage = ({ onNavigate }) => {
+  const [openFaq, setOpenFaq] = useState({});
+
+  useEffect(() => {
+    if (typeof document === "undefined") return;
+    document.title = "Why Data Center Transparency Matters | HumZones";
+
+    injectHeadEl("meta", "why-desc",      { name: "description",         content: "Data centers are the fastest growing category of power consumption in America. Here is what that means for water supplies, power grids, land use and the communities that host them." });
+    injectHeadEl("link", "why-canonical", { rel: "canonical",            href: "https://humzones.com/why-it-matters" });
+    injectHeadEl("meta", "why-og-title",  { property: "og:title",        content: "Why Data Center Transparency Matters | HumZones" });
+    injectHeadEl("meta", "why-og-desc",   { property: "og:description",  content: "Infrastructure is growing faster than public awareness. Here is what data center expansion means for power grids, water supplies, land use and the communities that host them." });
+    injectHeadEl("meta", "why-og-url",    { property: "og:url",          content: "https://humzones.com/why-it-matters" });
+    injectHeadEl("meta", "why-og-type",   { property: "og:type",         content: "website" });
+    injectHeadEl("meta", "why-og-site",   { property: "og:site_name",    content: "HumZones" });
+    injectHeadEl("meta", "why-tw-card",   { name: "twitter:card",        content: "summary" });
+    injectHeadEl("meta", "why-tw-title",  { name: "twitter:title",       content: "Why Data Center Transparency Matters | HumZones" });
+    injectHeadEl("meta", "why-tw-desc",   { name: "twitter:description", content: "What data center expansion means for power grids, water supplies, land use and communities." });
+
+    const schema = [
+      {
+        "@context":    "https://schema.org",
+        "@type":       "WebPage",
+        "name":        "Why Data Center Transparency Matters",
+        "url":         "https://humzones.com/why-it-matters",
+        "description": "An evidence-based overview of data center infrastructure growth and its implications for power grids, water supplies, land use and community planning awareness.",
+        "publisher":   { "@type": "Organization", "name": "HumZones Technologies Inc.", "url": "https://humzones.com" },
+        "isPartOf":    { "@type": "WebSite",      "name": "HumZones",                   "url": "https://humzones.com" },
+      },
+      {
+        "@context":   "https://schema.org",
+        "@type":      "FAQPage",
+        "mainEntity": [
+          { "@type": "Question", "name": "How fast is data center power consumption growing?",
+            "acceptedAnswer": { "@type": "Answer", "text": "Data centers are the fastest growing category of electricity consumption in the United States. Virginia alone now has data centers consuming over 20 percent of the state total electricity generation, with demand projected to grow significantly over the coming decade." } },
+          { "@type": "Question", "name": "How much water do data centers use?",
+            "acceptedAnswer": { "@type": "Answer", "text": "A single large data center using evaporative cooling can consume several million gallons of water per day. This water is primarily removed from the local water cycle through evaporation, which can stress municipal water supplies particularly in drought prone regions." } },
+          { "@type": "Question", "name": "Why do residents have less information than developers?",
+            "acceptedAnswer": { "@type": "Answer", "text": "Data center developers employ teams of engineers and lawyers to monitor interconnection queues, utility filings and planning applications. Residents have no equivalent resource. The information is publicly available but technical, scattered across multiple agencies and difficult to interpret without specialized knowledge." } },
+          { "@type": "Question", "name": "Does HumZones take a position on data center development?",
+            "acceptedAnswer": { "@type": "Answer", "text": "No. HumZones does not advocate for or against data center development. We believe residents deserve access to the same infrastructure information that developers and utilities already have. What communities do with that information is their decision." } },
+          { "@type": "Question", "name": "What is an interconnection queue and why does it matter?",
+            "acceptedAnswer": { "@type": "Answer", "text": "An interconnection queue is the official waiting list a company must join before connecting a large new electrical load to the power grid. These are public documents and represent the earliest available signal that a large facility is being planned near a community, often 12 to 36 months before construction begins." } },
+          { "@type": "Question", "name": "What can residents do about data center development near them?",
+            "acceptedAnswer": { "@type": "Answer", "text": "The most effective action is early engagement with the local planning process before approvals are granted. Attending public hearings, submitting written comments and organizing neighbors creates a documented record that officials must respond to. The window for meaningful engagement closes once a project receives approval." } },
+        ],
+      },
+    ];
+    injectHeadEl("script", "why-jsonld", { type: "application/ld+json" }, JSON.stringify(schema));
+
+    return () => {
+      [
+        "why-desc","why-canonical",
+        "why-og-title","why-og-desc","why-og-url","why-og-type","why-og-site",
+        "why-tw-card","why-tw-title","why-tw-desc",
+        "why-jsonld",
+      ].forEach(removeHeadEl);
+    };
+  }, []);
+
+  return (
+    <div style={{minHeight:"100vh",background:"#f1f5f9",width:"100%",maxWidth:"100vw",overflowX:"hidden"}}>
+      {/* HERO */}
+      <section style={{background:"#1e293b",padding:"64px 24px 72px"}}>
+        <div style={{maxWidth:820,margin:"0 auto",textAlign:"center"}}>
+          <div style={{display:"inline-block",fontSize:12,color:"#f97316",letterSpacing:".18em",textTransform:"uppercase",fontWeight:800,marginBottom:16,padding:"6px 14px",borderRadius:30,background:"rgba(249,115,22,.12)",border:"1px solid rgba(249,115,22,.3)"}}>Why This Matters</div>
+          <h1 style={{fontSize:"clamp(28px,4.4vw,40px)",fontWeight:900,letterSpacing:"-.02em",color:"#fff",lineHeight:1.15,marginBottom:18}}>
+            Why This Matters
+          </h1>
+          <div style={{width:60,height:4,background:"#f97316",borderRadius:2,margin:"0 auto 22px"}}/>
+          <p style={{fontSize:16,color:"rgba(255,255,255,.72)",lineHeight:1.7,maxWidth:680,margin:"0 auto"}}>
+            Data center infrastructure is growing faster than public awareness. This page explains what that means for the communities that host it, in plain language, without agenda.
+          </p>
+        </div>
+      </section>
+
+      {/* INTRO */}
+      <section style={{background:"#f1f5f9",padding:"40px 24px"}}>
+        <div style={{maxWidth:820,margin:"0 auto"}}>
+          <div style={{background:"#fff",border:"1px solid #e2e8f0",borderRadius:14,padding:"30px 30px 26px",boxShadow:"0 2px 12px rgba(0,0,0,.04)"}}>
+            <p style={{fontSize:16,color:"#334155",lineHeight:1.75,margin:0}}>
+              We built HumZones because a gap exists between the information that data center developers have and the information that communities have. Developers employ teams of engineers and lawyers who monitor interconnection queues, utility filings and planning applications as part of their daily work. Residents have none of that. The information is publicly available but scattered, technical and difficult to interpret without specialized knowledge. HumZones bridges that gap. This page explains why bridging it matters.
+            </p>
+            <p style={{fontSize:14,color:"#64748b",fontStyle:"italic",lineHeight:1.65,margin:"18px 0 0",paddingTop:18,borderTop:"1px solid #e2e8f0"}}>
+              HumZones does not advocate for or against data center development. We believe communities deserve access to the same information that developers already have.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      {/* SIX CONTENT SECTIONS */}
+      {WHY_SECTIONS.map((sec, i) => {
+        const altBg = i % 2 === 0 ? "#fff" : "#f8fafc";
+        return (
+          <section key={sec.id} id={sec.id} style={{background:altBg,padding:"56px 24px",borderTop:"1px solid #e2e8f0"}}>
+            <div style={{maxWidth:820,margin:"0 auto"}}>
+              <div style={{display:"flex",alignItems:"center",gap:16,marginBottom:16}}>
+                <div style={{width:56,height:56,borderRadius:14,background:sec.iconBg,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
+                  <Icon name={sec.iconName} size={28} color={sec.iconColor}/>
+                </div>
+                <div style={{fontSize:11,color:"#94a3b8",letterSpacing:".18em",textTransform:"uppercase",fontWeight:800}}>Section {i + 1} of {WHY_SECTIONS.length}</div>
+              </div>
+              <h2 style={{fontSize:"clamp(20px,3vw,24px)",fontWeight:900,color:"#0f172a",letterSpacing:"-.01em",lineHeight:1.25,margin:"0 0 10px"}}>{sec.heading}</h2>
+              <div style={{width:52,height:3,background:"#f97316",borderRadius:2,marginBottom:22}}/>
+              {sec.body.map((para, idx) => (
+                <p key={idx} style={{fontSize:16,color:"#475569",lineHeight:1.75,margin:idx === sec.body.length - 1 ? "0 0 24px" : "0 0 16px"}}>{para}</p>
+              ))}
+              <div style={{background:sec.stat.bg,border:`1px solid ${sec.stat.borderColor}`,borderLeft:`4px solid ${sec.stat.borderColor}`,borderRadius:12,padding:"20px 22px"}}>
+                <div style={{fontSize:11,color:sec.stat.headingColor,letterSpacing:".18em",textTransform:"uppercase",fontWeight:800,marginBottom:8}}>{sec.stat.label}</div>
+                <p style={{fontSize:15,color:sec.stat.textColor,lineHeight:1.7,margin:0,fontWeight:600}}>{sec.stat.text}</p>
+              </div>
+            </div>
+          </section>
+        );
+      })}
+
+      {/* FAQ */}
+      <section style={{background:"#fff",padding:"60px 24px",borderTop:"1px solid #e2e8f0"}}>
+        <div style={{maxWidth:820,margin:"0 auto"}}>
+          <h2 style={{fontSize:20,fontWeight:800,color:"#0f172a",letterSpacing:"-.01em",margin:"0 0 6px"}}>Common Questions</h2>
+          <div style={{width:48,height:3,background:"#f97316",borderRadius:2,marginBottom:22}}/>
+          <div style={{display:"flex",flexDirection:"column",gap:8}}>
+            {WHY_FAQ.map((f, i) => {
+              const key = "why::" + i;
+              const isOpen = !!openFaq[key];
+              return (
+                <div key={key} style={{border:"1px solid #e2e8f0",borderRadius:10,background:isOpen?"#f8fafc":"#fff",overflow:"hidden"}}>
+                  <button
+                    onClick={()=>setOpenFaq(p=>({...p,[key]:!p[key]}))}
+                    aria-expanded={isOpen}
+                    style={{width:"100%",display:"flex",alignItems:"center",justifyContent:"space-between",gap:12,padding:"14px 16px",background:"transparent",border:"none",cursor:"pointer",fontFamily:"inherit",textAlign:"left"}}
+                  >
+                    <span style={{fontSize:15,fontWeight:800,color:"#0f172a",lineHeight:1.4}}>{f.q}</span>
+                    <span aria-hidden="true" style={{fontSize:18,fontWeight:900,color:"#f97316",flexShrink:0,lineHeight:1}}>{isOpen ? "−" : "+"}</span>
+                  </button>
+                  {isOpen && (
+                    <div style={{padding:"0 16px 14px"}}>
+                      <p style={{fontSize:14,color:"#475569",lineHeight:1.7,margin:0}}>{f.a}</p>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </section>
+
+      {/* CTA */}
+      <section style={{background:"#0f172a",padding:"60px 24px"}}>
+        <div style={{maxWidth:820,margin:"0 auto",textAlign:"center"}}>
+          <h2 style={{fontSize:24,fontWeight:900,color:"#fff",letterSpacing:"-.01em",margin:"0 0 12px",lineHeight:1.25}}>Start With What Is Near You</h2>
+          <p style={{fontSize:14,color:"rgba(255,255,255,.7)",lineHeight:1.7,margin:"0 0 26px",maxWidth:560,marginLeft:"auto",marginRight:"auto"}}>
+            Search your address to see what data center infrastructure exists within your chosen radius. Free to search.
+          </p>
+          <div style={{display:"flex",gap:14,justifyContent:"center",flexWrap:"wrap"}}>
+            <button
+              onClick={()=>onNavigate("/get-report")}
+              style={{padding:"14px 28px",borderRadius:12,border:"none",cursor:"pointer",fontFamily:"inherit",fontSize:15,fontWeight:900,background:"#f97316",color:"#fff",boxShadow:"0 10px 28px rgba(249,115,22,.4)"}}
+            >Search My Address</button>
+            <button
+              onClick={()=>onNavigate("/learn")}
+              style={{padding:"14px 28px",borderRadius:12,border:"1.5px solid #f97316",cursor:"pointer",fontFamily:"inherit",fontSize:15,fontWeight:900,background:"transparent",color:"#f97316"}}
+            >Read Our Resident Guides</button>
+          </div>
+        </div>
+      </section>
+
+      <Footer onNavigate={onNavigate}/>
+    </div>
+  );
+};
+
 // ─── /faq: FREQUENTLY ASKED QUESTIONS ────────────────────────────────────────
 // Built as a function so the database-size answer reflects the live count.
 const buildFaqData = (facilityCountLabelText) => [
@@ -10488,6 +10808,7 @@ const GH_MENU = {
         { title: "Live Registry Status", desc: "Operating, building and proposed",         action: "registry" },
       ]},
       { head: "LEARN", items: [
+        { title: "Why It Matters",       desc: "Why infrastructure transparency matters",  to: "/why-it-matters" },
         { title: "Resident Guides",      desc: "Plain-language explainers for residents",  to: "/learn" },
         { title: "Infrastructure Glossary", desc: "Data center terminology in plain language", to: "/glossary" },
         { title: "Methodology",          desc: "How we research and model data",           to: "/methodology" },
@@ -11389,6 +11710,8 @@ export default function App() {
         <ContactPage onNavigate={navigate}/>
       ) : path === "/about" ? (
         <AboutPage onNavigate={navigate} facilityCount={facs.length}/>
+      ) : path === "/why-it-matters" ? (
+        <WhyItMattersPage onNavigate={navigate}/>
       ) : path === "/faq" ? (
         <FaqPage onNavigate={navigate} facilityCount={facs.length}/>
       ) : path === "/terms" ? (

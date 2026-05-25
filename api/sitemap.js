@@ -40,6 +40,7 @@ const STATIC_URLS = [
   { loc: "https://humzones.com/newsletter",    changefreq: "daily",   priority: "0.8" },
   { loc: "https://humzones.com/glossary",      changefreq: "monthly", priority: "0.8" },
   { loc: "https://humzones.com/learn",         changefreq: "monthly", priority: "0.8" },
+  { loc: "https://humzones.com/why-it-matters",changefreq: "monthly", priority: "0.8" },
   { loc: "https://humzones.com/submit-report", changefreq: "monthly", priority: "0.7" },
   { loc: "https://humzones.com/donate",        changefreq: "monthly", priority: "0.6" },
   { loc: "https://humzones.com/about",         changefreq: "monthly", priority: "0.5" },
