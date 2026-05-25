@@ -1,4 +1,4 @@
-const { modelFacility } = require('./model-facility')
+import { modelFacility } from './model-facility.js'
 
 const AIRTABLE_BASE  = 'app2FUPqq8VQSwQ64'
 const FACILITIES_TBL = 'tblvojPdS6kwMxsex'

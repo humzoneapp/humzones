@@ -122,5 +122,5 @@ function modelFacility(powerMW, coolingType, stateCode, country, companyName) {
   }
 }
 
-module.exports = { modelFacility, getDefaultMW, getEGridFactor,
-                   EGRID_FACTORS, INTERNATIONAL_FACTORS }
+export { modelFacility, getDefaultMW, getEGridFactor,
+         EGRID_FACTORS, INTERNATIONAL_FACTORS }
