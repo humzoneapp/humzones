@@ -899,6 +899,40 @@ const MethodologyPage = ({ onBack, onNavigate }) => {
     </a>
   );
 
+  useEffect(() => {
+    if (typeof document === "undefined") return;
+    document.title = "HumZones Methodology | How We Calculate Infrastructure Data";
+
+    injectHeadEl("meta", "methodology-desc",       { name: "description",         content: "How HumZones calculates modeled estimates for power draw, noise levels, EMF ranges, water consumption and CO2 impact. Data sources, formulas and important limitations." });
+    injectHeadEl("link", "methodology-canonical",  { rel: "canonical",            href: "https://humzones.com/methodology" });
+    injectHeadEl("meta", "methodology-og-title",   { property: "og:title",        content: "HumZones Methodology | Infrastructure Estimates" });
+    injectHeadEl("meta", "methodology-og-desc",    { property: "og:description",  content: "How HumZones calculates power, noise, EMF, water and CO2 estimates. Sources, formulas and important limitations explained." });
+    injectHeadEl("meta", "methodology-og-url",     { property: "og:url",          content: "https://humzones.com/methodology" });
+    injectHeadEl("meta", "methodology-og-type",    { property: "og:type",         content: "website" });
+    injectHeadEl("meta", "methodology-og-site",    { property: "og:site_name",    content: "HumZones" });
+    injectHeadEl("meta", "methodology-tw-card",    { name: "twitter:card",        content: "summary" });
+    injectHeadEl("meta", "methodology-tw-title",   { name: "twitter:title",       content: "HumZones Methodology" });
+    injectHeadEl("meta", "methodology-tw-desc",    { name: "twitter:description", content: "How HumZones calculates infrastructure estimates with sources and limitations." });
+
+    const schema = {
+      "@context":    "https://schema.org",
+      "@type":       "WebPage",
+      "name":        "HumZones Methodology",
+      "url":         "https://humzones.com/methodology",
+      "description": "How HumZones calculates infrastructure impact estimates including data sources, formulas and limitations.",
+    };
+    injectHeadEl("script", "methodology-jsonld", { type: "application/ld+json" }, JSON.stringify(schema));
+
+    return () => {
+      [
+        "methodology-desc","methodology-canonical",
+        "methodology-og-title","methodology-og-desc","methodology-og-url","methodology-og-type","methodology-og-site",
+        "methodology-tw-card","methodology-tw-title","methodology-tw-desc",
+        "methodology-jsonld",
+      ].forEach(removeHeadEl);
+    };
+  }, []);
+
   return (
     <div style={{minHeight:"100vh",background:"#f1f5f9",width:"100%",maxWidth:"100vw",overflowX:"hidden"}}>
 
@@ -1691,6 +1725,49 @@ const GetReportPage = ({ onNavigate }) => {
   const [loc,setLoc]       = useState(null);        // {lat,lng,label}
   const [status,setStatus] = useState("idle");      // idle | geocoding
   const [error,setError]   = useState("");
+
+  // SEO + social meta + Product JSON-LD. Cleaned up on unmount.
+  useEffect(() => {
+    if (typeof document === "undefined") return;
+    document.title = "Data Centers Near Me | Personal Area Report | HumZones";
+
+    injectHeadEl("meta", "getreport-desc",      { name: "description",         content: "Search your address and discover data center facilities nearby. Get a personalized report with modeled power, noise, EMF and water estimates for every tracked facility in your area." });
+    injectHeadEl("link", "getreport-canonical", { rel: "canonical",            href: "https://humzones.com/get-report" });
+    injectHeadEl("meta", "getreport-og-title",  { property: "og:title",        content: "Find Data Centers Near Your Address | HumZones" });
+    injectHeadEl("meta", "getreport-og-desc",   { property: "og:description",  content: "Discover what data center infrastructure exists near your home. Personalized reports with modeled power, noise, EMF and water estimates." });
+    injectHeadEl("meta", "getreport-og-url",    { property: "og:url",          content: "https://humzones.com/get-report" });
+    injectHeadEl("meta", "getreport-og-type",   { property: "og:type",         content: "website" });
+    injectHeadEl("meta", "getreport-og-site",   { property: "og:site_name",    content: "HumZones" });
+    injectHeadEl("meta", "getreport-tw-card",   { name: "twitter:card",        content: "summary" });
+    injectHeadEl("meta", "getreport-tw-title",  { name: "twitter:title",       content: "Find Data Centers Near Your Address" });
+    injectHeadEl("meta", "getreport-tw-desc",   { name: "twitter:description", content: "Discover data center infrastructure near your home with modeled power, noise and EMF estimates." });
+
+    const productSchema = {
+      "@context":    "https://schema.org",
+      "@type":       "Product",
+      "name":        "HumZones Personal Area Report",
+      "description": "A personalized data center infrastructure report for any address. Covers all tracked facilities within your chosen radius with modeled power draw, noise, EMF, CO2 and water consumption estimates derived from publicly available sources.",
+      "url":         "https://humzones.com/get-report",
+      "brand":       { "@type": "Brand", "name": "HumZones" },
+      "category":    "Infrastructure Intelligence Reports",
+      "offers": {
+        "@type":         "Offer",
+        "availability":  "https://schema.org/InStock",
+        "url":           "https://humzones.com/get-report",
+        "priceCurrency": "USD",
+      },
+    };
+    injectHeadEl("script", "getreport-jsonld", { type: "application/ld+json" }, JSON.stringify(productSchema));
+
+    return () => {
+      [
+        "getreport-desc","getreport-canonical",
+        "getreport-og-title","getreport-og-desc","getreport-og-url","getreport-og-type","getreport-og-site",
+        "getreport-tw-card","getreport-tw-title","getreport-tw-desc",
+        "getreport-jsonld",
+      ].forEach(removeHeadEl);
+    };
+  }, []);
 
   // Email gate. Unlock state persists in localStorage under the shared
   // humzones_email_unlocked key, so a visitor who already unlocked anywhere
@@ -4534,6 +4611,49 @@ const Footer = ({ onNavigate, facilities = [] }) => {
 
 // ─── /business: PRICING PAGE ─────────────────────────────────────────────────
 const BusinessPlansPage = ({ onNavigate, facilityCount, facs = [] }) => {
+  // SEO + social meta + Service JSON-LD. Cleaned up on unmount.
+  useEffect(() => {
+    if (typeof document === "undefined") return;
+    document.title = "Professional Infrastructure Reports | HumZones Business";
+
+    injectHeadEl("meta", "business-desc",      { name: "description",         content: "Professional data center infrastructure intelligence for real estate, legal and research firms. Detailed facility reports with modeled estimates. Monthly plans with commercial use license." });
+    injectHeadEl("link", "business-canonical", { rel: "canonical",            href: "https://humzones.com/business" });
+    injectHeadEl("meta", "business-og-title",  { property: "og:title",        content: "Professional Data Center Intelligence | HumZones" });
+    injectHeadEl("meta", "business-og-desc",   { property: "og:description",  content: "Infrastructure reports for real estate due diligence, legal research and investment analysis. Monthly plans with commercial use license." });
+    injectHeadEl("meta", "business-og-url",    { property: "og:url",          content: "https://humzones.com/business" });
+    injectHeadEl("meta", "business-og-type",   { property: "og:type",         content: "website" });
+    injectHeadEl("meta", "business-og-site",   { property: "og:site_name",    content: "HumZones" });
+    injectHeadEl("meta", "business-tw-card",   { name: "twitter:card",        content: "summary" });
+    injectHeadEl("meta", "business-tw-title",  { name: "twitter:title",       content: "Professional Infrastructure Reports | HumZones" });
+    injectHeadEl("meta", "business-tw-desc",   { name: "twitter:description", content: "Data center infrastructure intelligence for real estate, legal and research professionals." });
+
+    const serviceSchema = {
+      "@context":    "https://schema.org",
+      "@type":       "Service",
+      "name":        "HumZones Professional Infrastructure Intelligence",
+      "description": "Commercial-grade data center infrastructure reports for real estate due diligence, legal proceedings, environmental research and investment analysis. Monthly subscription with report credits and commercial use license.",
+      "url":         "https://humzones.com/business",
+      "provider":    { "@type": "Organization", "name": "HumZones Technologies Inc.", "url": "https://humzones.com" },
+      "serviceType": "Infrastructure Intelligence Reports",
+      "audience":    { "@type": "Audience", "audienceType": "Real estate professionals, legal researchers, investment analysts, environmental consultants" },
+      "offers": {
+        "@type":         "AggregateOffer",
+        "priceCurrency": "USD",
+        "offerCount":    "3",
+      },
+    };
+    injectHeadEl("script", "business-jsonld", { type: "application/ld+json" }, JSON.stringify(serviceSchema));
+
+    return () => {
+      [
+        "business-desc","business-canonical",
+        "business-og-title","business-og-desc","business-og-url","business-og-type","business-og-site",
+        "business-tw-card","business-tw-title","business-tw-desc",
+        "business-jsonld",
+      ].forEach(removeHeadEl);
+    };
+  }, []);
+
   // Initial toggle position respects a one-shot flag set by the header's
   // Business -> Annual Plans entry so that link lands on the annual prices.
   const [annual, setAnnual] = useState(() => {
@@ -7246,6 +7366,43 @@ const SubmitReportPage = ({ onNavigate }) => {
   const [city, setCity]       = useState("");
   const [found, setFound]     = useState(null); // null until Find Facilities runs
 
+  // SEO + social meta + WebPage JSON-LD. Cleaned up on unmount.
+  useEffect(() => {
+    if (typeof document === "undefined") return;
+    document.title = "Report a Data Center Experience | HumZones Community";
+
+    injectHeadEl("meta", "submitreport-desc",      { name: "description",         content: "Living near a data center? Share your verified experience with the HumZones community registry. Report noise, generator activity, sleep disruption and other observations. Free to submit." });
+    injectHeadEl("link", "submitreport-canonical", { rel: "canonical",            href: "https://humzones.com/submit-report" });
+    injectHeadEl("meta", "submitreport-og-title",  { property: "og:title",        content: "Share Your Data Center Experience | HumZones" });
+    injectHeadEl("meta", "submitreport-og-desc",   { property: "og:description",  content: "Add your verified experience to the public registry. Report noise, generator activity and other observations near data center facilities. Free." });
+    injectHeadEl("meta", "submitreport-og-url",    { property: "og:url",          content: "https://humzones.com/submit-report" });
+    injectHeadEl("meta", "submitreport-og-type",   { property: "og:type",         content: "website" });
+    injectHeadEl("meta", "submitreport-og-site",   { property: "og:site_name",    content: "HumZones" });
+    injectHeadEl("meta", "submitreport-tw-card",   { name: "twitter:card",        content: "summary" });
+    injectHeadEl("meta", "submitreport-tw-title",  { name: "twitter:title",       content: "Report Your Data Center Experience | HumZones" });
+    injectHeadEl("meta", "submitreport-tw-desc",   { name: "twitter:description", content: "Share verified observations about living near data center infrastructure. Free community registry." });
+
+    const pageSchema = {
+      "@context":    "https://schema.org",
+      "@type":       "WebPage",
+      "name":        "Submit Your Data Center Experience",
+      "url":         "https://humzones.com/submit-report",
+      "description": "Community-submitted verified reports about living near data center infrastructure. Covers noise, generator testing, sleep disruption and other environmental observations.",
+      "isPartOf":    { "@type": "WebSite", "name": "HumZones", "url": "https://humzones.com" },
+      "audience":    { "@type": "Audience", "audienceType": "Residents and homeowners near data center facilities" },
+    };
+    injectHeadEl("script", "submitreport-jsonld", { type: "application/ld+json" }, JSON.stringify(pageSchema));
+
+    return () => {
+      [
+        "submitreport-desc","submitreport-canonical",
+        "submitreport-og-title","submitreport-og-desc","submitreport-og-url","submitreport-og-type","submitreport-og-site",
+        "submitreport-tw-card","submitreport-tw-title","submitreport-tw-desc",
+        "submitreport-jsonld",
+      ].forEach(removeHeadEl);
+    };
+  }, []);
+
   // Cascading Country / State / City / Facility selector for the form. The
   // hero search above writes into the same state via pickFacility.
   const [fCountry, setFCountry] = useState("");
@@ -7963,6 +8120,42 @@ const AboutPage = ({ onNavigate, facilityCount }) => {
   const h2 = { fontSize:"clamp(26px,4vw,34px)", fontWeight:900, letterSpacing:"-.02em", marginBottom:18, lineHeight:1.2 };
   const para = (color) => ({ fontSize:16, lineHeight:1.8, color, whiteSpace:"pre-line", margin:0 });
   const btn = { padding:"14px 28px", borderRadius:12, border:"none", cursor:"pointer", fontFamily:"inherit", fontSize:15, fontWeight:900, background:"linear-gradient(135deg,#ef4444,#f97316)", color:"#fff", boxShadow:"0 10px 28px rgba(249,115,22,.4)" };
+
+  // SEO + social meta + AboutPage JSON-LD. Cleaned up on unmount.
+  useEffect(() => {
+    if (typeof document === "undefined") return;
+    document.title = "About HumZones | Global Infrastructure Registry";
+
+    injectHeadEl("meta", "about-desc",      { name: "description",         content: "HumZones tracks data center infrastructure worldwide so residents understand what is being built near their homes. Learn about our mission, methodology and the registry behind the data." });
+    injectHeadEl("link", "about-canonical", { rel: "canonical",            href: "https://humzones.com/about" });
+    injectHeadEl("meta", "about-og-title",  { property: "og:title",        content: "About HumZones | Data Center Registry" });
+    injectHeadEl("meta", "about-og-desc",   { property: "og:description",  content: "HumZones tracks data center infrastructure so residents know what is being built near their homes. Our mission, methodology and data sources." });
+    injectHeadEl("meta", "about-og-url",    { property: "og:url",          content: "https://humzones.com/about" });
+    injectHeadEl("meta", "about-og-type",   { property: "og:type",         content: "website" });
+    injectHeadEl("meta", "about-og-site",   { property: "og:site_name",    content: "HumZones" });
+    injectHeadEl("meta", "about-tw-card",   { name: "twitter:card",        content: "summary" });
+    injectHeadEl("meta", "about-tw-title",  { name: "twitter:title",       content: "About HumZones" });
+    injectHeadEl("meta", "about-tw-desc",   { name: "twitter:description", content: "HumZones tracks data center infrastructure worldwide so residents know what is near their homes." });
+
+    const aboutSchema = {
+      "@context":    "https://schema.org",
+      "@type":       "AboutPage",
+      "name":        "About HumZones",
+      "url":         "https://humzones.com/about",
+      "description": "HumZones is the global data center health and infrastructure registry, making facility data accessible to residents and professionals worldwide.",
+      "publisher":   { "@type": "Organization", "name": "HumZones Technologies Inc.", "url": "https://humzones.com" },
+    };
+    injectHeadEl("script", "about-jsonld", { type: "application/ld+json" }, JSON.stringify(aboutSchema));
+
+    return () => {
+      [
+        "about-desc","about-canonical",
+        "about-og-title","about-og-desc","about-og-url","about-og-type","about-og-site",
+        "about-tw-card","about-tw-title","about-tw-desc",
+        "about-jsonld",
+      ].forEach(removeHeadEl);
+    };
+  }, []);
   const cards = [
     { icon:"database",  title:"We Track",   desc:"We maintain a growing database of data center facilities worldwide, compiled from public planning filings, utility records, operator disclosures and environmental assessments." },
     { icon:"search",    title:"We Analyze", desc:"We apply documented modeling formulas to estimate the environmental footprint of each facility including power draw, water consumption, noise levels and EMF exposure ranges." },
@@ -8527,6 +8720,82 @@ const removeHeadEl = (key) => {
   if (el && el.parentNode) el.parentNode.removeChild(el);
 };
 
+// Mounted from the inline home-page JSX so the homepage gets the same
+// mount/unmount-driven SEO injection pattern every named page uses.
+// Renders nothing; the head tags are inserted as side effects.
+const HomePageSEO = () => {
+  useEffect(() => {
+    if (typeof document === "undefined") return;
+    document.title = "HumZones | Find Data Centers Near Your Home";
+
+    injectHeadEl("meta", "home-desc",      { name: "description",         content: "Search the global data center infrastructure registry. Find facilities near your address, understand power draw, noise and EMF estimates, and access professional reports for residents and businesses." });
+    injectHeadEl("link", "home-canonical", { rel: "canonical",            href: "https://humzones.com/" });
+    injectHeadEl("meta", "home-og-title",  { property: "og:title",        content: "HumZones | Find Data Centers Near Your Home" });
+    injectHeadEl("meta", "home-og-desc",   { property: "og:description",  content: "The global data center infrastructure registry. Search facilities near any address and understand what is being built near your community." });
+    injectHeadEl("meta", "home-og-url",    { property: "og:url",          content: "https://humzones.com/" });
+    injectHeadEl("meta", "home-og-type",   { property: "og:type",         content: "website" });
+    injectHeadEl("meta", "home-og-site",   { property: "og:site_name",    content: "HumZones" });
+    injectHeadEl("meta", "home-tw-card",   { name: "twitter:card",        content: "summary" });
+    injectHeadEl("meta", "home-tw-title",  { name: "twitter:title",       content: "HumZones | Find Data Centers Near Your Home" });
+    injectHeadEl("meta", "home-tw-desc",   { name: "twitter:description", content: "Search the global data center registry. Find facilities near your address with power, noise and EMF estimates." });
+
+    const orgSchema = {
+      "@context":    "https://schema.org",
+      "@type":       "Organization",
+      "name":        "HumZones Technologies Inc.",
+      "url":         "https://humzones.com",
+      "logo":        "https://humzones.com/favicon.ico",
+      "description": "Global data center health and infrastructure registry providing residents and professionals with accessible information about data center facilities near their communities.",
+      "contactPoint": {
+        "@type":       "ContactPoint",
+        "email":       "hello@humzones.com",
+        "contactType": "Customer Support",
+      },
+    };
+    const siteSchema = {
+      "@context":    "https://schema.org",
+      "@type":       "WebSite",
+      "name":        "HumZones",
+      "url":         "https://humzones.com",
+      "description": "Global data center infrastructure registry for residents and professionals",
+      "potentialAction": {
+        "@type":  "SearchAction",
+        "target": { "@type": "EntryPoint", "urlTemplate": "https://humzones.com/?q={search_term_string}" },
+        "query-input": "required name=search_term_string",
+      },
+    };
+    const datasetSchema = {
+      "@context":           "https://schema.org",
+      "@type":              "Dataset",
+      "name":               "HumZones Global Data Center Registry",
+      "description":        "A continuously updated registry of data center facilities worldwide with modeled infrastructure estimates including power draw, noise levels, EMF ranges, water consumption and CO2 impact derived from publicly available sources.",
+      "url":                "https://humzones.com",
+      "creator":            { "@type": "Organization", "name": "HumZones Technologies Inc.", "url": "https://humzones.com" },
+      "isAccessibleForFree": false,
+      "variableMeasured": [
+        "Power Draw (MW)",
+        "Estimated Noise Level (dB)",
+        "Modeled EMF at Fence Line (mG)",
+        "Modeled EMF at 100 Meters (mG)",
+        "Estimated Daily Water Consumption (gallons)",
+        "Estimated Annual CO2 Impact (tons)",
+      ],
+      "spatialCoverage": { "@type": "Place", "name": "Global" },
+    };
+    injectHeadEl("script", "home-jsonld", { type: "application/ld+json" }, JSON.stringify([orgSchema, siteSchema, datasetSchema]));
+
+    return () => {
+      [
+        "home-desc","home-canonical",
+        "home-og-title","home-og-desc","home-og-url","home-og-type","home-og-site",
+        "home-tw-card","home-tw-title","home-tw-desc",
+        "home-jsonld",
+      ].forEach(removeHeadEl);
+    };
+  }, []);
+  return null;
+};
+
 const LearnPage = ({ onNavigate }) => {
   const [search, setSearch] = useState("");
   const [activeCategory, setActiveCategory] = useState("All");
@@ -8563,31 +8832,27 @@ const LearnPage = ({ onNavigate }) => {
     const expanded = LEARN_ARTICLES.find(a => a.slug === expandedSlug);
     const title = expanded
       ? `${expanded.title} | HumZones Learn`
-      : "Resident Guides | Understanding Data Center Infrastructure | HumZones";
+      : "Data Center Resident Guides | HumZones Learn";
     document.title = title;
-    let metaDesc = document.querySelector('meta[name="description"]');
-    if (!metaDesc) {
-      metaDesc = document.createElement("meta");
-      metaDesc.setAttribute("name", "description");
-      document.head.appendChild(metaDesc);
-    }
-    metaDesc.setAttribute("content",
+    injectHeadEl("meta", "learn-desc", { name: "description", content:
       expanded
         ? expanded.preview
-        : "Plain-language guides for residents living near data center infrastructure. Learn about interconnection queues, utility filings, facility status and what you can do."
-    );
+        : "Plain language guides for residents near data center infrastructure. Interconnection queues, utility filings, facility status and how to engage local officials explained."
+    });
   }, [expandedSlug]);
 
   // OpenGraph + Twitter meta tags. Stamped once on mount and cleaned up
   // on unmount so they do not bleed into other routes.
   useEffect(() => {
-    injectHeadEl("meta", "learn-og-title",       { property: "og:title",       content: "Resident Guides | HumZones" });
-    injectHeadEl("meta", "learn-og-description", { property: "og:description", content: "Plain-language guides for residents living near data center infrastructure. Learn about interconnection queues, utility filings, and what you can do." });
-    injectHeadEl("meta", "learn-og-url",         { property: "og:url",         content: "https://humzones.com/learn" });
-    injectHeadEl("meta", "learn-og-type",        { property: "og:type",        content: "website" });
+    injectHeadEl("link", "learn-canonical",      { rel: "canonical",            href: "https://humzones.com/learn" });
+    injectHeadEl("meta", "learn-og-title",       { property: "og:title",        content: "Data Center Resident Guides | HumZones" });
+    injectHeadEl("meta", "learn-og-description", { property: "og:description",  content: "Understand data center development near your community. Free guides for residents on interconnection queues, utility filings and planning boards." });
+    injectHeadEl("meta", "learn-og-url",         { property: "og:url",          content: "https://humzones.com/learn" });
+    injectHeadEl("meta", "learn-og-type",        { property: "og:type",         content: "website" });
+    injectHeadEl("meta", "learn-og-site",        { property: "og:site_name",    content: "HumZones" });
     injectHeadEl("meta", "learn-tw-card",        { name: "twitter:card",        content: "summary" });
-    injectHeadEl("meta", "learn-tw-title",       { name: "twitter:title",       content: "Resident Guides | HumZones" });
-    injectHeadEl("meta", "learn-tw-description", { name: "twitter:description", content: "Plain-language guides for residents living near data center infrastructure." });
+    injectHeadEl("meta", "learn-tw-title",       { name: "twitter:title",       content: "Data Center Resident Guides | HumZones" });
+    injectHeadEl("meta", "learn-tw-description", { name: "twitter:description", content: "Free plain language guides for residents near data center infrastructure." });
 
     // JSON-LD blob: WebPage + Article schemas (one per article, injected
     // all at once so crawlers see every article without the user having
@@ -8634,7 +8899,8 @@ const LearnPage = ({ onNavigate }) => {
 
     return () => {
       [
-        "learn-og-title","learn-og-description","learn-og-url","learn-og-type",
+        "learn-desc","learn-canonical",
+        "learn-og-title","learn-og-description","learn-og-url","learn-og-type","learn-og-site",
         "learn-tw-card","learn-tw-title","learn-tw-description",
         "learn-jsonld","learn-faq-jsonld",
       ].forEach(removeHeadEl);
@@ -9005,28 +9271,22 @@ const GlossaryPage = ({ onNavigate }) => {
   const [openMeans, setOpenMeans] = useState({}); // term -> bool override
   const [showBackToTop, setShowBackToTop] = useState(false);
 
-  // Page title + meta description for SEO.
+  // Page title + meta tags + DefinedTermSet JSON-LD for the glossary.
+  // Cleaned up on unmount so the tags do not leak into other pages.
   useEffect(() => {
     if (typeof document === "undefined") return;
-    document.title = "Data Center Infrastructure Glossary | Plain Language Guide | HumZones";
-    let meta = document.querySelector('meta[name="description"]');
-    if (!meta) {
-      meta = document.createElement("meta");
-      meta.setAttribute("name", "description");
-      document.head.appendChild(meta);
-    }
-    meta.setAttribute("content", "Translate data center jargon into plain language. HumZones explains interconnection queues, megawatts, balancing authorities and more for residents.");
-  }, []);
+    document.title = "Data Center Glossary | Plain Language Guide | HumZones";
 
-  // OpenGraph + Twitter meta tags + DefinedTermSet JSON-LD for the
-  // glossary. Cleaned up on unmount so the tags do not leak into other
-  // pages.
-  useEffect(() => {
-    injectHeadEl("meta", "glossary-og-title",       { property: "og:title",       content: "Data Center Infrastructure Glossary | HumZones" });
-    injectHeadEl("meta", "glossary-og-description", { property: "og:description", content: "Translate data center jargon into plain language. Interconnection queues, megawatts, balancing authorities and more explained for residents." });
-    injectHeadEl("meta", "glossary-og-url",         { property: "og:url",         content: "https://humzones.com/glossary" });
-    injectHeadEl("meta", "glossary-og-type",        { property: "og:type",        content: "website" });
-    injectHeadEl("meta", "glossary-tw-card",        { name: "twitter:card",       content: "summary" });
+    injectHeadEl("meta", "glossary-desc",           { name: "description",         content: "Plain language definitions of data center infrastructure terms. Interconnection queues, megawatts, balancing authorities, WUE, hyperscale and more explained for residents not engineers." });
+    injectHeadEl("link", "glossary-canonical",      { rel: "canonical",            href: "https://humzones.com/glossary" });
+    injectHeadEl("meta", "glossary-og-title",       { property: "og:title",        content: "Data Center Glossary | HumZones" });
+    injectHeadEl("meta", "glossary-og-description", { property: "og:description",  content: "Translate data center jargon into plain language. Interconnection queues, megawatts, balancing authorities and more explained for residents." });
+    injectHeadEl("meta", "glossary-og-url",         { property: "og:url",          content: "https://humzones.com/glossary" });
+    injectHeadEl("meta", "glossary-og-type",        { property: "og:type",         content: "website" });
+    injectHeadEl("meta", "glossary-og-site",        { property: "og:site_name",    content: "HumZones" });
+    injectHeadEl("meta", "glossary-tw-card",        { name: "twitter:card",        content: "summary" });
+    injectHeadEl("meta", "glossary-tw-title",       { name: "twitter:title",       content: "Data Center Glossary | HumZones" });
+    injectHeadEl("meta", "glossary-tw-description", { name: "twitter:description", content: "Plain language definitions of data center infrastructure terms for residents." });
 
     const definedTermSet = {
       "@context": "https://schema.org",
@@ -9101,8 +9361,9 @@ const GlossaryPage = ({ onNavigate }) => {
 
     return () => {
       [
-        "glossary-og-title","glossary-og-description","glossary-og-url","glossary-og-type",
-        "glossary-tw-card",
+        "glossary-desc","glossary-canonical",
+        "glossary-og-title","glossary-og-description","glossary-og-url","glossary-og-type","glossary-og-site",
+        "glossary-tw-card","glossary-tw-title","glossary-tw-description",
         "glossary-jsonld",
       ].forEach(removeHeadEl);
     };
@@ -9302,6 +9563,31 @@ const DonatePage = ({ onNavigate, facilityCount }) => {
   const [mode, setMode] = useState("oneTime"); // "oneTime" or "monthly"
   const [selected, setSelected] = useState(null); // a preset number or "custom"
   const [customAmount, setCustomAmount] = useState("");
+
+  // SEO + social meta. Cleaned up on unmount.
+  useEffect(() => {
+    if (typeof document === "undefined") return;
+    document.title = "Support HumZones | Help Keep Communities Informed";
+
+    injectHeadEl("meta", "donate-desc",      { name: "description",         content: "Support HumZones, the independent data center infrastructure registry. Your donation funds database expansion, research and keeps the site free for residents worldwide." });
+    injectHeadEl("link", "donate-canonical", { rel: "canonical",            href: "https://humzones.com/donate" });
+    injectHeadEl("meta", "donate-og-title",  { property: "og:title",        content: "Support HumZones | Independent Registry" });
+    injectHeadEl("meta", "donate-og-desc",   { property: "og:description",  content: "Help fund the global data center infrastructure registry. One-time or monthly. Every dollar helps reach more communities." });
+    injectHeadEl("meta", "donate-og-url",    { property: "og:url",          content: "https://humzones.com/donate" });
+    injectHeadEl("meta", "donate-og-type",   { property: "og:type",         content: "website" });
+    injectHeadEl("meta", "donate-og-site",   { property: "og:site_name",    content: "HumZones" });
+    injectHeadEl("meta", "donate-tw-card",   { name: "twitter:card",        content: "summary" });
+    injectHeadEl("meta", "donate-tw-title",  { name: "twitter:title",       content: "Support HumZones" });
+    injectHeadEl("meta", "donate-tw-desc",   { name: "twitter:description", content: "Help fund the independent data center infrastructure registry. One-time or monthly donations." });
+
+    return () => {
+      [
+        "donate-desc","donate-canonical",
+        "donate-og-title","donate-og-desc","donate-og-url","donate-og-type","donate-og-site",
+        "donate-tw-card","donate-tw-title","donate-tw-desc",
+      ].forEach(removeHeadEl);
+    };
+  }, []);
 
   // Reset the picked tier whenever the mode toggles so an old selection
   // from the other cadence never carries over.
@@ -9760,11 +10046,12 @@ const NewsletterPage = ({ onNavigate }) => {
   // mount and cleaned up on unmount so they do not leak into other routes.
   useEffect(() => {
     if (typeof document === "undefined") return;
-    document.title = "Infrastructure Intelligence | Weekly Newsletter | HumZones";
+    document.title = "Infrastructure Intelligence Newsletter | HumZones";
 
-    injectHeadEl("meta", "nl-index-desc",     { name: "description", content: "Infrastructure Intelligence - free weekly data center news translated for residents. Interconnection queue filings, facility announcements and community impact stories every Monday and Thursday." });
+    injectHeadEl("meta", "nl-index-desc",     { name: "description",         content: "Free weekly data center infrastructure news in plain language. Interconnection queue filings, facility announcements and community impact stories every Monday and Thursday." });
+    injectHeadEl("link", "nl-index-canonical",{ rel: "canonical",            href: "https://humzones.com/newsletter" });
     injectHeadEl("meta", "nl-index-og-title", { property: "og:title",        content: "Infrastructure Intelligence | HumZones Newsletter" });
-    injectHeadEl("meta", "nl-index-og-desc",  { property: "og:description",  content: "Free weekly data center infrastructure news in plain language for residents and community advocates." });
+    injectHeadEl("meta", "nl-index-og-desc",  { property: "og:description",  content: "Free weekly data center news translated for residents. Interconnection filings, facility announcements and community stories." });
     injectHeadEl("meta", "nl-index-og-url",   { property: "og:url",          content: "https://humzones.com/newsletter" });
     injectHeadEl("meta", "nl-index-og-type",  { property: "og:type",         content: "website" });
     injectHeadEl("meta", "nl-index-og-site",  { property: "og:site_name",    content: "HumZones" });
@@ -9790,7 +10077,7 @@ const NewsletterPage = ({ onNavigate }) => {
 
     return () => {
       [
-        "nl-index-desc","nl-index-og-title","nl-index-og-desc","nl-index-og-url",
+        "nl-index-desc","nl-index-canonical","nl-index-og-title","nl-index-og-desc","nl-index-og-url",
         "nl-index-og-type","nl-index-og-site","nl-index-tw-card","nl-index-tw-title",
         "nl-index-tw-desc","nl-index-jsonld",
       ].forEach(removeHeadEl);
@@ -11116,6 +11403,8 @@ export default function App() {
         <DonateThankYouPage onNavigate={navigate}/>
       ) : (
       <div style={{minHeight:"100vh",background:"#f1f5f9",width:"100%",maxWidth:"100vw",overflowX:"hidden"}}>
+
+        <HomePageSEO/>
 
         {/* HERO */}
         <section className="hero" style={{position:"relative",overflow:"visible",minHeight:"100vh",background:"linear-gradient(150deg,#020c1b 0%,#0f172a 35%,#1e0535 65%,#0a1628 100%)",backgroundSize:"400% 400%",animation:"gradShift 14s ease infinite",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:"80px 24px",textAlign:"center"}}>

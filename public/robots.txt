@@ -1,0 +1,12 @@
+User-agent: *
+Allow: /
+Disallow: /api/
+Disallow: /business-dashboard
+Disallow: /business-generate
+Disallow: /business-profile
+Disallow: /report-success
+Disallow: /newsletter-confirm
+Disallow: /unsubscribe
+Disallow: /donate-thank-you
+
+Sitemap: https://humzones.com/api/sitemap.xml

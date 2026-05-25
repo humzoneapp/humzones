@@ -1,15 +1,24 @@
-// Dynamic XML sitemap served at /api/sitemap.xml.
-//
-// Returns a sitemap.xml with the static high-value pages plus one entry per
-// Sent Newsletter_Issues record. After deploy, submit
-//   https://humzones.com/sitemap.xml
-// to Google Search Console so the dynamic newsletter issues get indexed.
-//
-// The Vercel rewrite in vercel.json sends every non-/api/ path to
-// index.html, so we expose this endpoint under /api/ and let Search
-// Console / robots.txt point at the underlying /api/sitemap path. If you
-// want the URL to look like /sitemap.xml you can add a rewrite entry
-// later: { "source": "/sitemap.xml", "destination": "/api/sitemap" }.
+/*
+ * SITEMAP - DO NOT SUBMIT TO GOOGLE SEARCH CONSOLE YET
+ *
+ * Submit only when ALL of the following are complete:
+ * 1. Full site testing completed with no broken pages
+ * 2. All Stripe payment links switched to live mode
+ * 3. Facility database expanded to production volume
+ * 4. All placeholder content replaced with real content
+ *
+ * WHEN READY TO SUBMIT:
+ * 1. Verify sitemap: visit https://humzones.com/api/sitemap.xml
+ * 2. Set up Google Search Console: https://search.google.com/search-console
+ * 3. Add property humzones.com and verify via DNS TXT record
+ * 4. Submit sitemap URL: https://humzones.com/api/sitemap.xml
+ * 5. Use URL Inspection tool to request indexing for key pages
+ * 6. Also submit to Bing: https://www.bing.com/webmasters
+ */
+
+// Dynamic XML sitemap served at /api/sitemap (and at /api/sitemap.xml and
+// /sitemap.xml via the rewrites in vercel.json). Emits the canonical list of
+// public URLs plus one entry per Sent Newsletter_Issues record.
 //
 // Required env vars (already configured in Vercel):
 //   AIRTABLE_KEY (falls back to VITE_AIRTABLE_KEY)
@@ -25,12 +34,16 @@ const ISSUE_F = {
 const airtableKey = () => process.env.AIRTABLE_KEY || process.env.VITE_AIRTABLE_KEY || "";
 
 const STATIC_URLS = [
-  { loc: "https://humzones.com/",               priority: "1.0" },
-  { loc: "https://humzones.com/newsletter",     priority: "0.9" },
-  { loc: "https://humzones.com/glossary",       priority: "0.8" },
-  { loc: "https://humzones.com/learn",          priority: "0.8" },
-  { loc: "https://humzones.com/submit-report",  priority: "0.7" },
-  { loc: "https://humzones.com/donate",         priority: "0.6" },
+  { loc: "https://humzones.com/",              changefreq: "daily",   priority: "1.0" },
+  { loc: "https://humzones.com/get-report",    changefreq: "weekly",  priority: "0.9" },
+  { loc: "https://humzones.com/business",      changefreq: "weekly",  priority: "0.9" },
+  { loc: "https://humzones.com/newsletter",    changefreq: "daily",   priority: "0.8" },
+  { loc: "https://humzones.com/glossary",      changefreq: "monthly", priority: "0.8" },
+  { loc: "https://humzones.com/learn",         changefreq: "monthly", priority: "0.8" },
+  { loc: "https://humzones.com/submit-report", changefreq: "monthly", priority: "0.7" },
+  { loc: "https://humzones.com/donate",        changefreq: "monthly", priority: "0.6" },
+  { loc: "https://humzones.com/about",         changefreq: "monthly", priority: "0.5" },
+  { loc: "https://humzones.com/methodology",   changefreq: "monthly", priority: "0.5" },
 ];
 
 function xmlEscape(s) {
@@ -46,12 +59,14 @@ async function fetchSentIssues() {
   const key = airtableKey();
   if (!key) return [];
   const formula = encodeURIComponent("{Status} = 'Sent'");
-  const url = `https://api.airtable.com/v0/${AIRTABLE_BASE}/${ISSUES_TABLE}` +
-    `?filterByFormula=${formula}&pageSize=100&returnFieldsByFieldId=true`;
+  const baseUrl = `https://api.airtable.com/v0/${AIRTABLE_BASE}/${ISSUES_TABLE}`;
   const all = [];
   let cursor = null;
   do {
-    const u = new URL(url);
+    const u = new URL(baseUrl);
+    u.searchParams.set("filterByFormula", decodeURIComponent(formula));
+    u.searchParams.set("pageSize", "100");
+    u.searchParams.set("returnFieldsByFieldId", "true");
     if (cursor) u.searchParams.set("offset", cursor);
     const r = await fetch(u.toString(), { headers: { Authorization: `Bearer ${key}` } });
     if (!r.ok) {
@@ -75,14 +90,14 @@ module.exports = async (req, res) => {
         if (num === undefined || num === null || num === "") return null;
         const lastmod = f[ISSUE_F.Date_Published] || "";
         return {
-          loc:      `https://humzones.com/newsletter/${num}`,
-          priority: "0.7",
+          loc:        `https://humzones.com/newsletter/${num}`,
+          changefreq: "never",
+          priority:   "0.7",
           lastmod,
         };
       })
       .filter(Boolean)
       .sort((a, b) => {
-        // newest first by lastmod when both present
         if (a.lastmod && b.lastmod) return b.lastmod.localeCompare(a.lastmod);
         return 0;
       });
@@ -95,8 +110,9 @@ module.exports = async (req, res) => {
       all.map(u => {
         let entry = '  <url>\n';
         entry += '    <loc>' + xmlEscape(u.loc) + '</loc>\n';
-        if (u.lastmod) entry += '    <lastmod>' + xmlEscape(u.lastmod) + '</lastmod>\n';
-        if (u.priority) entry += '    <priority>' + xmlEscape(u.priority) + '</priority>\n';
+        if (u.lastmod)    entry += '    <lastmod>'    + xmlEscape(u.lastmod)    + '</lastmod>\n';
+        if (u.changefreq) entry += '    <changefreq>' + xmlEscape(u.changefreq) + '</changefreq>\n';
+        if (u.priority)   entry += '    <priority>'   + xmlEscape(u.priority)   + '</priority>\n';
         entry += '  </url>';
         return entry;
       }).join('\n') +
