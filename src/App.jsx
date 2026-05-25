@@ -10264,6 +10264,8 @@ const NewsletterIssuePage = ({ onNavigate, issueNumber }) => {
   const f = (issue && issue.fields) || {};
   const shareUrl  = "https://humzones.com/newsletter/" + (f[NL_ISSUE_F.Issue_Number] || issueNumber);
   const shareText = (f[NL_ISSUE_F.Issue_Title] || "Infrastructure Intelligence") + " via @HumZones";
+  const issueHTML = String(f[NL_ISSUE_F.Content_HTML] || "").split("[UNSUBSCRIBE_LINK]").join("https://humzones.com/unsubscribe");
+  const processedHTML = issueHTML.replace(/<a\s/gi, '<a target="_blank" rel="noopener noreferrer" ');
   const onCopyShare = () => {
     if (typeof navigator === "undefined" || !navigator.clipboard) return;
     navigator.clipboard.writeText(shareUrl).then(() => {
@@ -10300,7 +10302,13 @@ const NewsletterIssuePage = ({ onNavigate, issueNumber }) => {
         ) : status === "ready" ? (
           <div
             style={{background:"#fff",border:"1px solid #e2e8f0",borderRadius:14,padding:"6px 6px 12px",boxShadow:"0 2px 12px rgba(0,0,0,.05)"}}
-            dangerouslySetInnerHTML={{ __html: String(f[NL_ISSUE_F.Content_HTML] || "").split("[UNSUBSCRIBE_LINK]").join("https://humzones.com/unsubscribe") }}
+            dangerouslySetInnerHTML={{ __html: processedHTML }}
+            onClick={(e) => {
+              if (e.target.tagName === "A" && e.target.href) {
+                e.preventDefault();
+                window.open(e.target.href, "_blank", "noopener,noreferrer");
+              }
+            }}
           />
         ) : null}
       </section>
