@@ -83,6 +83,9 @@ async function nominatim(query) {
   }
 }
 
+// Returns { lat, lng, source } where source is 'city' for city+state
+// matches and 'state' when only the state-level fallback matched.
+// Caller decides whether to persist state-level results.
 async function geocode(city, stateName) {
   if (!stateName) return null
 
@@ -91,7 +94,7 @@ async function geocode(city, stateName) {
     const res = await nominatim(q)
     if (res) {
       console.log(`[geocode] matched city+state: ${q}`)
-      return res
+      return { lat: res.lat, lng: res.lng, source: 'city' }
     }
     await sleep(1000)
   }
@@ -99,8 +102,7 @@ async function geocode(city, stateName) {
   const stateQ = `${stateName}, USA`
   const res = await nominatim(stateQ)
   if (res) {
-    console.log(`[geocode] matched state only: ${stateQ}${city ? ` (no result for "${city}, ${stateName}")` : ''}`)
-    return res
+    return { lat: res.lat, lng: res.lng, source: 'state' }
   }
   return null
 }
@@ -138,6 +140,11 @@ async function main() {
     await sleep(1000)
     const geo = await geocode(city, state)
     if (!geo) {
+      unresolved++
+      continue
+    }
+    if (geo.source !== 'city') {
+      console.log(`[fix-coords] Skipping ${name} - only state-level coords available`)
       unresolved++
       continue
     }

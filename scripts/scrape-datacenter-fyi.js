@@ -172,9 +172,11 @@ async function nominatim(query) {
   }
 }
 
-// Geocode with fallback: try city+state first, then fall back to
-// state alone (gives approximate center of the state) so we always
-// have at least a coarse coordinate.
+// Geocode with fallback. Returns { lat, lng, source } where source is
+// 'city' for city+state matches and 'state' when only the state-level
+// fallback matched. Callers decide whether to persist a state-level
+// result: a state centroid is worse than no coordinate because it
+// drops the facility in the wrong place on the map.
 async function geocode(city, stateName) {
   if (!stateName) return null
 
@@ -183,7 +185,7 @@ async function geocode(city, stateName) {
     const res = await nominatim(q)
     if (res) {
       console.log(`[geocode] matched city+state: ${q}`)
-      return res
+      return { lat: res.lat, lng: res.lng, source: 'city' }
     }
     await sleep(1000)
   }
@@ -191,8 +193,7 @@ async function geocode(city, stateName) {
   const stateQ = `${stateName}, USA`
   const res = await nominatim(stateQ)
   if (res) {
-    console.log(`[geocode] matched state only: ${stateQ}${city ? ` (no result for "${city}, ${stateName}")` : ''}`)
-    return res
+    return { lat: res.lat, lng: res.lng, source: 'state' }
   }
   return null
 }
@@ -309,7 +310,12 @@ async function processState(stateCode, existingNames) {
     let lng = null
     await sleep(1000)
     const geo = await geocode(city, stateName)
-    if (geo) { lat = geo.lat; lng = geo.lng }
+    if (geo && geo.source === 'city') {
+      lat = geo.lat
+      lng = geo.lng
+    } else if (geo && geo.source === 'state') {
+      console.log(`[${stateCode}] WARNING: only state-level coords available for ${row.name}, leaving lat/lng blank`)
+    }
 
     try {
       const fields = {
