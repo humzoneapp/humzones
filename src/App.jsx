@@ -8932,8 +8932,8 @@ const LearnPage = ({ onNavigate }) => {
       <section style={{maxWidth:880,margin:"0 auto",padding:"0 24px 56px"}}>
         <div style={{background:"linear-gradient(150deg,#0a1628 0%,#0f172a 50%,#1e0535 100%)",borderRadius:12,padding:"32px",border:"1px solid rgba(249,115,22,.28)",marginTop:24}}>
           <h3 style={{fontSize:20,fontWeight:900,color:"#fff",letterSpacing:"-.01em",margin:"0 0 4px"}}>Get Infrastructure Intelligence</h3>
-          <p style={{fontSize:14,color:"#f97316",fontWeight:700,margin:"0 0 10px"}}>Free every Monday. Data center news in plain language.</p>
-          <p style={{fontSize:13,color:"rgba(255,255,255,.7)",lineHeight:1.65,margin:"0 0 16px"}}>Interconnection queue filings, facility announcements and community impact stories, translated for residents, not engineers.</p>
+          <p style={{fontSize:14,color:"#f97316",fontWeight:700,margin:"0 0 10px"}}>Free every Monday and Thursday. Data center news in plain language.</p>
+          <p style={{fontSize:13,color:"rgba(255,255,255,.7)",lineHeight:1.65,margin:"0 0 16px"}}>Mondays bring interconnection queue filings. Thursdays bring facility announcements and community impact stories. Translated for residents, not engineers.</p>
           <NewsletterSignupForm source="Learn Page" variant="light" showFirstName={false} compact/>
         </div>
       </section>
@@ -9287,8 +9287,8 @@ const GlossaryPage = ({ onNavigate }) => {
       <section style={{maxWidth:880,margin:"0 auto",padding:"0 24px 56px"}}>
         <div style={{background:"linear-gradient(150deg,#0a1628 0%,#0f172a 50%,#1e0535 100%)",borderRadius:12,padding:"32px",border:"1px solid rgba(249,115,22,.28)",marginTop:24}}>
           <h3 style={{fontSize:20,fontWeight:900,color:"#fff",letterSpacing:"-.01em",margin:"0 0 4px"}}>Get Infrastructure Intelligence</h3>
-          <p style={{fontSize:14,color:"#f97316",fontWeight:700,margin:"0 0 10px"}}>Free every Monday. Data center news in plain language.</p>
-          <p style={{fontSize:13,color:"rgba(255,255,255,.7)",lineHeight:1.65,margin:"0 0 16px"}}>Interconnection queue filings, facility announcements and community impact stories, translated for residents, not engineers.</p>
+          <p style={{fontSize:14,color:"#f97316",fontWeight:700,margin:"0 0 10px"}}>Free every Monday and Thursday. Data center news in plain language.</p>
+          <p style={{fontSize:13,color:"rgba(255,255,255,.7)",lineHeight:1.65,margin:"0 0 16px"}}>Mondays bring interconnection queue filings. Thursdays bring facility announcements and community impact stories. Translated for residents, not engineers.</p>
           <NewsletterSignupForm source="Glossary Page" variant="light" showFirstName={false} compact/>
         </div>
       </section>
@@ -9973,7 +9973,7 @@ const NewsletterIssuePage = ({ onNavigate, issueNumber }) => {
       {status === "ready" && !alreadySubscribed && (
         <section style={{maxWidth:680,margin:"0 auto",padding:"22px 24px 56px"}}>
           <div style={{background:"#fff7ed",border:"1px solid #fed7aa",borderLeft:"4px solid #f97316",borderRadius:12,padding:"18px 22px"}}>
-            <p style={{fontSize:14,color:"#7c2d12",lineHeight:1.6,margin:"0 0 12px",fontWeight:700}}>Enjoyed this issue? Subscribe to get Infrastructure Intelligence every Monday.</p>
+            <p style={{fontSize:14,color:"#7c2d12",lineHeight:1.6,margin:"0 0 12px",fontWeight:700}}>Enjoyed this issue? Subscribe to get Infrastructure Intelligence every Monday and Thursday.</p>
             <NewsletterSignupForm source="Newsletter Issue Page" variant="light" showFirstName={false} compact/>
           </div>
         </section>
@@ -10025,7 +10025,7 @@ const NewsletterConfirmPage = ({ onNavigate }) => {
             </div>
             <h1 style={{fontSize:24,fontWeight:900,color:"#fff",margin:"0 0 12px"}}>You are subscribed!</h1>
             <p style={{fontSize:15,color:"rgba(255,255,255,.78)",lineHeight:1.65,margin:"0 auto 22px",maxWidth:480}}>
-              Infrastructure Intelligence arrives every Monday morning. We cover data center interconnection filings, facility news and community impact stories in plain language.
+              Infrastructure Intelligence arrives every Monday and Thursday morning. Mondays bring interconnection queue filings. Thursdays bring facility news and community impact stories. All in plain language.
             </p>
             <div style={{display:"flex",gap:12,justifyContent:"center",flexWrap:"wrap"}}>
               <button onClick={()=>onNavigate("/newsletter")} style={{padding:"13px 22px",borderRadius:12,border:"none",background:"linear-gradient(135deg,#ef4444,#f97316)",color:"#fff",fontSize:14,fontWeight:900,cursor:"pointer",fontFamily:"inherit",boxShadow:"0 10px 28px rgba(249,115,22,.4)"}}>
