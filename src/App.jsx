@@ -650,6 +650,9 @@ const CSS = `
   /* Follow-up suggestion chips shown under each assistant reply. */
   .hz-chat-chip{transition:border-color .15s,color .15s,background .15s}
   .hz-chat-chip:hover{border-color:#f97316!important;color:#f97316!important;background:#fff7ed!important}
+  /* Newsletter issue share buttons: thin outlined pills next to each issue. */
+  .hz-nl-share{transition:border-color .15s,color .15s}
+  .hz-nl-share:hover{border-color:#f97316!important;color:#f97316!important}
 
   /* GlobalHeader: sticky site-wide nav with mega menu dropdowns. Mounted in
      App so it lives above every route. */
@@ -9753,17 +9756,45 @@ const NewsletterPage = ({ onNavigate }) => {
   const [recent, setRecent] = useState([]);    // recent Sent issues
   const [loading, setLoading] = useState(true);
 
-  // SEO + social meta for the page.
+  // SEO + social meta + Periodical JSON-LD for the index page. Stamped on
+  // mount and cleaned up on unmount so they do not leak into other routes.
   useEffect(() => {
     if (typeof document === "undefined") return;
     document.title = "Infrastructure Intelligence | Weekly Newsletter | HumZones";
-    let meta = document.querySelector('meta[name="description"]');
-    if (!meta) {
-      meta = document.createElement("meta");
-      meta.setAttribute("name", "description");
-      document.head.appendChild(meta);
-    }
-    meta.setAttribute("content", "Free weekly data center news in plain language. Interconnection queue filings, facility announcements and community impact for residents.");
+
+    injectHeadEl("meta", "nl-index-desc",     { name: "description", content: "Infrastructure Intelligence - free weekly data center news translated for residents. Interconnection queue filings, facility announcements and community impact stories every Monday and Thursday." });
+    injectHeadEl("meta", "nl-index-og-title", { property: "og:title",        content: "Infrastructure Intelligence | HumZones Newsletter" });
+    injectHeadEl("meta", "nl-index-og-desc",  { property: "og:description",  content: "Free weekly data center infrastructure news in plain language for residents and community advocates." });
+    injectHeadEl("meta", "nl-index-og-url",   { property: "og:url",          content: "https://humzones.com/newsletter" });
+    injectHeadEl("meta", "nl-index-og-type",  { property: "og:type",         content: "website" });
+    injectHeadEl("meta", "nl-index-og-site",  { property: "og:site_name",    content: "HumZones" });
+    injectHeadEl("meta", "nl-index-tw-card",  { name: "twitter:card",        content: "summary" });
+    injectHeadEl("meta", "nl-index-tw-title", { name: "twitter:title",       content: "Infrastructure Intelligence | HumZones" });
+    injectHeadEl("meta", "nl-index-tw-desc",  { name: "twitter:description", content: "Free weekly data center news in plain language for residents." });
+
+    const periodicalSchema = {
+      "@context":            "https://schema.org",
+      "@type":               "Periodical",
+      "name":                "Infrastructure Intelligence",
+      "description":         "A free weekly newsletter translating data center infrastructure news into plain language for residents.",
+      "url":                 "https://humzones.com/newsletter",
+      "publisher": {
+        "@type": "Organization",
+        "name":  "HumZones Technologies Inc.",
+        "url":   "https://humzones.com",
+      },
+      "inLanguage":          "en-US",
+      "isAccessibleForFree": true,
+    };
+    injectHeadEl("script", "nl-index-jsonld", { type: "application/ld+json" }, JSON.stringify(periodicalSchema));
+
+    return () => {
+      [
+        "nl-index-desc","nl-index-og-title","nl-index-og-desc","nl-index-og-url",
+        "nl-index-og-type","nl-index-og-site","nl-index-tw-card","nl-index-tw-title",
+        "nl-index-tw-desc","nl-index-jsonld",
+      ].forEach(removeHeadEl);
+    };
   }, []);
 
   // Fetch the three newest Sent issues. Status is a single-select; the
@@ -9851,6 +9882,7 @@ const NewsletterIssuePage = ({ onNavigate, issueNumber }) => {
   const [issue, setIssue] = useState(null);
   const [status, setStatus] = useState("loading"); // loading | ready | notfound | error
   const [alreadySubscribed, setAlreadySubscribed] = useState(false);
+  const [copied, setCopied] = useState(false);
 
   useEffect(() => {
     try { setAlreadySubscribed(localStorage.getItem("humzones_nl_subscribed") === "1"); } catch {}
@@ -9870,13 +9902,88 @@ const NewsletterIssuePage = ({ onNavigate, issueNumber }) => {
         setStatus("ready");
         if (typeof document !== "undefined") {
           const title = (rec.fields || {})[NL_ISSUE_F.Issue_Title] || ("Issue #" + n);
-          document.title = title + " | Infrastructure Intelligence | HumZones";
+          document.title = title + " | Infrastructure Intelligence by HumZones";
         }
       })
       .catch(e => { console.warn("[newsletter] issue fetch failed:", e); setStatus("error"); });
   }, [issueNumber]);
 
+  // SEO + social meta + NewsArticle JSON-LD. Stamped once the issue is
+  // loaded and cleaned up on unmount or when the issue number changes.
+  useEffect(() => {
+    if (status !== "ready" || !issue) return;
+    const fields  = issue.fields || {};
+    const title   = fields[NL_ISSUE_F.Issue_Title] || ("Issue #" + issueNumber);
+    const number  = fields[NL_ISSUE_F.Issue_Number] || issueNumber;
+    const datePub = fields[NL_ISSUE_F.Date_Published] || "";
+    const longDate = datePub ? formatLongDate(datePub) : "";
+    const url = "https://humzones.com/newsletter/" + number;
+
+    const desc = title + " - Issue #" + number + (longDate ? ", " + longDate : "") +
+      ". Data center infrastructure news translated for residents by HumZones.";
+    const ogShort = "Data center infrastructure news in plain language for residents. Issue #" +
+      number + " from Infrastructure Intelligence by HumZones.";
+    const twShort = "Data center infrastructure news in plain language. Issue #" +
+      number + " from HumZones.";
+
+    injectHeadEl("meta", "nl-issue-desc",     { name: "description",          content: desc });
+    injectHeadEl("meta", "nl-issue-og-title", { property: "og:title",         content: title + " | Infrastructure Intelligence" });
+    injectHeadEl("meta", "nl-issue-og-desc",  { property: "og:description",   content: ogShort });
+    injectHeadEl("meta", "nl-issue-og-url",   { property: "og:url",           content: url });
+    injectHeadEl("meta", "nl-issue-og-type",  { property: "og:type",          content: "article" });
+    injectHeadEl("meta", "nl-issue-og-site",  { property: "og:site_name",     content: "HumZones" });
+    injectHeadEl("meta", "nl-issue-tw-card",  { name: "twitter:card",         content: "summary" });
+    injectHeadEl("meta", "nl-issue-tw-title", { name: "twitter:title",        content: title + " | Infrastructure Intelligence" });
+    injectHeadEl("meta", "nl-issue-tw-desc",  { name: "twitter:description",  content: twShort });
+
+    const articleSchema = {
+      "@context": "https://schema.org",
+      "@type":    "NewsArticle",
+      "headline": title,
+      "description": "Infrastructure Intelligence Issue #" + number +
+        " - data center news translated for residents by HumZones.",
+      "url": url,
+      "datePublished": datePub,
+      "dateModified":  datePub,
+      "author": {
+        "@type": "Organization",
+        "name": "HumZones Technologies Inc.",
+        "url":  "https://humzones.com",
+      },
+      "publisher": {
+        "@type": "Organization",
+        "name": "HumZones Technologies Inc.",
+        "url":  "https://humzones.com",
+        "logo": { "@type": "ImageObject", "url": "https://humzones.com/favicon.ico" },
+      },
+      "isPartOf": {
+        "@type": "Periodical",
+        "name": "Infrastructure Intelligence",
+        "url":  "https://humzones.com/newsletter",
+      },
+      "mainEntityOfPage": { "@type": "WebPage", "@id": url },
+    };
+    injectHeadEl("script", "nl-issue-jsonld", { type: "application/ld+json" }, JSON.stringify(articleSchema));
+
+    return () => {
+      [
+        "nl-issue-desc","nl-issue-og-title","nl-issue-og-desc","nl-issue-og-url",
+        "nl-issue-og-type","nl-issue-og-site","nl-issue-tw-card","nl-issue-tw-title",
+        "nl-issue-tw-desc","nl-issue-jsonld",
+      ].forEach(removeHeadEl);
+    };
+  }, [issue, issueNumber, status]);
+
   const f = (issue && issue.fields) || {};
+  const shareUrl  = "https://humzones.com/newsletter/" + (f[NL_ISSUE_F.Issue_Number] || issueNumber);
+  const shareText = (f[NL_ISSUE_F.Issue_Title] || "Infrastructure Intelligence") + " via @HumZones";
+  const onCopyShare = () => {
+    if (typeof navigator === "undefined" || !navigator.clipboard) return;
+    navigator.clipboard.writeText(shareUrl).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    }).catch(() => {});
+  };
 
   return (
     <div style={{minHeight:"100vh",background:"#f1f5f9",width:"100%",maxWidth:"100vw",overflowX:"hidden"}}>
@@ -9910,6 +10017,34 @@ const NewsletterIssuePage = ({ onNavigate, issueNumber }) => {
           />
         ) : null}
       </section>
+
+      {status === "ready" && (
+        <section style={{maxWidth:680,margin:"0 auto",padding:"22px 24px 0"}}>
+          <div style={{fontSize:13,color:"#94a3b8",fontWeight:700,marginBottom:10}}>Share this issue</div>
+          <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+            <a
+              href={"https://twitter.com/intent/tweet?text=" + encodeURIComponent(shareText) + "&url=" + encodeURIComponent(shareUrl)}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="hz-nl-share"
+              style={{padding:"8px 14px",borderRadius:6,border:"1px solid #e2e8f0",background:"#fff",color:"#475569",fontSize:13,fontWeight:700,textDecoration:"none"}}
+            >Share on X</a>
+            <a
+              href={"https://www.facebook.com/sharer/sharer.php?u=" + encodeURIComponent(shareUrl)}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="hz-nl-share"
+              style={{padding:"8px 14px",borderRadius:6,border:"1px solid #e2e8f0",background:"#fff",color:"#475569",fontSize:13,fontWeight:700,textDecoration:"none"}}
+            >Share on Facebook</a>
+            <button
+              type="button"
+              onClick={onCopyShare}
+              className="hz-nl-share"
+              style={{padding:"8px 14px",borderRadius:6,border:"1px solid #e2e8f0",background:"#fff",color:"#475569",fontSize:13,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}
+            >{copied ? "Copied!" : "Copy Link"}</button>
+          </div>
+        </section>
+      )}
 
       {status === "ready" && !alreadySubscribed && (
         <section style={{maxWidth:680,margin:"0 auto",padding:"22px 24px 56px"}}>
