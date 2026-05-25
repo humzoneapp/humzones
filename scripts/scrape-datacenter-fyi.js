@@ -155,19 +155,46 @@ async function fetchHTML(url) {
   return await r.text()
 }
 
-async function geocode(city, stateName) {
-  if (!city || !stateName) return null
-  const q = encodeURIComponent(`${city}, ${stateName}, USA`)
-  const url = `https://nominatim.openstreetmap.org/search?q=${q}&format=json&limit=1`
+async function nominatim(query) {
+  const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query)}&format=json&limit=1`
   try {
     const r = await fetch(url, { headers: { 'User-Agent': UA, 'Accept': 'application/json' } })
     if (!r.ok) return null
     const d = await r.json()
-    if (!Array.isArray(d) || !d.length) return null
+    if (!Array.isArray(d) || !d.length) {
+      console.log(`[geocode] No results for: ${query}`)
+      return null
+    }
     return { lat: parseFloat(d[0].lat), lng: parseFloat(d[0].lon) }
-  } catch (_) {
+  } catch (err) {
+    console.log(`[geocode] error for "${query}": ${err.message}`)
     return null
   }
+}
+
+// Geocode with fallback: try city+state first, then fall back to
+// state alone (gives approximate center of the state) so we always
+// have at least a coarse coordinate.
+async function geocode(city, stateName) {
+  if (!stateName) return null
+
+  if (city) {
+    const q = `${city}, ${stateName}, USA`
+    const res = await nominatim(q)
+    if (res) {
+      console.log(`[geocode] matched city+state: ${q}`)
+      return res
+    }
+    await sleep(1000)
+  }
+
+  const stateQ = `${stateName}, USA`
+  const res = await nominatim(stateQ)
+  if (res) {
+    console.log(`[geocode] matched state only: ${stateQ}${city ? ` (no result for "${city}, ${stateName}")` : ''}`)
+    return res
+  }
+  return null
 }
 
 // Pull facility rows from a state page. The page is a Next.js app so a
@@ -280,11 +307,9 @@ async function processState(stateCode, existingNames) {
 
     let lat = null
     let lng = null
-    if (city) {
-      await sleep(1000)
-      const geo = await geocode(city, stateName)
-      if (geo) { lat = geo.lat; lng = geo.lng }
-    }
+    await sleep(1000)
+    const geo = await geocode(city, stateName)
+    if (geo) { lat = geo.lat; lng = geo.lng }
 
     try {
       const fields = {
