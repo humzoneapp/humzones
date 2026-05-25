@@ -298,10 +298,10 @@ async function processState(stateCode, existingNames) {
         [F_PENDING.Facility_Status]:  mappedStatus,
         [F_PENDING.Risk_Level]:       classifyRisk(row.mw),
         [F_PENDING.Source_URL]:       sourceURL,
-        [F_PENDING.Source_Type]:      'datacenter.fyi',
+        [F_PENDING.Source_Type]:      'Web Search',
         [F_PENDING.Date_Found]:       new Date().toISOString().slice(0, 10),
         [F_PENDING.Review_Status]:    'Pending Review',
-        [F_PENDING.Notes]:            `Imported from datacenter.fyi state page for ${stateName}.`,
+        [F_PENDING.Notes]:            `Imported from datacenter.fyi. Source: ${sourceURL}`,
         [F_PENDING.Added_To_Registry]:false,
       }
       if (lat != null) fields[F_PENDING.Latitude] = lat
