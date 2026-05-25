@@ -31,9 +31,12 @@ const F_PENDING = {
 const AUTO_THRESHOLD   = 0.70
 const REVIEW_THRESHOLD = 0.40
 const PROXIMITY_KM     = 50
+const REVERSE_GEOCODE_DELAY = 1000
 
 const AIRTABLE_API = `https://api.airtable.com/v0/${AIRTABLE_BASE}`
 const airtableKey = () => process.env.AIRTABLE_KEY || process.env.VITE_AIRTABLE_KEY || ''
+const UA = 'HumZones/1.0 hello@humzones.com'
+const sleep = (ms) => new Promise(r => setTimeout(r, ms))
 
 const STOPWORDS = new Set([
   'data','center','centre','llc','inc','ltd','lp','corp','corporation',
@@ -156,6 +159,7 @@ function loadIm3(csvPath) {
   const NAME    = findHeaderIndex(header, ['name','facility_name','facility name','data_center_name','data center name','site_name'])
   const COMP    = findHeaderIndex(header, ['operator','company','company_name','company name','owner','operator_name','operator name'])
   const CITY    = findHeaderIndex(header, ['city','locality','town'])
+  const COUNTY  = findHeaderIndex(header, ['county','parish'])
   const STATE   = findHeaderIndex(header, ['state','state_region','state region','province','region'])
   const COUNTRY = findHeaderIndex(header, ['country'])
   const LAT     = findHeaderIndex(header, ['latitude','lat','y'])
@@ -179,12 +183,14 @@ function loadIm3(csvPath) {
     if (!name) continue
     const company = COMP >= 0 ? String(r[COMP] || '').trim() : ''
     const city    = CITY >= 0 ? String(r[CITY] || '').trim() : ''
+    const county  = COUNTY >= 0 ? String(r[COUNTY] || '').trim() : ''
     const state   = STATE >= 0 ? String(r[STATE] || '').trim() : ''
     const country = COUNTRY >= 0 ? String(r[COUNTRY] || '').trim() : ''
     entries.push({
       name,
       company,
       city,
+      county,
       state,
       country,
       lat,
@@ -216,6 +222,34 @@ async function airtableList(tableId, { fields, filterByFormula } = {}) {
     offset = d.offset || null
   } while (offset)
   return all
+}
+
+function stripCountySuffix(s) {
+  if (!s) return ''
+  return String(s).replace(/\s+county\s*$/i, '').trim()
+}
+
+// Reverse-geocode an IM3 lat/lng into a real city/town/village.
+// Falls back to the IM3 county name (with "County" stripped) when
+// Nominatim does not return a settlement-level address.
+async function reverseGeocodeCity(lat, lng, fallbackCounty) {
+  const url = `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json&zoom=10&addressdetails=1`
+  try {
+    const r = await fetch(url, { headers: { 'User-Agent': UA, 'Accept': 'application/json' } })
+    if (!r.ok) {
+      console.log(`[reverse-geocode] HTTP ${r.status} for ${lat},${lng}`)
+      return stripCountySuffix(fallbackCounty) || null
+    }
+    const d = await r.json()
+    const addr = (d && d.address) || {}
+    const city = addr.city || addr.town || addr.village || addr.municipality ||
+                 addr.hamlet || addr.suburb || addr.county || ''
+    if (city) return stripCountySuffix(city)
+    return stripCountySuffix(fallbackCounty) || null
+  } catch (err) {
+    console.log(`[reverse-geocode] error for ${lat},${lng}: ${err.message}`)
+    return stripCountySuffix(fallbackCounty) || null
+  }
 }
 
 async function airtablePatchOne(tableId, id, fields) {
@@ -308,12 +342,19 @@ async function main() {
 
     if (score >= AUTO_THRESHOLD && stateOk) {
       try {
-        await airtablePatchOne(PENDING_TBL, rec.id, {
+        let resolvedCity = pending.city || ''
+        if (!resolvedCity) {
+          await sleep(REVERSE_GEOCODE_DELAY)
+          resolvedCity = await reverseGeocodeCity(m.lat, m.lng, m.county) || ''
+        }
+        const patchFields = {
           [F_PENDING.Latitude]:  m.lat,
           [F_PENDING.Longitude]: m.lng,
-        })
+        }
+        if (resolvedCity) patchFields[F_PENDING.City] = resolvedCity
+        await airtablePatchOne(PENDING_TBL, rec.id, patchFields)
         updated++
-        console.log(`[match-im3] MATCHED ${pending.name} -> "${m.name}" by ${m.company || '?'} in ${m.city || '?'}, ${m.state || '?'} (score ${score.toFixed(2)}${cityNote}) lat=${m.lat} lng=${m.lng}`)
+        console.log(`[match-im3] MATCHED ${pending.name} -> "${m.name}" by ${m.company || '?'} in ${resolvedCity || (m.county || '?')}, ${m.state || '?'} (score ${score.toFixed(2)}${cityNote}) lat=${m.lat} lng=${m.lng}`)
       } catch (err) {
         errors++
         console.error(`[match-im3] patch failed for ${pending.name}: ${err.message}`)
