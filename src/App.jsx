@@ -9339,7 +9339,6 @@ const LearnPage = ({ onNavigate }) => {
                       </div>
                       <h2 style={{fontSize:18,fontWeight:800,color:"#0f172a",letterSpacing:"-.01em",lineHeight:1.35,margin:0}}>{a.title}</h2>
                       <p style={{fontSize:14,color:"#64748b",lineHeight:1.65,margin:0}}>{a.preview}</p>
-                      <div style={{fontSize:12,color:"#94a3b8",fontWeight:700}}>{a.readTime}</div>
                       <button onClick={()=>expandArticle(a.slug)} style={{alignSelf:"flex-start",marginTop:6,padding:0,background:"transparent",border:"none",color:"#f97316",fontFamily:"inherit",fontSize:14,fontWeight:800,cursor:"pointer"}}>
                         Read Article &rarr;
                       </button>
@@ -9360,8 +9359,7 @@ const LearnPage = ({ onNavigate }) => {
                 <span style={{display:"inline-block",fontSize:11,fontWeight:800,letterSpacing:".08em",textTransform:"uppercase",padding:"4px 10px",borderRadius:999,background:c.bg,border:`1px solid ${c.border}`,color:c.text,marginBottom:12}}>{expanded.category}</span>
               );
             })()}
-            <h2 style={{fontSize:"clamp(22px,3.4vw,32px)",fontWeight:900,color:"#0f172a",letterSpacing:"-.02em",lineHeight:1.2,margin:"0 0 10px"}}>{expanded.title}</h2>
-            <div style={{fontSize:13,color:"#94a3b8",fontWeight:700,marginBottom:22}}>{expanded.readTime}</div>
+            <h2 style={{fontSize:"clamp(22px,3.4vw,32px)",fontWeight:900,color:"#0f172a",letterSpacing:"-.02em",lineHeight:1.2,margin:"0 0 22px"}}>{expanded.title}</h2>
             <div>
               {expanded.body.map((b, i) => <LearnBlock key={i} block={b}/>)}
             </div>
@@ -9437,7 +9435,6 @@ const LearnPage = ({ onNavigate }) => {
                       <button key={r.slug} onClick={()=>expandArticle(r.slug)} style={{textAlign:"left",background:"#f8fafc",border:"1px solid #e2e8f0",borderRadius:12,padding:"16px 16px 14px",cursor:"pointer",fontFamily:"inherit",display:"flex",flexDirection:"column",gap:8}}>
                         <span style={{display:"inline-block",alignSelf:"flex-start",fontSize:10,fontWeight:800,letterSpacing:".08em",textTransform:"uppercase",padding:"3px 9px",borderRadius:999,background:rc.bg,border:`1px solid ${rc.border}`,color:rc.text}}>{r.category}</span>
                         <span style={{fontSize:15,fontWeight:800,color:"#0f172a",lineHeight:1.35}}>{r.title}</span>
-                        <span style={{fontSize:12,color:"#94a3b8",fontWeight:700}}>{r.readTime}</span>
                       </button>
                     );
                   })}
