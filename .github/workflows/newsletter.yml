@@ -1,11 +1,14 @@
-name: Newsletter weekly
+name: HumZones automation
 
 on:
   schedule:
-    - cron: '0 6 * * 1'
-    - cron: '0 9 * * 1'
-    - cron: '0 6 * * 4'
-    - cron: '0 9 * * 4'
+    - cron: '0 6 * * 1'   # Mon 6am UTC: generate-filings
+    - cron: '0 9 * * 1'   # Mon 9am UTC: send
+    - cron: '0 6 * * 4'   # Thu 6am UTC: generate-news
+    - cron: '0 9 * * 4'   # Thu 9am UTC: send
+    - cron: '0 7 * * 0'   # Sun 7am UTC: discover-facilities
+    - cron: '0 10 * * *'  # Daily 10am UTC: promote-facilities
+    - cron: '0 8 * * 6'   # Sat 8am UTC: monitor-facilities
   workflow_dispatch:
     inputs:
       action:
@@ -17,9 +20,17 @@ on:
           - generate-filings
           - generate-news
           - send
+          - discover-facilities
+          - promote-facilities
+          - monitor-facilities
+          - scrape-datacenter-fyi
+      states:
+        description: 'States to scrape (comma separated, e.g. tx,va). Leave blank for all states.'
+        required: false
+        default: ''
 
 jobs:
-  run-newsletter:
+  run:
     runs-on: ubuntu-latest
     steps:
       - name: Determine action
@@ -31,22 +42,28 @@ jobs:
             echo "action=generate-filings" >> $GITHUB_OUTPUT
           elif [ "${{ github.event.schedule }}" = "0 6 * * 4" ]; then
             echo "action=generate-news" >> $GITHUB_OUTPUT
+          elif [ "${{ github.event.schedule }}" = "0 7 * * 0" ]; then
+            echo "action=discover-facilities" >> $GITHUB_OUTPUT
+          elif [ "${{ github.event.schedule }}" = "0 10 * * *" ]; then
+            echo "action=promote-facilities" >> $GITHUB_OUTPUT
+          elif [ "${{ github.event.schedule }}" = "0 8 * * 6" ]; then
+            echo "action=monitor-facilities" >> $GITHUB_OUTPUT
           else
             echo "action=send" >> $GITHUB_OUTPUT
           fi
 
       - name: Check out repo
-        if: startsWith(steps.action.outputs.action, 'generate-')
+        if: steps.action.outputs.action != 'send'
         uses: actions/checkout@v4
 
       - name: Set up Node
-        if: startsWith(steps.action.outputs.action, 'generate-')
+        if: steps.action.outputs.action != 'send'
         uses: actions/setup-node@v4
         with:
           node-version: '24'
 
       - name: Install dependencies
-        if: startsWith(steps.action.outputs.action, 'generate-')
+        if: steps.action.outputs.action != 'send'
         run: npm install --no-audit --no-fund
 
       - name: Generate filings newsletter
@@ -64,6 +81,33 @@ jobs:
           AIRTABLE_KEY: ${{ secrets.AIRTABLE_KEY }}
           NEWSLETTER_TYPE: news
         run: node scripts/generate-newsletter.js
+
+      - name: Discover new facilities
+        if: steps.action.outputs.action == 'discover-facilities'
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          AIRTABLE_KEY: ${{ secrets.AIRTABLE_KEY }}
+        run: node scripts/discover-facilities.js
+
+      - name: Promote approved facilities
+        if: steps.action.outputs.action == 'promote-facilities'
+        env:
+          AIRTABLE_KEY: ${{ secrets.AIRTABLE_KEY }}
+        run: node scripts/promote-facilities.js
+
+      - name: Monitor facility status
+        if: steps.action.outputs.action == 'monitor-facilities'
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          AIRTABLE_KEY: ${{ secrets.AIRTABLE_KEY }}
+        run: node scripts/monitor-facilities.js
+
+      - name: Scrape datacenter.fyi (manual only)
+        if: steps.action.outputs.action == 'scrape-datacenter-fyi'
+        env:
+          AIRTABLE_KEY: ${{ secrets.AIRTABLE_KEY }}
+          STATES: ${{ github.event.inputs.states || '' }}
+        run: node scripts/scrape-datacenter-fyi.js
 
       - name: Send newsletter
         if: steps.action.outputs.action == 'send'
