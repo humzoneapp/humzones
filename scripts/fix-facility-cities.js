@@ -43,6 +43,25 @@ const INVALID_CITY_TOKENS = new Set([
   'TX','TEXAS','USA','US','N/A','UNKNOWN','NONE','NULL','DATA','CENTER',
 ])
 
+// Virginia data center hubs that contaminate datacenter.fyi detail
+// pages via nav and related-content links. Reject these as the
+// "city" for any non-Virginia record.
+const CITY_BLOCKLIST = [
+  'ashburn',
+  'reston',
+  'sterling',
+  'manassas',
+  'herndon',
+  'chantilly',
+]
+
+function isBlockedCity(city, stateName) {
+  if (!city) return false
+  const stateLow = (stateName || '').toLowerCase()
+  if (stateLow === 'virginia' || stateLow === 'va') return false
+  return CITY_BLOCKLIST.includes(String(city).trim().toLowerCase())
+}
+
 function chunk(arr, size) {
   const out = []
   for (let i = 0; i < arr.length; i += size) out.push(arr.slice(i, i + size))
@@ -273,6 +292,11 @@ async function main() {
       let city = nd.city
       let address = nd.address
       if (!city) city = extractCityFromHtmlPattern(html, state)
+
+      if (city && isBlockedCity(city, state)) {
+        console.log(`[fix-cities] Blocked contaminated city: ${city}`)
+        city = null
+      }
 
       if (!isValidCity(city)) {
         console.log(`[fix-cities] Could not resolve city for ${name}`)

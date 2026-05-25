@@ -73,6 +73,25 @@ const airtableKey = () => process.env.AIRTABLE_KEY || process.env.VITE_AIRTABLE_
 const UA = 'HumZones/1.0 hello@humzones.com'
 const sleep = (ms) => new Promise(r => setTimeout(r, ms))
 
+// Virginia data center hubs that contaminate datacenter.fyi detail
+// pages via nav and related-content links. Reject these as the
+// "city" for any non-Virginia record.
+const CITY_BLOCKLIST = [
+  'ashburn',
+  'reston',
+  'sterling',
+  'manassas',
+  'herndon',
+  'chantilly',
+]
+
+function isBlockedCity(city, stateName) {
+  if (!city) return false
+  const stateLow = (stateName || '').toLowerCase()
+  if (stateLow === 'virginia' || stateLow === 'va') return false
+  return CITY_BLOCKLIST.includes(String(city).trim().toLowerCase())
+}
+
 const STATUS_MAP = {
   'operational': 'Operating',
   'operating':   'Operating',
@@ -219,6 +238,7 @@ function parseStateRows(html) {
     let mw = null
     const mwMatch = ctx.match(/(\d+(?:\.\d+)?)\s*MW\b/i)
     if (mwMatch) mw = parseFloat(mwMatch[1])
+    if (mw === 0 || Number.isNaN(mw)) mw = null
 
     let status = 'Unknown'
     const statusKeys = Object.keys(STATUS_MAP)
@@ -298,7 +318,13 @@ async function processState(stateCode, existingNames) {
       try {
         const detailHtml = await fetchHTML(sourceURL)
         const det = parseFacilityDetail(detailHtml)
-        if (det.city) city = det.city
+        if (det.city) {
+          if (isBlockedCity(det.city, stateName)) {
+            console.log(`[${stateCode}] Blocked contaminated city: ${det.city}`)
+          } else {
+            city = det.city
+          }
+        }
         if (det.address) address = det.address
         if (det.company && !company) company = det.company
       } catch (err) {

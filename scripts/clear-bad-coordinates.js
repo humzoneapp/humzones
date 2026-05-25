@@ -19,9 +19,11 @@ const AIRTABLE_BASE = 'app2FUPqq8VQSwQ64'
 const PENDING_TBL = 'tblPB5eHmEBujI4Iq'
 
 const F_PENDING = {
-  Name:      'fldvasZvuq88CKcov',
-  Latitude:  'fldl37PXyyVv5A5fr',
-  Longitude: 'fld9ilqCXidpgBIPT',
+  Name:         'fldvasZvuq88CKcov',
+  City:         'fldAtKp2mYqY6iCbB',
+  State_Region: 'fldK5ksYKMz07RWa4',
+  Latitude:     'fldl37PXyyVv5A5fr',
+  Longitude:    'fld9ilqCXidpgBIPT',
 }
 
 const BATCH_SIZE  = 50
@@ -86,37 +88,18 @@ async function airtablePatch(tableId, records) {
   return r.json()
 }
 
-async function main() {
-  if (!airtableKey()) throw new Error('AIRTABLE_KEY not set')
+function isAshburnInTexas(city, state) {
+  if (!city || !state) return false
+  if (String(city).trim().toLowerCase() !== 'ashburn') return false
+  const stateLow = String(state).trim().toLowerCase()
+  return stateLow === 'texas' || stateLow === 'tx'
+}
 
-  console.log(`[clear-coords] start ${new Date().toISOString()}`)
-
-  const all = await airtableListAll(PENDING_TBL, [F_PENDING.Name, F_PENDING.Latitude, F_PENDING.Longitude])
-  console.log(`[clear-coords] fetched ${all.length} Pending_Facilities records`)
-
-  const bad = []
-  for (const rec of all) {
-    const f = rec.fields || {}
-    const lat = f[F_PENDING.Latitude]
-    const lng = f[F_PENDING.Longitude]
-    if (isBadCoord(lat, lng)) {
-      bad.push({ id: rec.id, name: f[F_PENDING.Name] || rec.id, lat, lng })
-    }
+async function runUpdates(updates, label) {
+  if (!updates.length) {
+    console.log(`[clear-coords] ${label}: nothing to update`)
+    return { cleared: 0, errors: 0 }
   }
-  console.log(`[clear-coords] ${bad.length} records match bad-centroid criteria`)
-
-  for (const b of bad) {
-    console.log(`[clear-coords] Cleared bad state-centroid coords from ${b.name}`)
-  }
-
-  const updates = bad.map(b => ({
-    id: b.id,
-    fields: {
-      [F_PENDING.Latitude]:  null,
-      [F_PENDING.Longitude]: null,
-    },
-  }))
-
   let cleared = 0
   let errors = 0
   const batches = chunk(updates, BATCH_SIZE)
@@ -132,11 +115,74 @@ async function main() {
         console.error(`[clear-coords] patch failed for ${group.length} records: ${err.message}`)
       }
     }
-    console.log(`[clear-coords] batch ${i + 1}/${batches.length} done (${cleared} cleared, ${errors} errors)`)
+    console.log(`[clear-coords] ${label}: batch ${i + 1}/${batches.length} done (${cleared} cleared, ${errors} errors)`)
     if (i < batches.length - 1) await sleep(BATCH_DELAY)
   }
+  return { cleared, errors }
+}
 
-  console.log(`COMPLETE: ${cleared} records cleared, ${errors} errors`)
+async function main() {
+  if (!airtableKey()) throw new Error('AIRTABLE_KEY not set')
+
+  console.log(`[clear-coords] start ${new Date().toISOString()}`)
+
+  const all = await airtableListAll(PENDING_TBL, [
+    F_PENDING.Name,
+    F_PENDING.City,
+    F_PENDING.State_Region,
+    F_PENDING.Latitude,
+    F_PENDING.Longitude,
+  ])
+  console.log(`[clear-coords] fetched ${all.length} Pending_Facilities records`)
+
+  // Pass 1: state-centroid coords
+  const bad = []
+  for (const rec of all) {
+    const f = rec.fields || {}
+    const lat = f[F_PENDING.Latitude]
+    const lng = f[F_PENDING.Longitude]
+    if (isBadCoord(lat, lng)) {
+      bad.push({ id: rec.id, name: f[F_PENDING.Name] || rec.id, lat, lng })
+    }
+  }
+  console.log(`[clear-coords] Pass 1 (state centroid): ${bad.length} records match`)
+  for (const b of bad) {
+    console.log(`[clear-coords] Cleared bad state-centroid coords from ${b.name}`)
+  }
+  const centroidUpdates = bad.map(b => ({
+    id: b.id,
+    fields: {
+      [F_PENDING.Latitude]:  null,
+      [F_PENDING.Longitude]: null,
+    },
+  }))
+  const r1 = await runUpdates(centroidUpdates, 'centroid')
+
+  // Pass 2: Ashburn-in-Texas contamination
+  const ashburn = []
+  for (const rec of all) {
+    const f = rec.fields || {}
+    const city = f[F_PENDING.City]
+    const state = f[F_PENDING.State_Region]
+    if (isAshburnInTexas(city, state)) {
+      ashburn.push({ id: rec.id, name: f[F_PENDING.Name] || rec.id })
+    }
+  }
+  console.log(`[clear-coords] Pass 2 (Ashburn in Texas): ${ashburn.length} records match`)
+  for (const a of ashburn) {
+    console.log(`[clear-coords] Cleared bad Ashburn city from ${a.name}`)
+  }
+  const ashburnUpdates = ashburn.map(a => ({
+    id: a.id,
+    fields: {
+      [F_PENDING.City]:      null,
+      [F_PENDING.Latitude]:  null,
+      [F_PENDING.Longitude]: null,
+    },
+  }))
+  const r2 = await runUpdates(ashburnUpdates, 'ashburn')
+
+  console.log(`COMPLETE: centroid ${r1.cleared} cleared (${r1.errors} errors), ashburn ${r2.cleared} cleared (${r2.errors} errors)`)
 }
 
 main().catch((e) => {
