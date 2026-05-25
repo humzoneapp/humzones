@@ -44,7 +44,7 @@ const STATIC_URLS = [
   { loc: "https://humzones.com/submit-report", changefreq: "monthly", priority: "0.7" },
   { loc: "https://humzones.com/donate",        changefreq: "monthly", priority: "0.6" },
   { loc: "https://humzones.com/about",         changefreq: "monthly", priority: "0.5" },
-  { loc: "https://humzones.com/methodology",   changefreq: "monthly", priority: "0.5" },
+  { loc: "https://humzones.com/methodology",   changefreq: "monthly", priority: "0.6" },
 ];
 
 function xmlEscape(s) {

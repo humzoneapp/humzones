@@ -878,48 +878,151 @@ const FacilityMapImage = ({ dc, rc }) => {
   );
 };
 
-// ─── METHODOLOGY PAGE ─────────────────────────────────────────────────────────
+// ─── /methodology: HOW HUMZONES CALCULATES INFRASTRUCTURE DATA ───────────────
+// Credibility page that explains exactly how every metric is calculated so
+// residents, journalists, lawyers and operators can verify the work. Eight
+// content sections plus FAQ accordion. Mirrors the visual language of
+// /why-it-matters and /learn.
+
 const METHODOLOGY_SECTIONS = [
-  {t:"Facility Data Sources",b:"We identify data centers from public databases including datacenters.com, operator press releases, utility interconnection filings, FERC applications, municipal permit records, and industry publications. Facility names, addresses, coordinates, and operational status are cross-referenced across multiple sources where possible."},
-  {t:"Power Draw (MW)",b:"Power figures are sourced from operator announcements, utility interconnection applications, planning permit filings, and industry reporting. Where exact figures are unavailable, we apply conservative estimates based on facility size class and cooling type. Hyperscale campuses (100MW+) are typically sourced from public utility filings or operator sustainability reports."},
-  {t:"Noise (dB)",b:"Perimeter noise levels are estimated using facility power class and cooling type as primary inputs, cross-referenced against EPA industrial noise guidelines and published acoustic studies of comparable data center facilities. Evaporative and chilled water cooling systems produce different noise profiles at the perimeter. These are modeled estimates and will vary by facility design, wind direction, and local terrain."},
-  {t:"CO2 Emissions (tons per year)",b:"Annual CO2 estimates are calculated by multiplying Power_MW by annual operating hours (8,760) and applying the EPA eGRID regional emissions factor for the relevant utility grid region. Facilities powered by renewable energy contracts may have lower actual emissions. We use the grid average as a conservative baseline."},
-  {t:"Water Consumption (gallons per day)",b:"Daily water consumption is estimated using industry-standard Water Usage Effectiveness (WUE) ratios published by ASHRAE and the Green Grid consortium, applied to facility power draw and cooling type. Evaporative cooling systems consume significantly more water than air-cooled or chilled water systems. These are modeled estimates."},
-  {t:"EMF Estimates",b:"Electromagnetic field values shown are modeled estimates derived from facility power draw, substation proximity, and cooling infrastructure. They are not certified measurements and should not be cited as such. We reference WHO and IARC published research on extremely low frequency EMF (ELF-EMF) for context on exposure thresholds. The legal US limit of 2,000 mG does not imply safety at lower levels."},
-  {t:"Risk Level",b:"Risk levels (LOW, MODERATE, HIGH) are assigned based on three factors: facility power scale, estimated proximity to nearest residential structures, and cooling type. HIGH is assigned when Power_MW is 50 or above, or when residential structures are estimated within 500 meters. MODERATE applies to facilities between 15 and 50 MW or with residences 500 to 1,000 meters away. LOW applies to smaller facilities in rural or industrial areas with residences beyond 1,000 meters."},
-  {t:"What We Do Not Claim",b:"We do not claim that any specific facility has caused harm to any specific person. We do not provide medical advice. Risk levels are relative indicators for public awareness only. Residents with health concerns should consult qualified medical and environmental professionals."},
-  {t:"Contact and Corrections",b:"If you are a facility operator or researcher and believe any data is materially incorrect, please contact us. We are committed to accuracy and will review and correct verified errors promptly."},
+  {
+    id: "power",
+    label: "DATA SOURCE",
+    heading: "Power Draw (Megawatts)",
+    body: [
+      "Power draw figures shown in HumZones come from publicly available sources including utility interconnection filings, operator press releases, permit applications and planning board documents. We report the figure exactly as stated in the source document and link to that source on each facility record.",
+      "Where no verified figure is available the facility record shows 'Power draw not disclosed.' We never display estimated power figures as if they were verified data. When other metrics such as CO2 and water consumption require a power figure for calculation and none is available, we use a conservative default based on operator type, but we label those calculations as estimates and never show the default figure as a real power draw.",
+    ],
+    example: "Example: A facility listed as operated by Amazon with no disclosed power draw uses 100MW as a calculation default. The site shows 'Power draw not disclosed' in the facility profile. CO2 and water figures show 'Based on estimated typical capacity.'",
+  },
+  {
+    id: "co2",
+    label: "FORMULA",
+    heading: "Annual CO2 Impact (Tons Per Year)",
+    body: [
+      "Annual CO2 estimates use the standard formula applied by energy researchers and utilities worldwide:",
+      "CO2 Tons Per Year = Power (MW) x 8,760 hours x Regional Grid Factor",
+      "The 8,760 figure represents continuous operation for one full year (365 days x 24 hours). The regional grid factor comes from the EPA eGRID database for US facilities and IEA published national grid emissions data for international facilities. These factors represent the average carbon intensity of the electricity grid in each region, how many tons of CO2 are emitted per megawatt hour of electricity consumed.",
+      "These are estimates of annual carbon impact under continuous full-load operation. Actual emissions vary with load factor, seasonal grid mix changes and renewable energy procurement by the operator.",
+    ],
+    example: "Example: A 100MW facility in Virginia.\n100MW x 8,760 hours x 0.386 tons/MWh = 338,136 tons CO2 per year.\nSource: EPA eGRID RFCE subregion factor.",
+    footnote: "Key US regional factors: Virginia/Mid-Atlantic 0.386, Texas 0.421, California 0.210, Pacific Northwest 0.106, New England 0.244. International: UK 0.233, Germany 0.385, France 0.052, Singapore 0.408, China 0.581. Source: EPA eGRID 2023, IEA 2023.",
+  },
+  {
+    id: "water",
+    label: "FORMULA",
+    heading: "Daily Water Consumption (Gallons Per Day)",
+    body: [
+      "Water consumption estimates use Water Usage Effectiveness ratios published by ASHRAE and the Green Grid, the industry bodies that set data center efficiency standards:",
+      "Chilled water cooling:\nWater (gal/day) = Power (MW) x 24 hours x 132 gallons per MWh",
+      "Evaporative cooling:\nWater (gal/day) = Power (MW) x 24 hours x 476 gallons per MWh",
+      "The 132 figure corresponds to a WUE of 0.5 liters per kilowatt hour, consistent with modern chilled water systems. The 476 figure corresponds to a WUE of 1.8 liters per kilowatt hour, consistent with evaporative cooling towers. Where cooling type is unknown we use the chilled water formula as the more conservative estimate.",
+      "These are annual average estimates. Actual consumption varies significantly by climate, season and load factor. Facilities in hot dry climates using evaporative cooling can consume substantially more during summer months.",
+    ],
+    example: "Example: A 100MW facility with chilled water cooling.\n100MW x 24 hours x 132 gal/MWh = 316,800 gallons per day.\nEquivalent to the daily water use of approximately 3,000 average American households.",
+  },
+  {
+    id: "noise",
+    label: "FORMULA",
+    heading: "Estimated Perimeter Noise (Decibels)",
+    body: [
+      "Perimeter noise estimates are modeled from facility power class using ranges consistent with acoustic assessments submitted in public planning board proceedings across the United States:",
+      "100MW and above: 68 dB at facility perimeter\n50 to 99MW: 66 dB\n25 to 49MW: 64 dB\n10 to 24MW: 62 dB\nUnder 10MW: 58 dB\nAdd 2 dB where evaporative cooling towers are confirmed.",
+      "These figures represent estimated broadband sound levels at the facility boundary fence line under normal operating conditions. They are not measurements at any specific residence and do not account for topography, vegetation, building attenuation or the distance from the facility fence to the nearest home.",
+      "An important limitation: data center cooling systems produce significant low-frequency sound, typically in the 20 to 200 hertz range, that standard decibel measurements can understate. Low-frequency hum is the most common noise complaint from residents near data centers. Our broadband estimates do not capture this characteristic.",
+    ],
+    example: "Example: A 120MW facility with standard cooling.\nEstimated perimeter noise: 68 dB.\nFor context: 68 dB is comparable to heavy traffic noise at close range. Data center cooling systems operate continuously including overnight.",
+  },
+  {
+    id: "emf",
+    label: "NOT MODELED",
+    heading: "Electromagnetic Field Estimates",
+    body: [
+      "HumZones does not publish electromagnetic field estimates for data center facilities. We made this decision deliberately and we want to be transparent about why.",
+      "EMF levels at a facility boundary depend on transformer specifications, transmission voltage, conductor geometry, load factor and physical shielding. None of these variables are typically available in public permit documents. Publishing speculative EMF figures would produce numbers that look precise but cannot be verified or defended.",
+      "We believe showing a number residents cannot verify is worse than showing no number at all.",
+      "EMF data is displayed only for specific facilities where figures come from verified utility filings or professionally conducted acoustic and electromagnetic studies submitted to public agencies. If you have access to a verified EMF study for a facility in our registry, please email hello@humzones.com and we will review it for inclusion.",
+    ],
+  },
+  {
+    id: "risk",
+    label: "CLASSIFICATION",
+    heading: "Infrastructure Impact Categories",
+    body: [
+      "Infrastructure impact categories reflect estimated local footprint based on modeled or reported power draw:",
+      "HIGH: Estimated power draw of 50 megawatts or more\nMODERATE: 15 to 50 megawatts\nLOW: Under 15 megawatts",
+      "These categories are not health determinations, safety ratings or regulatory classifications. They are provided to help residents quickly identify which facilities in their area represent the largest infrastructure footprint and therefore warrant the closest attention.",
+      "A HIGH category facility is not necessarily dangerous. It is large. What that means for a specific community depends on its proximity to homes, schools and water sources, local grid capacity, and how the planning process was conducted.",
+    ],
+  },
+  {
+    id: "labels",
+    label: "TRANSPARENCY",
+    heading: "What the Data Source Labels Mean",
+    body: [
+      "Every facility record in HumZones carries one of four data source labels:",
+      "Verified means facility specifications were sourced directly from primary public documents such as utility interconnection filings, permit applications, environmental assessments or operator press releases. We link to the source document on the facility record.",
+      "Mixed means some fields are verified from primary sources and others are modeled from verified inputs using the formulas above. The power draw figure is verified but environmental metrics are calculated from it.",
+      "Modeled means all environmental metrics were estimated using the formulas above applied to the best available power draw reference. No primary source document was available at the time of entry.",
+      "Reported means the record originates primarily from community submissions and has not been independently verified against primary documents.",
+    ],
+  },
+  {
+    id: "limits",
+    label: "IMPORTANT LIMITATIONS",
+    heading: "What HumZones Does Not Claim",
+    body: [
+      "HumZones infrastructure estimates are tools for informed community conversation, not certified measurements.",
+      "We do not make health claims. No figure on this site should be interpreted as a determination that any facility poses a health risk to any person.",
+      "We do not determine regulatory compliance. Our estimates do not indicate whether any facility meets or violates any federal, state or local regulation.",
+      "We do not certify accuracy for legal proceedings. Residents who need certified measurements for legal actions, health assessments or regulatory complaints should engage qualified environmental engineers or acoustical consultants.",
+      "We correct errors. If you are a facility operator, resident or researcher and believe a figure in our registry is materially incorrect, please contact us at hello@humzones.com with your source documentation. We review all correction requests and update records where the evidence supports it.",
+    ],
+  },
 ];
 
-const MethodologyPage = ({ onBack, onNavigate }) => {
-  const go = onNavigate || onBack;
-  const backLink = (
-    <a href="/" onClick={e=>{e.preventDefault();onBack();}} className="ext-link" style={{display:"inline-flex",alignItems:"center",gap:8,color:"#ef4444",textDecoration:"none",fontSize:14,fontWeight:800,letterSpacing:".06em"}}>
-      <span style={{fontSize:18,lineHeight:1}}>&larr;</span> BACK TO HUMZONES
-    </a>
-  );
+const METHODOLOGY_FAQ = [
+  { q: "Why do some facilities show estimated figures while others show verified data?",
+    a: "We add facilities as we discover them from public sources. Some sources include full specifications. Others include only name, location and status. We model estimates for the latter group using our approved formulas and label them clearly so you always know which figures are verified and which are calculated." },
+  { q: "How often is the data updated?",
+    a: "New facilities are added weekly as our automated discovery system scans public sources. Existing facilities are monitored for status changes. The registry is a living database not a static snapshot." },
+  { q: "Can I use HumZones data in a planning board presentation?",
+    a: "Yes, with appropriate context. Our estimates are sourced from documented formulas applied to publicly available data. We recommend citing HumZones as a source, noting which figures are verified vs modeled, and referencing the original public documents where available. We are happy to assist residents preparing for planning proceedings." },
+  { q: "I am a data center operator and a figure in your registry is wrong. What do I do?",
+    a: "Email hello@humzones.com with the facility name, the incorrect figure, the correct figure and your source documentation. We review all correction requests promptly and update records where the evidence supports it. We also welcome operators providing verified specifications directly so we can upgrade records from Modeled to Verified status." },
+  { q: "Where do your regional CO2 factors come from?",
+    a: "US regional factors come from the EPA eGRID database, the standard reference used by utilities, researchers and the EPA itself for regional grid emissions accounting. International factors come from IEA published national grid emissions data. Both are publicly available and updated periodically." },
+];
+
+const MethodologyPage = ({ onNavigate }) => {
+  const [openFaq, setOpenFaq] = useState({});
 
   useEffect(() => {
     if (typeof document === "undefined") return;
-    document.title = "HumZones Methodology | How We Calculate Infrastructure Data";
+    document.title = "How HumZones Calculates Infrastructure Data | Methodology";
 
-    injectHeadEl("meta", "methodology-desc",       { name: "description",         content: "How HumZones calculates modeled estimates for power draw, noise levels, EMF ranges, water consumption and CO2 impact. Data sources, formulas and important limitations." });
+    injectHeadEl("meta", "methodology-desc",       { name: "description",         content: "How HumZones calculates modeled estimates for power draw, CO2 impact, water consumption and noise levels. Data sources, formulas and important limitations explained." });
     injectHeadEl("link", "methodology-canonical",  { rel: "canonical",            href: "https://humzones.com/methodology" });
-    injectHeadEl("meta", "methodology-og-title",   { property: "og:title",        content: "HumZones Methodology | Infrastructure Estimates" });
-    injectHeadEl("meta", "methodology-og-desc",    { property: "og:description",  content: "How HumZones calculates power, noise, EMF, water and CO2 estimates. Sources, formulas and important limitations explained." });
+    injectHeadEl("meta", "methodology-og-title",   { property: "og:title",        content: "HumZones Methodology | How We Calculate Infrastructure Data" });
+    injectHeadEl("meta", "methodology-og-desc",    { property: "og:description",  content: "How HumZones calculates CO2, water, noise and risk estimates. Sources, formulas and limitations explained transparently." });
     injectHeadEl("meta", "methodology-og-url",     { property: "og:url",          content: "https://humzones.com/methodology" });
     injectHeadEl("meta", "methodology-og-type",    { property: "og:type",         content: "website" });
     injectHeadEl("meta", "methodology-og-site",    { property: "og:site_name",    content: "HumZones" });
     injectHeadEl("meta", "methodology-tw-card",    { name: "twitter:card",        content: "summary" });
     injectHeadEl("meta", "methodology-tw-title",   { name: "twitter:title",       content: "HumZones Methodology" });
-    injectHeadEl("meta", "methodology-tw-desc",    { name: "twitter:description", content: "How HumZones calculates infrastructure estimates with sources and limitations." });
+    injectHeadEl("meta", "methodology-tw-desc",    { name: "twitter:description", content: "How HumZones calculates infrastructure impact estimates. Sources and limitations explained." });
 
     const schema = {
       "@context":    "https://schema.org",
       "@type":       "WebPage",
       "name":        "HumZones Methodology",
       "url":         "https://humzones.com/methodology",
-      "description": "How HumZones calculates infrastructure impact estimates including data sources, formulas and limitations.",
+      "description": "How HumZones calculates infrastructure impact estimates including data sources, approved formulas and important limitations.",
+      "publisher": {
+        "@type": "Organization",
+        "name":  "HumZones Technologies Inc.",
+        "url":   "https://humzones.com",
+      },
     };
     injectHeadEl("script", "methodology-jsonld", { type: "application/ld+json" }, JSON.stringify(schema));
 
@@ -935,41 +1038,91 @@ const MethodologyPage = ({ onBack, onNavigate }) => {
 
   return (
     <div style={{minHeight:"100vh",background:"#f1f5f9",width:"100%",maxWidth:"100vw",overflowX:"hidden"}}>
-
-      {/* CONTENT */}
-      <main style={{maxWidth:880,margin:"0 auto",padding:"48px 24px 72px"}}>
-        <div style={{background:"#fff",borderRadius:24,boxShadow:"0 8px 48px rgba(0,0,0,.10)",padding:"48px 40px 40px"}}>
-          <div style={{fontSize:12,color:"#94a3b8",letterSpacing:".18em",textTransform:"uppercase",fontWeight:800,marginBottom:14}}>Methodology</div>
-          <h1 style={{fontSize:34,fontWeight:900,lineHeight:1.18,letterSpacing:"-.02em",marginBottom:24,background:"linear-gradient(135deg,#ef4444,#f97316)",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent",display:"inline-block"}}>
-            How We Research and Model Our Data
+      {/* HERO */}
+      <section style={{background:"#1e293b",padding:"64px 24px 72px"}}>
+        <div style={{maxWidth:820,margin:"0 auto",textAlign:"center"}}>
+          <div style={{display:"inline-block",fontSize:12,color:"#f97316",letterSpacing:".18em",textTransform:"uppercase",fontWeight:800,marginBottom:16,padding:"6px 14px",borderRadius:30,background:"rgba(249,115,22,.12)",border:"1px solid rgba(249,115,22,.3)"}}>Methodology</div>
+          <h1 style={{fontSize:"clamp(28px,4.4vw,40px)",fontWeight:900,letterSpacing:"-.02em",color:"#fff",lineHeight:1.15,marginBottom:18}}>
+            Our Methodology
           </h1>
-          <p style={{fontSize:17,color:"#475569",lineHeight:1.75,marginBottom:40}}>
-            HumZones compiles facility data from public sources and applies documented modeling methods to estimate environmental metrics. No figures on this site represent certified field measurements. All estimates are clearly labeled as such and are intended to inform public awareness, not to serve as legal or scientific evidence.
+          <div style={{width:60,height:4,background:"#f97316",borderRadius:2,margin:"0 auto 22px"}}/>
+          <p style={{fontSize:16,color:"rgba(255,255,255,.72)",lineHeight:1.7,maxWidth:720,margin:"0 auto"}}>
+            Every figure on HumZones comes from a documented formula applied to publicly available data. This page explains exactly how we calculate each metric, what the limitations are, and what we chose not to estimate.
           </p>
+        </div>
+      </section>
 
-          {METHODOLOGY_SECTIONS.map((s,i)=>(
-            <section key={s.t} style={{marginBottom:30}}>
-              <div style={{display:"flex",alignItems:"baseline",gap:12,marginBottom:10}}>
-                <div style={{fontSize:13,fontWeight:900,color:"#ef4444",letterSpacing:".06em",minWidth:26}}>{String(i+1).padStart(2,"0")}</div>
-                <h2 style={{fontSize:14,color:"#0f172a",letterSpacing:".12em",textTransform:"uppercase",fontWeight:800,margin:0,lineHeight:1.4}}>{s.t}</h2>
-              </div>
-              <p style={{fontSize:16,color:"#475569",lineHeight:1.75,marginLeft:38}}>{s.b}</p>
-            </section>
-          ))}
-
-          <div style={{borderTop:"1px solid #e2e8f0",marginTop:40,paddingTop:24}}>
-            <p style={{fontSize:12,color:"#94a3b8",lineHeight:1.7}}>
-              Data Disclaimer: All figures shown including noise levels, EMF readings, power consumption, CO2 estimates, and water usage are research-based estimates compiled from public sources, permit filings, and industry standards. They are not certified measurements. Actual readings may vary by facility design, operating conditions, and season. HumZones is an informational resource only and does not constitute medical, legal, or environmental advice.
+      {/* INTRO */}
+      <section style={{background:"#f8fafc",padding:"40px 24px"}}>
+        <div style={{maxWidth:820,margin:"0 auto"}}>
+          <div style={{background:"#fff",border:"1px solid #e2e8f0",borderRadius:14,padding:"30px 30px 26px",boxShadow:"0 2px 12px rgba(0,0,0,.04)"}}>
+            <p style={{fontSize:16,color:"#334155",lineHeight:1.75,margin:0}}>
+              Transparency is the foundation of HumZones. We publish our methodology so that residents, researchers, journalists and data center operators can verify every figure we show. If you believe a figure is incorrect for a specific facility, email us at hello@humzones.com with your source and we will review it.
+            </p>
+            <p style={{fontSize:14,color:"#64748b",fontStyle:"italic",lineHeight:1.65,margin:"18px 0 0",paddingTop:18,borderTop:"1px solid #e2e8f0"}}>
+              All figures labeled Modeled or Mixed are estimates derived from publicly available data using the formulas below. They are not certified measurements. HumZones makes no health claims and no regulatory determinations.
             </p>
           </div>
+        </div>
+      </section>
 
-          <div style={{marginTop:32,textAlign:"center"}}>
-            {backLink}
+      {/* EIGHT CONTENT SECTIONS */}
+      {METHODOLOGY_SECTIONS.map((sec, i) => {
+        const altBg = i % 2 === 0 ? "#fff" : "#f8fafc";
+        return (
+          <section key={sec.id} id={sec.id} style={{background:altBg,padding:"56px 24px",borderTop:"1px solid #e2e8f0"}}>
+            <div style={{maxWidth:820,margin:"0 auto"}}>
+              <div style={{fontSize:11,color:"#f97316",letterSpacing:".18em",textTransform:"uppercase",fontWeight:800,marginBottom:10}}>{sec.label}</div>
+              <h2 style={{fontSize:"clamp(20px,3vw,24px)",fontWeight:900,color:"#0f172a",letterSpacing:"-.01em",lineHeight:1.25,margin:"0 0 10px"}}>{sec.heading}</h2>
+              <div style={{width:52,height:3,background:"#f97316",borderRadius:2,marginBottom:22}}/>
+              {sec.body.map((para, idx) => (
+                <p key={idx} style={{fontSize:16,color:"#475569",lineHeight:1.75,margin:"0 0 16px",whiteSpace:"pre-line"}}>{para}</p>
+              ))}
+              {sec.example && (
+                <div style={{background:"#fff7ed",border:"1px solid #fed7aa",borderLeft:"4px solid #f97316",borderRadius:12,padding:"18px 22px",marginTop:8}}>
+                  <p style={{fontSize:15,color:"#0f172a",lineHeight:1.7,margin:0,fontWeight:600,whiteSpace:"pre-line"}}>{sec.example}</p>
+                </div>
+              )}
+              {sec.footnote && (
+                <p style={{fontSize:13,color:"#64748b",lineHeight:1.65,margin:"16px 0 0",fontStyle:"italic"}}>{sec.footnote}</p>
+              )}
+            </div>
+          </section>
+        );
+      })}
+
+      {/* FAQ */}
+      <section style={{background:"#fff",padding:"60px 24px",borderTop:"1px solid #e2e8f0"}}>
+        <div style={{maxWidth:820,margin:"0 auto"}}>
+          <h2 style={{fontSize:20,fontWeight:800,color:"#0f172a",letterSpacing:"-.01em",margin:"0 0 6px"}}>Frequently Asked Questions</h2>
+          <div style={{width:48,height:3,background:"#f97316",borderRadius:2,marginBottom:22}}/>
+          <div style={{display:"flex",flexDirection:"column",gap:8}}>
+            {METHODOLOGY_FAQ.map((f, i) => {
+              const key = "method::" + i;
+              const isOpen = !!openFaq[key];
+              return (
+                <div key={key} style={{border:"1px solid #e2e8f0",borderRadius:10,background:isOpen?"#f8fafc":"#fff",overflow:"hidden"}}>
+                  <button
+                    onClick={()=>setOpenFaq(p=>({...p,[key]:!p[key]}))}
+                    aria-expanded={isOpen}
+                    style={{width:"100%",display:"flex",alignItems:"center",justifyContent:"space-between",gap:12,padding:"14px 16px",background:"transparent",border:"none",cursor:"pointer",fontFamily:"inherit",textAlign:"left"}}
+                  >
+                    <span style={{fontSize:15,fontWeight:800,color:"#0f172a",lineHeight:1.4}}>{f.q}</span>
+                    <span aria-hidden="true" style={{fontSize:18,fontWeight:900,color:"#f97316",flexShrink:0,lineHeight:1}}>{isOpen ? "−" : "+"}</span>
+                  </button>
+                  {isOpen && (
+                    <div style={{padding:"0 16px 14px"}}>
+                      <p style={{fontSize:14,color:"#475569",lineHeight:1.7,margin:0}}>{f.a}</p>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
           </div>
         </div>
-      </main>
+      </section>
 
-      <Footer onNavigate={go}/>
+      <Footer onNavigate={onNavigate}/>
     </div>
   );
 };
