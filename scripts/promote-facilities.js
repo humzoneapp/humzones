@@ -15,42 +15,62 @@ const FACILITIES_TBL = 'tblvojPdS6kwMxsex'
 const PENDING_TBL = 'tblPB5eHmEBujI4Iq'
 
 const F_PENDING = {
-  Name:             'fldvasZvuq88CKcov',
-  Company:          'fldGrOrMDrMyhTYQR',
-  Address:          'fldJ0f7WMbquU1gIs',
-  City:             'fldAtKp2mYqY6iCbB',
-  State_Region:     'fldK5ksYKMz07RWa4',
-  Country:          'fldY0BYtYi6pdwpu0',
-  Latitude:         'fldl37PXyyVv5A5fr',
-  Longitude:        'fld9ilqCXidpgBIPT',
-  Power_MW:         'fld2s77YTUbCVf9kr',
-  Facility_Status:  'fldfg9XCZ1P2a4456',
-  Risk_Level:       'fldTJKLP6759Rg07p',
-  Source_URL:       'fld5tWJxVXbHMwoOj',
-  Review_Status:    'fldtWGxecfwKMuqnh',
-  Added_To_Registry:'flddLDSFR51A6uQGG',
+  Name:                   'fldvasZvuq88CKcov',
+  Company:                'fldGrOrMDrMyhTYQR',
+  Address:                'fldJ0f7WMbquU1gIs',
+  City:                   'fldAtKp2mYqY6iCbB',
+  State_Region:           'fldK5ksYKMz07RWa4',
+  Country:                'fldY0BYtYi6pdwpu0',
+  Latitude:               'fldl37PXyyVv5A5fr',
+  Longitude:              'fld9ilqCXidpgBIPT',
+  Power_MW:               'fld2s77YTUbCVf9kr',
+  Power_MW_Source:        'fldUJliZG9fV34CYe',
+  Power_MW_Type:          'fldhDyx85QgHm2QLf',
+  Power_MW_Last_Verified: 'fldIOg8DCzxWlDXCc',
+  Facility_Status:        'fldfg9XCZ1P2a4456',
+  Risk_Level:             'fldTJKLP6759Rg07p',
+  Source_URL:             'fld5tWJxVXbHMwoOj',
+  Review_Status:          'fldtWGxecfwKMuqnh',
+  Added_To_Registry:      'flddLDSFR51A6uQGG',
 }
 
 const F_FAC = {
-  Name:             'fldirgBJAsorDO4Hm',
-  Company:          'fld8602RjMYU6rUcy',
-  Address:          'fldM1eSScQK8HD0Fh',
-  City:             'fldOmKby6o64HCDZM',
-  State_Region:     'fld1euUumpEZCUtZw',
-  Country:          'fldIwxc1fkf0xuQCC',
-  Latitude:         'fldu15qih7NkG858H',
-  Longitude:        'fldurd5s8IAYSi283',
-  Power_MW:         'fldfHsnHRCAo4jc8G',
-  Facility_Status:  'fldtwqQiagOYC63bJ',
-  Risk_Level:       'fldQSnIuVMzqy5USI',
-  Source_URL:       'fldqmmexrlbWonhnh',
-  Data_Source_Type: 'fld8PCtqL0Mo89BTR',
-  Noise_DB:         'flddjx40OHUitHElm',
-  CO2_Tons_Year:    'fld9JDojf3TsoMvma',
-  Water_Gal_Day:    'fldBDOehZIQlDUHu4',
-  Featured:         'flddQ5kUHOQJfpdJj',
-  Cooling:          'fldz6gsZg0mFRcfqT',
+  Name:                   'fldirgBJAsorDO4Hm',
+  Company:                'fld8602RjMYU6rUcy',
+  Address:                'fldM1eSScQK8HD0Fh',
+  City:                   'fldOmKby6o64HCDZM',
+  State_Region:           'fld1euUumpEZCUtZw',
+  Country:                'fldIwxc1fkf0xuQCC',
+  Latitude:               'fldu15qih7NkG858H',
+  Longitude:              'fldurd5s8IAYSi283',
+  Power_MW:               'fldfHsnHRCAo4jc8G',
+  Power_MW_Source:        'flduWAPM1zmYRA4N5',
+  Power_MW_Type:          'fldcdZxN13kSjApm6',
+  Power_MW_Last_Verified: 'fldNt3KaUeCeYG3zi',
+  Facility_Status:        'fldtwqQiagOYC63bJ',
+  Risk_Level:             'fldQSnIuVMzqy5USI',
+  Source_URL:             'fldqmmexrlbWonhnh',
+  Data_Source_Type:       'fld8PCtqL0Mo89BTR',
+  Noise_DB:               'flddjx40OHUitHElm',
+  CO2_Tons_Year:          'fld9JDojf3TsoMvma',
+  Water_Gal_Day:          'fldBDOehZIQlDUHu4',
+  Featured:               'flddQ5kUHOQJfpdJj',
+  Cooling:                'fldz6gsZg0mFRcfqT',
 }
+
+// Mirrors the constant in recalculate-facilities.js: Risk_Level is
+// only persisted when Power_MW_Type comes from one of these
+// high-trust primary sources. Untrusted or missing types yield
+// Risk_Level=null so the live site never displays a classification
+// derived from a weak or unverified Power_MW value.
+const TRUSTED_POWER_TYPES = new Set([
+  'Utility Interconnection',
+  'SEC Filing',
+  'State Utility Commission',
+  'Operator Disclosure',
+])
+
+const TODAY = new Date().toISOString().slice(0, 10)
 
 const MAX_PROMOTIONS_PER_RUN = 20
 const AIRTABLE_API = `https://api.airtable.com/v0/${AIRTABLE_BASE}`
@@ -125,29 +145,73 @@ async function main() {
     const f = rec.fields || {}
     const name = f[F_PENDING.Name] || rec.id
     try {
-      const powerMW = f[F_PENDING.Power_MW] != null ? Number(f[F_PENDING.Power_MW]) : null
+      const pendingMW = f[F_PENDING.Power_MW] != null ? Number(f[F_PENDING.Power_MW]) : null
+      const pendingType = f[F_PENDING.Power_MW_Type] || ''
+      const pendingSource = f[F_PENDING.Power_MW_Source] || ''
+      const pendingVerifiedRaw = f[F_PENDING.Power_MW_Last_Verified] || ''
       const stateRegion = f[F_PENDING.State_Region] || ''
       const country = f[F_PENDING.Country] || 'United States'
       const company = f[F_PENDING.Company] || ''
 
-      const model = modelFacility(powerMW, null, stateRegion, country, company)
+      const model = modelFacility(pendingMW, null, stateRegion, country, company)
+
+      // Determine Power_MW provenance for the live row. If the
+      // pending record has a verified value (MW + type), pass it
+      // through unchanged. If MW exists but type does not, mark
+      // Estimate so the recalculate gating treats it as untrusted.
+      // If MW is missing entirely but the model fills in a company
+      // default, also mark Estimate.
+      let outMW, outType, outSource, outVerified
+      const hasPendingMW = pendingMW != null && Number.isFinite(pendingMW) && pendingMW > 0
+      if (hasPendingMW && pendingType) {
+        outMW = pendingMW
+        outType = pendingType
+        outSource = pendingSource
+        outVerified = pendingVerifiedRaw || TODAY
+      } else if (hasPendingMW) {
+        outMW = pendingMW
+        outType = 'Estimate'
+        outSource = pendingSource
+        outVerified = TODAY
+      } else if (model.Power_MW != null) {
+        outMW = model.Power_MW
+        outType = 'Estimate'
+        outSource = ''
+        outVerified = TODAY
+      } else {
+        outMW = null
+        outType = ''
+        outSource = ''
+        outVerified = ''
+      }
+
+      const trustedSource = TRUSTED_POWER_TYPES.has(outType)
+      const riskOut = trustedSource ? model.Risk_Level : null
 
       const liveFields = {
-        [F_FAC.Name]:             name,
-        [F_FAC.Company]:          company,
-        [F_FAC.Address]:          f[F_PENDING.Address] || '',
-        [F_FAC.City]:             f[F_PENDING.City] || '',
-        [F_FAC.State_Region]:     stateRegion,
-        [F_FAC.Country]:          country,
-        [F_FAC.Power_MW]:         model.Power_MW,
-        [F_FAC.Facility_Status]:  f[F_PENDING.Facility_Status] || 'Proposed',
-        [F_FAC.Risk_Level]:       model.Risk_Level,
-        [F_FAC.Source_URL]:       f[F_PENDING.Source_URL] || '',
-        [F_FAC.Data_Source_Type]: model.Data_Source_Type,
-        [F_FAC.Noise_DB]:         model.Noise_DB,
-        [F_FAC.CO2_Tons_Year]:    model.CO2_Tons_Year,
-        [F_FAC.Water_Gal_Day]:    model.Water_Gal_Day,
-        [F_FAC.Featured]:         false,
+        [F_FAC.Name]:                   name,
+        [F_FAC.Company]:                company,
+        [F_FAC.Address]:                f[F_PENDING.Address] || '',
+        [F_FAC.City]:                   f[F_PENDING.City] || '',
+        [F_FAC.State_Region]:           stateRegion,
+        [F_FAC.Country]:                country,
+        [F_FAC.Power_MW]:               outMW,
+        [F_FAC.Power_MW_Source]:        outSource,
+        [F_FAC.Power_MW_Type]:          outType || undefined,
+        [F_FAC.Power_MW_Last_Verified]: outVerified || undefined,
+        [F_FAC.Facility_Status]:        f[F_PENDING.Facility_Status] || 'Proposed',
+        [F_FAC.Risk_Level]:             riskOut,
+        [F_FAC.Source_URL]:             f[F_PENDING.Source_URL] || '',
+        [F_FAC.Data_Source_Type]:       model.Data_Source_Type,
+        [F_FAC.Noise_DB]:               model.Noise_DB,
+        [F_FAC.CO2_Tons_Year]:          model.CO2_Tons_Year,
+        [F_FAC.Water_Gal_Day]:          model.Water_Gal_Day,
+        [F_FAC.Featured]:               false,
+      }
+      // Airtable rejects null on singleSelect/date for new records.
+      // Drop keys whose value is undefined so we never send those.
+      for (const key of Object.keys(liveFields)) {
+        if (liveFields[key] === undefined) delete liveFields[key]
       }
       if (f[F_PENDING.Latitude]  != null) liveFields[F_FAC.Latitude]  = Number(f[F_PENDING.Latitude])
       if (f[F_PENDING.Longitude] != null) liveFields[F_FAC.Longitude] = Number(f[F_PENDING.Longitude])
@@ -156,7 +220,7 @@ async function main() {
       await airtablePatch(PENDING_TBL, rec.id, { [F_PENDING.Added_To_Registry]: true })
 
       promoted++
-      console.log(`[promote] ${name}: ${model.Power_MW}MW ${model.Risk_Level} CO2=${model.CO2_Tons_Year} Water=${model.Water_Gal_Day} Noise=${model.Noise_DB} (${model.Data_Source_Type})`)
+      console.log(`[promote] ${name}: ${outMW}MW [${outType || 'none'}] risk=${riskOut ?? 'null'} CO2=${model.CO2_Tons_Year} Water=${model.Water_Gal_Day} Noise=${model.Noise_DB} (${model.Data_Source_Type})`)
     } catch (err) {
       errors++
       console.error(`[promote] failed for ${name}: ${err.message}`)

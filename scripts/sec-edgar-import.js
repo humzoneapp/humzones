@@ -42,6 +42,7 @@ import path from 'node:path'
 
 const AIRTABLE_BASE  = 'app2FUPqq8VQSwQ64'
 const FACILITIES_TBL = 'tblvojPdS6kwMxsex'
+const PENDING_TBL    = 'tblPB5eHmEBujI4Iq'
 
 const F_FAC = {
   Name:                   'fldirgBJAsorDO4Hm',
@@ -54,6 +55,25 @@ const F_FAC = {
   Power_MW_Type:          'fldcdZxN13kSjApm6',
   Power_MW_Last_Verified: 'fldNt3KaUeCeYG3zi',
 }
+
+const F_PENDING = {
+  Name:                   'fldvasZvuq88CKcov',
+  Company:                'fldGrOrMDrMyhTYQR',
+  City:                   'fldAtKp2mYqY6iCbB',
+  State_Region:           'fldK5ksYKMz07RWa4',
+  Country:                'fldY0BYtYi6pdwpu0',
+  Power_MW:               'fld2s77YTUbCVf9kr',
+  Power_MW_Source:        'fldUJliZG9fV34CYe',
+  Power_MW_Type:          'fldhDyx85QgHm2QLf',
+  Power_MW_Last_Verified: 'fldIOg8DCzxWlDXCc',
+}
+
+// Field-set abstraction so the same matching/writing pipeline can
+// target either table without duplicating logic.
+const TABLES = [
+  { tableId: FACILITIES_TBL, name: 'Facilities', fields: F_FAC },
+  { tableId: PENDING_TBL,    name: 'Pending',    fields: F_PENDING },
+]
 
 // Target operators. Use ticker for currently-public companies; CIK
 // is required for delisted ones (CyrusOne, QTS) whose tickers no
@@ -267,6 +287,40 @@ function quoteAppearsInFiling(quote, filingText) {
   return haystack.includes(needle)
 }
 
+// Tabular SEC data rarely linearizes into a quotable contiguous
+// sentence. Fall back to a proximity check: require both the
+// facility name and the MW value (as a standalone digit token) to
+// appear within PROXIMITY_WINDOW chars of each other anywhere in
+// the filing. Both must come from the source text, so a fabricated
+// facility or fabricated number still gets rejected.
+const PROXIMITY_WINDOW = 1000
+
+function mwTokenRegex(mw) {
+  const escaped = String(mw).replace(/\./g, '\\.')
+  return new RegExp(`(^|[^\\d.])${escaped}([^\\d.]|$)`)
+}
+
+function nameAndMwInProximity(name, mw, filingText) {
+  const haystack = normalizeWhitespace(filingText)
+  const needle = normalizeWhitespace(name)
+  if (!needle || needle.length < 3) return false
+  const re = mwTokenRegex(mw)
+  let idx = haystack.indexOf(needle)
+  while (idx !== -1) {
+    const start = Math.max(0, idx - 200)
+    const end = Math.min(haystack.length, idx + needle.length + PROXIMITY_WINDOW)
+    if (re.test(haystack.slice(start, end))) return true
+    idx = haystack.indexOf(needle, idx + 1)
+  }
+  return false
+}
+
+function verifyExtraction(ex, filingText) {
+  if (quoteAppearsInFiling(ex.quote, filingText)) return { ok: true, method: 'quote' }
+  if (nameAndMwInProximity(ex.name, ex.power_mw, filingText)) return { ok: true, method: 'proximity' }
+  return { ok: false, method: 'none' }
+}
+
 function buildExtractionPrompt(companyName, filingText) {
   const trimmed = filingText.length > FILING_CHAR_LIMIT
     ? filingText.slice(0, FILING_CHAR_LIMIT)
@@ -403,22 +457,33 @@ function getStringField(fields, fieldId) {
   return String(v)
 }
 
-function buildFacilityIndex(records, targetCompany) {
+function buildFacilityIndex(recordsByTable, targetCompany) {
   const out = []
-  for (const rec of records) {
-    const f = rec.fields || {}
-    const company = getStringField(f, F_FAC.Company)
-    if (!companiesMatch(targetCompany, company)) continue
-    out.push({
-      id: rec.id,
-      name: getStringField(f, F_FAC.Name),
-      city: getStringField(f, F_FAC.City),
-      state: getStringField(f, F_FAC.State_Region),
-      country: getStringField(f, F_FAC.Country),
-      power_mw: f[F_FAC.Power_MW] != null ? Number(f[F_FAC.Power_MW]) : null,
-      power_source: getStringField(f, F_FAC.Power_MW_Source),
-      power_type: getStringField(f, F_FAC.Power_MW_Type),
-    })
+  for (const tableSpec of TABLES) {
+    const records = recordsByTable[tableSpec.tableId] || []
+    const F = tableSpec.fields
+    for (const rec of records) {
+      const f = rec.fields || {}
+      const company = getStringField(f, F.Company)
+      // Some pending records have garbage company strings ("Companies"
+      // is a known CSV-header import bug). Accept those when the
+      // facility name contains the target company, since name-based
+      // matching plus city/state will still gate writes correctly.
+      const name = getStringField(f, F.Name)
+      const nameMatches = name && normalizeCompany(name).includes(normalizeCompany(targetCompany).split(' ')[0])
+      if (!companiesMatch(targetCompany, company) && !nameMatches) continue
+      out.push({
+        id: rec.id,
+        table: tableSpec,
+        name,
+        city: getStringField(f, F.City),
+        state: getStringField(f, F.State_Region),
+        country: getStringField(f, F.Country),
+        power_mw: f[F.Power_MW] != null ? Number(f[F.Power_MW]) : null,
+        power_source: getStringField(f, F.Power_MW_Source),
+        power_type: getStringField(f, F.Power_MW_Type),
+      })
+    }
   }
   return out
 }
@@ -447,7 +512,7 @@ function findBestFacilityMatch(extraction, facilityIndex) {
   return { match: best, score: bestScore }
 }
 
-async function processTarget(target, tickerMap, facilities) {
+async function processTarget(target, tickerMap, recordsByTable) {
   const label = target.ticker || `CIK ${target.cik}`
   console.log(`\n=== ${target.company} (${label}) ===`)
 
@@ -505,8 +570,12 @@ async function processTarget(target, tickerMap, facilities) {
   let matched = 0
   let unmatched = 0
   let suspect = 0
-  const facIndex = buildFacilityIndex(facilities, target.company)
-  console.log(`[sec] ${facIndex.length} existing Facilities rows for ${target.company}`)
+  const facIndex = buildFacilityIndex(recordsByTable, target.company)
+  const facByTable = facIndex.reduce((acc, f) => {
+    acc[f.table.name] = (acc[f.table.name] || 0) + 1
+    return acc
+  }, {})
+  console.log(`[sec] ${facIndex.length} candidate rows for ${target.company} (${JSON.stringify(facByTable)})`)
 
   for (const ex of extractions) {
     const mw = Number(ex.power_mw)
@@ -515,8 +584,9 @@ async function processTarget(target, tickerMap, facilities) {
       suspect++
       continue
     }
-    if (!quoteAppearsInFiling(ex.quote, text)) {
-      console.log(`[sec] SUSPECT quote not found in filing for "${ex.name}" (${mw} MW). Quote preview: ${(ex.quote || '').slice(0, 120)}`)
+    const verdict = verifyExtraction(ex, text)
+    if (!verdict.ok) {
+      console.log(`[sec] SUSPECT verify failed for "${ex.name}" (${mw} MW). Quote preview: ${(ex.quote || '').slice(0, 120)}`)
       suspect++
       continue
     }
@@ -527,19 +597,20 @@ async function processTarget(target, tickerMap, facilities) {
       continue
     }
 
+    const F = match.table.fields
     const patchFields = {
-      [F_FAC.Power_MW]:               mw,
-      [F_FAC.Power_MW_Source]:        filingUrl,
-      [F_FAC.Power_MW_Type]:          'SEC Filing',
-      [F_FAC.Power_MW_Last_Verified]: TODAY,
+      [F.Power_MW]:               mw,
+      [F.Power_MW_Source]:        filingUrl,
+      [F.Power_MW_Type]:          'SEC Filing',
+      [F.Power_MW_Last_Verified]: TODAY,
     }
 
     const prev = match.power_mw == null ? 'null' : match.power_mw
     const action = DRY_RUN ? 'WOULD WRITE' : 'WROTE'
-    console.log(`[sec] ${action} "${match.name}" (${ex.city}, ${ex.state}) Power_MW ${prev} -> ${mw} [${ex.capacity_type}] match score ${score.toFixed(2)}`)
+    console.log(`[sec] ${action} [${match.table.name}] "${match.name}" (${ex.city}, ${ex.state}) Power_MW ${prev} -> ${mw} [${ex.capacity_type}] score ${score.toFixed(2)} verify=${verdict.method}`)
     if (!DRY_RUN) {
       try {
-        await airtablePatchOne(FACILITIES_TBL, match.id, patchFields)
+        await airtablePatchOne(match.table.tableId, match.id, patchFields)
       } catch (err) {
         console.error(`[sec] patch failed for ${match.name}: ${err.message}`)
         suspect++
@@ -564,12 +635,22 @@ async function main() {
   const tickerMap = await loadTickerMap()
   console.log(`[sec] loaded ticker map (${Object.keys(tickerMap).length} entries)`)
 
-  console.log('[sec] fetching all Facilities for company matching...')
-  const facilities = await airtableListAll(FACILITIES_TBL, [
-    F_FAC.Name, F_FAC.Company, F_FAC.City, F_FAC.State_Region, F_FAC.Country,
-    F_FAC.Power_MW, F_FAC.Power_MW_Source, F_FAC.Power_MW_Type,
+  console.log('[sec] fetching Facilities and Pending_Facilities for company matching...')
+  const [facilities, pending] = await Promise.all([
+    airtableListAll(FACILITIES_TBL, [
+      F_FAC.Name, F_FAC.Company, F_FAC.City, F_FAC.State_Region, F_FAC.Country,
+      F_FAC.Power_MW, F_FAC.Power_MW_Source, F_FAC.Power_MW_Type,
+    ]),
+    airtableListAll(PENDING_TBL, [
+      F_PENDING.Name, F_PENDING.Company, F_PENDING.City, F_PENDING.State_Region, F_PENDING.Country,
+      F_PENDING.Power_MW, F_PENDING.Power_MW_Source, F_PENDING.Power_MW_Type,
+    ]),
   ])
-  console.log(`[sec] ${facilities.length} Facilities records loaded`)
+  console.log(`[sec] loaded ${facilities.length} Facilities, ${pending.length} Pending_Facilities`)
+  const recordsByTable = {
+    [FACILITIES_TBL]: facilities,
+    [PENDING_TBL]:    pending,
+  }
 
   const targets = TARGETS.filter(t => {
     if (TICKER_FILTER && t.ticker !== TICKER_FILTER) return false
@@ -581,7 +662,7 @@ async function main() {
   let totals = { matched: 0, unmatched: 0, suspect: 0, skipped: 0 }
   for (const target of targets) {
     try {
-      const r = await processTarget(target, tickerMap, facilities)
+      const r = await processTarget(target, tickerMap, recordsByTable)
       totals.matched   += r.matched
       totals.unmatched += r.unmatched
       totals.suspect   += r.suspect
@@ -595,7 +676,7 @@ async function main() {
   console.log('\n---')
   console.log(`SUMMARY: ${totals.matched} written, ${totals.unmatched} unmatched, ${totals.suspect} suspect/skipped, ${totals.skipped} target failures`)
   if (totals.unmatched > 0) {
-    console.log('Unmatched extractions are SEC-disclosed facilities that did not match any current Facilities row by Company + city + name. Consider adding them to Pending_Facilities for review.')
+    console.log('Unmatched extractions are SEC-disclosed facilities that did not match any current Facilities or Pending_Facilities row. Consider adding them to Pending_Facilities for review.')
   }
 }
 
