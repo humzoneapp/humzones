@@ -106,9 +106,16 @@ const TARGETS = [
 const UA = 'HumZones Registry hello@humzones.com'
 const ANTHROPIC_MODEL = 'claude-sonnet-4-6'
 const ANTHROPIC_MAX_TOKENS = 8000
-const FILING_CHAR_LIMIT = 300000  // ~75k tokens, safely inside Sonnet's 200k window
+// 80k chars is ~20k tokens, comfortably inside a 30k tokens/min tier
+// when combined with the inter-call delay below. The script extracts
+// just Items 1 and 2 from the 10-K (Business + Properties), where
+// facility data lives, before applying this cap.
+const FILING_CHAR_LIMIT = 80000
 const SEC_RATE_DELAY_MS = 200
-const CLAUDE_RATE_DELAY_MS = 1000
+// 50 seconds between Claude calls keeps the rolling 30k tokens/min
+// window honored even when every call uses ~20k input tokens.
+const CLAUDE_RATE_DELAY_MS = 50000
+const CLAUDE_MAX_RETRIES = 4
 const MATCH_SCORE_MIN = 0.4
 
 const argv = process.argv.slice(2)
@@ -254,6 +261,30 @@ async function fetchAndCacheFiling(url, cacheKey) {
   return html
 }
 
+// Extract Items 1 (Business) and 2 (Properties) from a 10-K text.
+// These are the sections where facility-level data lives. Returns
+// null if section boundaries cannot be found; callers should fall
+// back to a head-of-document slice.
+function extractFilingSections(text) {
+  const item1Re = /\bitem\s*1\.?\s+business\b/gi
+  const item3Re = /\bitem\s*3\.?\s+legal\s+proceedings\b/gi
+
+  let lastItem1 = -1
+  for (const m of text.matchAll(item1Re)) lastItem1 = m.index
+  if (lastItem1 < 0) return null
+
+  let firstItem3AfterItem1 = -1
+  for (const m of text.matchAll(item3Re)) {
+    if (m.index > lastItem1 + 200) {
+      firstItem3AfterItem1 = m.index
+      break
+    }
+  }
+
+  if (firstItem3AfterItem1 < 0) return text.slice(lastItem1)
+  return text.slice(lastItem1, firstItem3AfterItem1)
+}
+
 function htmlToText(html) {
   let t = String(html || '')
   t = t.replace(/<!--[\s\S]*?-->/g, ' ')
@@ -372,27 +403,36 @@ function extractJsonArray(text) {
 }
 
 async function callClaude(prompt) {
-  await sleep(CLAUDE_RATE_DELAY_MS)
-  const r = await fetch('https://api.anthropic.com/v1/messages', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'x-api-key': anthropicKey(),
-      'anthropic-version': '2023-06-01',
-    },
-    body: JSON.stringify({
-      model: ANTHROPIC_MODEL,
-      max_tokens: ANTHROPIC_MAX_TOKENS,
-      messages: [{ role: 'user', content: prompt }],
-    }),
-  })
-  if (!r.ok) {
-    const body = await r.text().catch(() => '')
-    throw new Error(`Anthropic API failed: ${r.status} ${body}`)
+  for (let attempt = 1; attempt <= CLAUDE_MAX_RETRIES; attempt++) {
+    await sleep(CLAUDE_RATE_DELAY_MS)
+    const r = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': anthropicKey(),
+        'anthropic-version': '2023-06-01',
+      },
+      body: JSON.stringify({
+        model: ANTHROPIC_MODEL,
+        max_tokens: ANTHROPIC_MAX_TOKENS,
+        messages: [{ role: 'user', content: prompt }],
+      }),
+    })
+    if (r.status === 429) {
+      const retryAfterHeader = r.headers.get('retry-after')
+      const retryAfter = retryAfterHeader ? parseInt(retryAfterHeader, 10) : 60
+      console.log(`[sec] 429 rate limited (attempt ${attempt}/${CLAUDE_MAX_RETRIES}), waiting ${retryAfter}s per retry-after header`)
+      await sleep(retryAfter * 1000)
+      continue
+    }
+    if (!r.ok) {
+      const body = await r.text().catch(() => '')
+      throw new Error(`Anthropic API failed: ${r.status} ${body}`)
+    }
+    const d = await r.json()
+    return (d.content || []).map(c => c.text || '').join('\n')
   }
-  const d = await r.json()
-  const content = (d.content || []).map(c => c.text || '').join('\n')
-  return content
+  throw new Error(`Anthropic API failed: ${CLAUDE_MAX_RETRIES} retries exhausted`)
 }
 
 async function airtableListAll(tableId, fieldList) {
@@ -553,8 +593,10 @@ async function processTarget(target, tickerMap, recordsByTable) {
     return { matched: 0, unmatched: 0, suspect: 0, skipped: 0 }
   }
 
-  const text = htmlToText(html)
-  console.log(`[sec] stripped to ${text.length} chars of text`)
+  const fullText = htmlToText(html)
+  const sectionText = extractFilingSections(fullText)
+  const text = sectionText || fullText
+  console.log(`[sec] stripped to ${fullText.length} chars, section-extracted to ${sectionText ? sectionText.length : fullText.length} chars`)
 
   const prompt = buildExtractionPrompt(target.company, text)
   let raw
