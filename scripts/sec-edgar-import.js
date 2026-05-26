@@ -263,8 +263,11 @@ async function fetchAndCacheFiling(url, cacheKey) {
 
 // Extract Items 1 (Business) and 2 (Properties) from a 10-K text.
 // These are the sections where facility-level data lives. Returns
-// null if section boundaries cannot be found; callers should fall
-// back to a head-of-document slice.
+// null if section boundaries cannot be found or the extracted slice
+// is implausibly small (less than MIN_USEFUL_SECTION chars); callers
+// should fall back to a head-of-document slice in that case.
+const MIN_USEFUL_SECTION = 5000
+
 function extractFilingSections(text) {
   const item1Re = /\bitem\s*1\.?\s+business\b/gi
   const item3Re = /\bitem\s*3\.?\s+legal\s+proceedings\b/gi
@@ -281,8 +284,11 @@ function extractFilingSections(text) {
     }
   }
 
-  if (firstItem3AfterItem1 < 0) return text.slice(lastItem1)
-  return text.slice(lastItem1, firstItem3AfterItem1)
+  const slice = firstItem3AfterItem1 < 0
+    ? text.slice(lastItem1)
+    : text.slice(lastItem1, firstItem3AfterItem1)
+  if (slice.length < MIN_USEFUL_SECTION) return null
+  return slice
 }
 
 function htmlToText(html) {
@@ -479,14 +485,48 @@ function normalizeCompany(s) {
     .trim()
 }
 
+function escapeRegex(s) {
+  return String(s).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+}
+
+// Word-boundary substring match. Critical for avoiding cross-company
+// false positives like "Core Scientific" -> "CoreWeave" (the literal
+// substring "core" appears in "coreweave" but is not a word boundary
+// match). Tokens are matched in order.
+function tokensMatchWordBoundary(haystack, tokens) {
+  if (!tokens.length) return false
+  let cursor = 0
+  for (const tok of tokens) {
+    const re = new RegExp(`\\b${escapeRegex(tok)}\\b`, 'i')
+    const slice = haystack.slice(cursor)
+    const m = slice.match(re)
+    if (!m) return false
+    cursor += m.index + tok.length
+  }
+  return true
+}
+
 function companiesMatch(target, candidate) {
   const a = normalizeCompany(target)
   const b = normalizeCompany(candidate)
   if (!a || !b) return false
   if (a === b) return true
-  if (a.length >= 3 && b.includes(a)) return true
-  if (b.length >= 3 && a.includes(b)) return true
+  const aTokens = a.split(' ').filter(Boolean)
+  const bTokens = b.split(' ').filter(Boolean)
+  if (tokensMatchWordBoundary(b, aTokens)) return true
+  if (tokensMatchWordBoundary(a, bTokens)) return true
   return false
+}
+
+// Fallback used when the candidate's Company field is unreliable
+// (e.g. the garbage "Companies" string from a bad CSV import). Only
+// accept a candidate if the target company's full normalized name
+// appears as a contiguous token sequence inside the facility name.
+function nameContainsCompany(facilityName, targetCompany) {
+  if (!facilityName) return false
+  const name = normalizeCompany(facilityName)
+  const tokens = normalizeCompany(targetCompany).split(' ').filter(Boolean)
+  return tokensMatchWordBoundary(name, tokens)
 }
 
 function getStringField(fields, fieldId) {
@@ -505,13 +545,13 @@ function buildFacilityIndex(recordsByTable, targetCompany) {
     for (const rec of records) {
       const f = rec.fields || {}
       const company = getStringField(f, F.Company)
-      // Some pending records have garbage company strings ("Companies"
-      // is a known CSV-header import bug). Accept those when the
-      // facility name contains the target company, since name-based
-      // matching plus city/state will still gate writes correctly.
       const name = getStringField(f, F.Name)
-      const nameMatches = name && normalizeCompany(name).includes(normalizeCompany(targetCompany).split(' ')[0])
-      if (!companiesMatch(targetCompany, company) && !nameMatches) continue
+      // Two ways to qualify as a candidate:
+      // 1. Company field word-boundary matches the target.
+      // 2. Company field is unreliable (e.g. garbage "Companies"
+      //    string from a bad CSV import) AND the facility name
+      //    contains the target company as a contiguous token run.
+      if (!companiesMatch(targetCompany, company) && !nameContainsCompany(name, targetCompany)) continue
       out.push({
         id: rec.id,
         table: tableSpec,
@@ -526,6 +566,33 @@ function buildFacilityIndex(recordsByTable, targetCompany) {
     }
   }
   return out
+}
+
+// When multiple SEC extractions match the same existing record (e.g.
+// a 10-K reports both contracted and operating capacity for the same
+// facility), prefer the value with the most operationally-meaningful
+// provenance. Operating numbers reflect what is actually running and
+// affecting the community today, so they take priority.
+const CAPACITY_RANK = {
+  operating: 4,
+  nameplate: 3,
+  interconnection: 2,
+  contracted: 1,
+  unknown: 0,
+}
+
+function capacityRank(type) {
+  const key = String(type || '').toLowerCase()
+  return Object.prototype.hasOwnProperty.call(CAPACITY_RANK, key) ? CAPACITY_RANK[key] : 0
+}
+
+function preferExtraction(a, b) {
+  const ra = capacityRank(a.ex.capacity_type)
+  const rb = capacityRank(b.ex.capacity_type)
+  if (ra !== rb) return ra > rb ? a : b
+  if (a.score !== b.score) return a.score > b.score ? a : b
+  if (a.mw !== b.mw) return a.mw > b.mw ? a : b
+  return a
 }
 
 function findBestFacilityMatch(extraction, facilityIndex) {
@@ -595,8 +662,13 @@ async function processTarget(target, tickerMap, recordsByTable) {
 
   const fullText = htmlToText(html)
   const sectionText = extractFilingSections(fullText)
-  const text = sectionText || fullText
-  console.log(`[sec] stripped to ${fullText.length} chars, section-extracted to ${sectionText ? sectionText.length : fullText.length} chars`)
+  // When section extraction fails or returns too little text, send
+  // the first FILING_CHAR_LIMIT chars of the full document instead.
+  // Better to spend a little extra token budget than to send Claude
+  // an empty payload and get nothing back.
+  const text = sectionText || fullText.slice(0, FILING_CHAR_LIMIT)
+  const usingFallback = !sectionText
+  console.log(`[sec] stripped to ${fullText.length} chars, section-extracted to ${text.length} chars${usingFallback ? ' (fallback: head slice)' : ''}`)
 
   const prompt = buildExtractionPrompt(target.company, text)
   let raw
@@ -619,6 +691,10 @@ async function processTarget(target, tickerMap, recordsByTable) {
   }, {})
   console.log(`[sec] ${facIndex.length} candidate rows for ${target.company} (${JSON.stringify(facByTable)})`)
 
+  // Pass 1: verify and match. Defer writes until all extractions are
+  // collected so per-record duplicate matches can be resolved
+  // deterministically rather than letting last-write-wins decide.
+  const verifiedMatches = []
   for (const ex of extractions) {
     const mw = Number(ex.power_mw)
     if (!Number.isFinite(mw) || mw <= 0) {
@@ -638,7 +714,30 @@ async function processTarget(target, tickerMap, recordsByTable) {
       unmatched++
       continue
     }
+    verifiedMatches.push({ ex, mw, verdict, match, score })
+  }
 
+  // Pass 2: resolve duplicate matches per record. Operating capacity
+  // wins over nameplate/interconnection/contracted/unknown.
+  const bestByRecord = new Map()
+  for (const vm of verifiedMatches) {
+    const existing = bestByRecord.get(vm.match.id)
+    if (!existing) {
+      bestByRecord.set(vm.match.id, vm)
+      continue
+    }
+    const winner = preferExtraction(existing, vm)
+    if (winner === vm && winner !== existing) {
+      console.log(`[sec] DEDUP keeping ${vm.ex.capacity_type}=${vm.mw} over ${existing.ex.capacity_type}=${existing.mw} for "${vm.match.name}"`)
+      bestByRecord.set(vm.match.id, vm)
+    } else {
+      console.log(`[sec] DEDUP discarding ${vm.ex.capacity_type}=${vm.mw} for "${vm.match.name}" (kept ${existing.ex.capacity_type}=${existing.mw})`)
+    }
+  }
+
+  // Pass 3: write
+  for (const vm of bestByRecord.values()) {
+    const { ex, mw, verdict, match, score } = vm
     const F = match.table.fields
     const patchFields = {
       [F.Power_MW]:               mw,
@@ -646,7 +745,6 @@ async function processTarget(target, tickerMap, recordsByTable) {
       [F.Power_MW_Type]:          'SEC Filing',
       [F.Power_MW_Last_Verified]: TODAY,
     }
-
     const prev = match.power_mw == null ? 'null' : match.power_mw
     const action = DRY_RUN ? 'WOULD WRITE' : 'WROTE'
     console.log(`[sec] ${action} [${match.table.name}] "${match.name}" (${ex.city}, ${ex.state}) Power_MW ${prev} -> ${mw} [${ex.capacity_type}] score ${score.toFixed(2)} verify=${verdict.method}`)
