@@ -6,6 +6,7 @@ const FACILITIES_TBL = 'tblvojPdS6kwMxsex'
 const F = {
   Name:             'fldirgBJAsorDO4Hm',
   Power_MW:         'fldfHsnHRCAo4jc8G',
+  Power_MW_Type:    'fldcdZxN13kSjApm6',
   Cooling:          'fldz6gsZg0mFRcfqT',
   State_Region:     'fld1euUumpEZCUtZw',
   Country:          'fldIwxc1fkf0xuQCC',
@@ -18,6 +19,17 @@ const F = {
   EMF_100m:         'fldQKDZ4VgwpRUfWa',
   Data_Source_Type: 'fld8PCtqL0Mo89BTR',
 }
+
+// Risk_Level is only persisted when Power_MW_Type is one of these
+// high-trust provenance types. Permit Filing, Trade Publication,
+// Estimate, and missing types leave Risk_Level null so the site
+// never shows a risk classification derived from a weak source.
+const TRUSTED_POWER_TYPES = new Set([
+  'Utility Interconnection',
+  'SEC Filing',
+  'State Utility Commission',
+  'Operator Disclosure',
+])
 
 const BATCH_SIZE   = 50
 const PATCH_LIMIT  = 10
@@ -111,6 +123,7 @@ async function main() {
     const stateRegion = getStringField(fields, F.State_Region)
     const country = getStringField(fields, F.Country)
     const companyName = getCompanyName(fields)
+    const powerType = getStringField(fields, F.Power_MW_Type)
 
     if (!powerMW && !companyName) {
       console.log(`[skip] ${name}: no Power_MW and no Company reference`)
@@ -119,6 +132,8 @@ async function main() {
     }
 
     const model = modelFacility(powerMW, cooling, stateRegion, country, companyName)
+    const trustedSource = TRUSTED_POWER_TYPES.has(powerType)
+    const riskOut = trustedSource ? model.Risk_Level : null
 
     const oldCO2   = fields[F.CO2_Tons_Year] ?? 'null'
     const oldWater = fields[F.Water_Gal_Day] ?? 'null'
@@ -129,7 +144,8 @@ async function main() {
       `[${name}]: CO2 ${oldCO2}->${model.CO2_Tons_Year}, ` +
       `Water ${oldWater}->${model.Water_Gal_Day}, ` +
       `Noise ${oldNoise}->${model.Noise_DB}, ` +
-      `Risk ${oldRisk}->${model.Risk_Level}`
+      `Risk ${oldRisk}->${riskOut ?? 'null'} ` +
+      `(Power_MW_Type=${powerType || 'none'}${trustedSource ? '' : ', untrusted'})`
     )
 
     updates.push({
@@ -138,7 +154,7 @@ async function main() {
         [F.Noise_DB]:         model.Noise_DB,
         [F.CO2_Tons_Year]:    model.CO2_Tons_Year,
         [F.Water_Gal_Day]:    model.Water_Gal_Day,
-        [F.Risk_Level]:       model.Risk_Level,
+        [F.Risk_Level]:       riskOut,
         [F.Data_Source_Type]: model.Data_Source_Type,
         [F.EMF_Fence_High]:   null,
         [F.EMF_100m]:         null,
